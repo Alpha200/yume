@@ -142,16 +142,68 @@ Yume automatically manages memories with the following features:
 The FastAPI interface provides several endpoints for monitoring and control:
 
 - `GET /` - Health check and system status
+- `GET /api/memories` - Retrieve all stored memories with formatted data
+- `GET /api/actions` - Get recent AI actions and responses
+- `GET /api/scheduled-tasks` - View next scheduled tasks and reminders
+- `GET /api/logs` - Access system logs with filtering capabilities
+- `POST /api/geofence-event` - Trigger geofence events (enter/leave locations)
 - `POST /webhook` - Webhook endpoint for external integrations
-- Additional endpoints for memory and scheduling management
+
+#### Geofence Event API
+
+Trigger location-based AI responses by posting to the geofence endpoint:
+
+```bash
+# Example: User enters home location
+curl -X POST http://localhost:8200/api/geofence-event \
+  -H "Content-Type: application/json" \
+  -d '{
+    "geofence_name": "Home", 
+    "event_type": "enter"
+  }'
+
+# Example: User leaves work location  
+curl -X POST http://localhost:8200/api/geofence-event \
+  -H "Content-Type: application/json" \
+  -d '{
+    "geofence_name": "Office", 
+    "event_type": "leave"
+  }'
+```
+
+The API validates that `event_type` is either "enter" or "leave" and returns a response indicating success or failure along with any AI-generated message.
+
+### Vue.js Dashboard
+
+Access the web dashboard at `http://localhost:8200` to monitor:
+
+- **Memory Store**: View all stored memories with type categorization and timestamps
+- **AI Actions**: Recent actions taken by the AI including messages and events
+- **Scheduled Tasks**: Next scheduled memory reminders and system tasks
+- **System Logs**: Real-time system logs with level filtering
+
+The dashboard automatically refreshes and provides an intuitive interface for understanding Yume's current state and activity.
 
 ### Docker Deployment
 
-```dockerfile
-# Use the provided Dockerfile for containerized deployment
+```bash
+# Build the image
 docker build -t yume .
+
+# Run with automatic volume for data persistence
 docker run -d --name yume -p 8200:8200 --env-file .env yume
+
+# Or specify a named volume for easier management
+docker run -d --name yume -p 8200:8200 -v yume-data:/app/data --env-file .env yume
+
+# View logs
+docker logs -f yume
+
+# Backup memory data
+docker run --rm -v yume-data:/data -v $(pwd):/backup alpine tar czf /backup/yume-data-backup.tar.gz -C /data .
 ```
+
+**Important**: The `/app/data` directory is configured as a Docker volume to persist memory data across container restarts. Without a named volume or bind mount, data will be lost when the container is removed.
 
 ## Configuration
 

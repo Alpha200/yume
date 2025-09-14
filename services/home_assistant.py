@@ -16,7 +16,6 @@ HA_TOKEN = os.getenv("HA_TOKEN")
 HA_DEVICE_TRACKER_ENTITY = os.getenv("HA_DEVICE_TRACKER_ENTITY", "device_tracker.phone")
 HA_WEATHER_ENTITY = os.getenv("HA_WEATHER_ENTITY", "weather.forecast_home")
 HA_CALENDAR_ENTITY = os.getenv("HA_CALENDAR_ENTITY", "calendar.personal")
-HA_TIMEZONE = os.getenv("HA_TIMEZONE", "Europe/Berlin")
 
 
 async def ha_request(method: str, endpoint: str, payload: dict = None) -> dict:

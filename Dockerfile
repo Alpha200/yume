@@ -48,6 +48,10 @@ COPY . .
 # Copy built frontend from the first stage
 COPY --from=frontend-builder /app/ui/dist ./ui/dist
 
+# Create data directory and set up volume for persistence
+RUN mkdir -p /app/data
+VOLUME ["/app/data"]
+
 # Expose port
 EXPOSE 8200
 
