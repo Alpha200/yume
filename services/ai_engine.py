@@ -93,14 +93,7 @@ async def _handle_memory_update_background(memory_update_task: str):
             )
         )
 
-        next_run = await determine_next_run_by_memory()
-        logger.log(f"Next memory reminder determined at {next_run.next_run_time} because: {next_run.reason}")
-
-        # Actually schedule the next run with the AI scheduler
-        from services.ai_scheduler import ai_scheduler
-        ai_scheduler.schedule_next_run(next_run)
-        logger.log(f"Next memory reminder scheduled successfully")
-
+        await determine_next_run_by_memory()
     except Exception as e:
         logger.log(f"Error in background memory update: {e}")
 
