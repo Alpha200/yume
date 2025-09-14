@@ -94,7 +94,13 @@ async def _handle_memory_update_background(memory_update_task: str):
         )
 
         next_run = await determine_next_run_by_memory()
-        logger.log(f"Next memory reminder scheduled at {next_run.next_run_time} because: {next_run.reason}")
+        logger.log(f"Next memory reminder determined at {next_run.next_run_time} because: {next_run.reason}")
+
+        # Actually schedule the next run with the AI scheduler
+        from services.ai_scheduler import ai_scheduler
+        ai_scheduler.schedule_next_run(next_run)
+        logger.log(f"Next memory reminder scheduled successfully")
+
     except Exception as e:
         logger.log(f"Error in background memory update: {e}")
 
@@ -135,6 +141,14 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
 
         if answer is not None and answer != "":
             logger.log(f"AI engine sending message to user: {answer}")
+
+            # Send message via Matrix bot for all event types
+            try:
+                from services.matrix_bot import matrix_chat_bot
+                await matrix_chat_bot.send_message(answer)
+            except Exception as e:
+                logger.log(f"Error sending message via Matrix: {e}")
+
             last_taken_actions.append(
                 ActionRecord(
                     action=f"Sent message to user: {answer}",

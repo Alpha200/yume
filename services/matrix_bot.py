@@ -64,27 +64,13 @@ class MatrixChatBot:
                 return
 
             try:
-                # Process with AI engine
                 from services.ai_engine import handle_chat_message
-                ai_response = await handle_chat_message(
-                    message=event.body,
-                )
+                await handle_chat_message(message=event.body)
 
             except Exception as e:
                 logger.log(f"Error processing message: {e}")
                 return  # Do nothing on error
 
-            # Send response
-            await self.client.room_send(
-                room_id=room.room_id,
-                message_type="m.room.message",
-                content={
-                    "msgtype": "m.text",
-                    "body": ai_response
-                }
-            )
-
-            logger.log(f"Sent response to {room.room_id}")
 
         except Exception as e:
             logger.log(f"Unhandled error in _handle_message: {e}")
@@ -100,6 +86,31 @@ class MatrixChatBot:
                 )
             except Exception as send_error:
                 logger.log(f"Failed to send error message: {send_error}")
+
+    async def send_message(self, message: str):
+        """Send a message to the configured Matrix room"""
+        try:
+            await self.client.room_send(
+                room_id=self.room_id,
+                message_type="m.room.message",
+                content={
+                    "msgtype": "m.text",
+                    "body": message
+                }
+            )
+
+            # Add our own message to conversation history
+            self.conversation_history.append(ConversationEntry(
+                sender=self.client.user_id,
+                message=message,
+                timestamp=datetime.now().isoformat()
+            ))
+
+            logger.log(f"Sent message to {self.room_id}: {message}")
+
+        except Exception as e:
+            logger.log(f"Failed to send message: {e}")
+            raise
 
     def get_conversation_context(self, max_messages: int = 10, include_timestamps: bool = False) -> str | None:
         """Build conversation context from recent messages
