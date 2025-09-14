@@ -6,6 +6,8 @@ import uuid
 from typing import Dict, Literal, Optional, List, Union
 from abc import ABC
 
+from components.timezone_utils import now_user_tz, to_user_tz, from_isoformat_user_tz
+
 @dataclass
 class ReminderOptions:
     """Options for reminder memory entries"""
@@ -106,13 +108,13 @@ class MemoryManager:
             memories_data = data.get("memories", {})
 
             for memory_id, entry_data in memories_data.items():
-                created_at = datetime.datetime.now(datetime.UTC)
+                created_at = now_user_tz()
                 if entry_data.get("created_at"):
-                    created_at = datetime.datetime.fromisoformat(entry_data["created_at"])
+                    created_at = from_isoformat_user_tz(entry_data["created_at"])
 
-                modified_at = datetime.datetime.now(datetime.UTC)
+                modified_at = now_user_tz()
                 if entry_data.get("modified_at"):
-                    modified_at = datetime.datetime.fromisoformat(entry_data["modified_at"])
+                    modified_at = from_isoformat_user_tz(entry_data["modified_at"])
 
                 # Handle legacy memory types - convert old types to new ones
                 memory_type = entry_data.get("type", "user_preference")
@@ -132,9 +134,9 @@ class MemoryManager:
                         modified_at=modified_at
                     )
                 elif memory_type == "user_observation":
-                    observation_date = datetime.datetime.now(datetime.UTC)
+                    observation_date = now_user_tz()
                     if entry_data.get("observation_date"):
-                        observation_date = datetime.datetime.fromisoformat(entry_data["observation_date"])
+                        observation_date = from_isoformat_user_tz(entry_data["observation_date"])
 
                     entry = UserObservationEntry(
                         id=memory_id,
@@ -149,7 +151,7 @@ class MemoryManager:
                     if entry_data.get("reminder_options"):
                         reminder_data = entry_data["reminder_options"]
                         if reminder_data.get("datetime_value"):
-                            reminder_options.datetime_value = datetime.datetime.fromisoformat(reminder_data["datetime_value"])
+                            reminder_options.datetime_value = from_isoformat_user_tz(reminder_data["datetime_value"])
                         reminder_options.time_value = reminder_data.get("time_value")
                         reminder_options.days_of_week = reminder_data.get("days_of_week")
 
@@ -184,16 +186,16 @@ class MemoryManager:
         """Create or update a user preference entry"""
         if memory_id is None:
             memory_id = str(uuid.uuid4())
-            created_at = datetime.datetime.now(datetime.UTC)
+            created_at = now_user_tz()
         else:
-            created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else datetime.datetime.now(datetime.UTC)
+            created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else now_user_tz()
 
         entry = UserPreferenceEntry(
             id=memory_id,
             content=content,
             place=place,
             created_at=created_at,
-            modified_at=datetime.datetime.now(datetime.UTC)
+            modified_at=now_user_tz()
         )
 
         self.memory_entries[memory_id] = entry
@@ -210,16 +212,19 @@ class MemoryManager:
         """Create or update a user observation entry"""
         if memory_id is None:
             memory_id = str(uuid.uuid4())
-            created_at = datetime.datetime.now(datetime.UTC)
+            created_at = now_user_tz()
         else:
-            created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else datetime.datetime.now(datetime.UTC)
+            created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else now_user_tz()
+
+        # Ensure observation_date is in user timezone
+        observation_date = to_user_tz(observation_date)
 
         entry = UserObservationEntry(
             id=memory_id,
             content=content,
             place=place,
             created_at=created_at,
-            modified_at=datetime.datetime.now(datetime.UTC),
+            modified_at=now_user_tz(),
             observation_date=observation_date
         )
 
@@ -237,16 +242,20 @@ class MemoryManager:
         """Create or update a reminder entry"""
         if memory_id is None:
             memory_id = str(uuid.uuid4())
-            created_at = datetime.datetime.now(datetime.UTC)
+            created_at = now_user_tz()
         else:
-            created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else datetime.datetime.now(datetime.UTC)
+            created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else now_user_tz()
+
+        # Ensure reminder datetime is in user timezone if present
+        if reminder_options.datetime_value:
+            reminder_options.datetime_value = to_user_tz(reminder_options.datetime_value)
 
         entry = ReminderEntry(
             id=memory_id,
             content=content,
             place=place,
             created_at=created_at,
-            modified_at=datetime.datetime.now(datetime.UTC),
+            modified_at=now_user_tz(),
             reminder_options=reminder_options
         )
 

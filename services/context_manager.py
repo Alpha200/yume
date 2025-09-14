@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Dict, Union
+from typing import List
 
 from components.calendar import CalendarEvent
 from components.conversation import ConversationEntry
 from components.logging_manager import logging_manager
+from components.timezone_utils import now_user_tz
 from components.weather import WeatherForecast
 
 logger = logging_manager
@@ -72,9 +73,9 @@ def build_context_text(context: AIContext, include_chat_history: bool = True, ma
     """Build a text representation of the AIContext for use in prompts or other text-based systems"""
 
     # Build datetime context
-    now = datetime.now()
+    now = now_user_tz()
     text_parts = [
-        f"Current date and time: {now.strftime('%A, %B %d, %Y at %H:%M')}",
+        f"Current date and time: {now.strftime('%A, %B %d, %Y at %H:%M')} ({now.tzinfo})",
         ""
     ]
 

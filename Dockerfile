@@ -1,4 +1,19 @@
-# Use Python 3.13 slim image
+# Multi-stage build for Vue.js frontend and Python backend
+
+# Stage 1: Build Vue.js frontend
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /app/ui
+
+# Copy package files
+COPY ui/package*.json ./
+RUN npm ci
+
+# Copy source code and build
+COPY ui/ ./
+RUN npm run build
+
+# Stage 2: Python backend with built frontend
 FROM python:3.13-slim
 
 # Set working directory
@@ -29,6 +44,9 @@ RUN poetry install --only main --no-interaction --no-ansi
 
 # Copy application code
 COPY . .
+
+# Copy built frontend from the first stage
+COPY --from=frontend-builder /app/ui/dist ./ui
 
 # Expose port
 EXPOSE 8200

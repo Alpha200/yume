@@ -3,10 +3,10 @@ import datetime
 from typing import List
 
 import aiohttp
-import pytz
 
 from components.calendar import CalendarEvent
 from components.logging_manager import logging_manager
+from components.timezone_utils import now_user_tz
 from components.weather import WeatherForecast
 
 logger = logging_manager
@@ -132,8 +132,7 @@ async def get_calendar_events_48h() -> List[CalendarEvent]:
     entity_id = HA_CALENDAR_ENTITY
     logger.log(f"Fetching 48h calendar events for entity: {entity_id}")
 
-    timezone = pytz.timezone(HA_TIMEZONE)
-    now = datetime.datetime.now(timezone)
+    now = now_user_tz()
     end_time = now + datetime.timedelta(hours=48)
 
     start_time_iso = now.isoformat()

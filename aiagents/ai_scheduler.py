@@ -2,16 +2,13 @@ import datetime
 
 from agents import Agent, ModelSettings, Runner, RunConfig
 from openai.types import Reasoning
-from pydantic import BaseModel
 
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
+from components.timezone_utils import now_user_tz, to_user_tz
+from services.ai_scheduler import ai_scheduler, NextRun
 from services.memory_manager import memory_manager
 
-
-class NextRun(BaseModel):
-    next_run_time: datetime.datetime
-    reason: str
 
 logger = logging_manager
 
@@ -44,21 +41,27 @@ async def determine_next_run_by_memory():
     memories = memory_manager.get_all_memories()
 
     if not memories:
-        return _create_fallback_schedule("No memories found - scheduling hourly check", hours=1)
+        ai_scheduler.schedule_next_run(
+            _create_fallback_schedule("No memories found - scheduling hourly check", hours=1)
+        )
 
     # Format memories and run AI analysis
     formatted_input = _format_memories_for_analysis(memories)
 
     try:
         next_run_result = await _run_ai_analysis(formatted_input)
-        return _validate_and_adjust_time(next_run_result)
+        ai_scheduler.schedule_next_run(
+            _validate_and_adjust_time(next_run_result)
+        )
     except Exception as e:
         logger.log(f"Error during AI analysis: {e}")
-        return _create_fallback_schedule("Agent error occurred - scheduling fallback reminder", minutes=15)
+        ai_scheduler.schedule_next_run(
+            _create_fallback_schedule("Agent error occurred - scheduling fallback reminder", hours=1)
+        )
 
 def _create_fallback_schedule(reason: str, hours: int = 0, minutes: int = 0) -> NextRun:
     """Create a fallback schedule with the specified time offset"""
-    next_run = datetime.datetime.now() + datetime.timedelta(hours=hours, minutes=minutes)
+    next_run = now_user_tz() + datetime.timedelta(hours=hours, minutes=minutes)
     return NextRun(next_run_time=next_run, reason=reason)
 
 def _format_memories_for_analysis(memories) -> str:
@@ -74,7 +77,7 @@ def _format_memories_for_analysis(memories) -> str:
         memory_text += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
         memory_text += "-" * 50 + "\n"
 
-    current_time = datetime.datetime.now()
+    current_time = now_user_tz()
     context_text = f"\nCurrent date and time: {current_time.strftime('%A, %B %d, %Y at %H:%M')}\n\n"
 
     return context_text + memory_text
@@ -87,12 +90,18 @@ async def _run_ai_analysis(formatted_input: str) -> NextRun:
 
 def _validate_and_adjust_time(next_run_result: NextRun) -> NextRun:
     """Validate that the next run time is at least 15 minutes in the future"""
-    min_future_time = datetime.datetime.now() + datetime.timedelta(minutes=15)
+    min_future_time = now_user_tz() + datetime.timedelta(minutes=15)
 
-    if next_run_result.next_run_time < min_future_time:
+    # Ensure the next_run_time is in user timezone
+    next_run_time = to_user_tz(next_run_result.next_run_time)
+
+    if next_run_time < min_future_time:
         return NextRun(
             next_run_time=min_future_time,
             reason=f"Adjusted from AI suggestion: {next_run_result.reason} (minimum 15min delay applied)"
         )
 
-    return next_run_result
+    return NextRun(
+        next_run_time=next_run_time,
+        reason=next_run_result.reason
+    )

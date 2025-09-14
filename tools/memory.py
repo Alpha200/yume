@@ -4,6 +4,7 @@ from services.memory_manager import (
 )
 from typing import Optional, List
 import datetime
+from components.timezone_utils import from_isoformat_user_tz, to_user_tz, now_user_tz
 
 @function_tool
 def get_memory() -> str:
@@ -27,12 +28,12 @@ def upsert_user_observation(content: str, observation_date: str, memory_id: Opti
     try:
         # Try to parse with time first, then date only
         try:
-            obs_date = datetime.datetime.fromisoformat(observation_date)
+            obs_date = from_isoformat_user_tz(observation_date)
         except ValueError:
             # If that fails, try date only and set time to current time
             date_part = datetime.datetime.strptime(observation_date, '%Y-%m-%d').date()
-            obs_date = datetime.datetime.combine(date_part, datetime.datetime.now().time())
-            obs_date = obs_date.replace(tzinfo=datetime.timezone.utc)
+            obs_date = datetime.datetime.combine(date_part, now_user_tz().time())
+            obs_date = to_user_tz(obs_date)
 
         result_id = memory_manager.create_user_observation(
             content=content,
@@ -52,7 +53,7 @@ def upsert_reminder(content: str, reminder_datetime: Optional[str] = None, remin
         reminder_options = ReminderOptions()
 
         if reminder_datetime:
-            reminder_options.datetime_value = datetime.datetime.fromisoformat(reminder_datetime)
+            reminder_options.datetime_value = from_isoformat_user_tz(reminder_datetime)
 
         if reminder_time:
             reminder_options.time_value = reminder_time

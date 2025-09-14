@@ -1,15 +1,20 @@
 # Yume 🌙
 
+<div align="center">
+  <img src="assets/yume.jpg" alt="Yume AI Assistant" width="400" />
+</div>
+
 **Yume** (夢 - "dream" in Japanese) is an intelligent AI assistant that integrates with Matrix chat and Home Assistant to provide contextual responses, memory management, and automated scheduling capabilities.
 
 ## Features
 
 - 🤖 **Matrix Chat Integration**: Responds to messages in Matrix rooms with AI-powered responses
 - 🏠 **Home Assistant Integration**: Fetches weather forecasts, calendar events, and user location data
-- 🧠 **Memory Management**: Persistent memory system with automatic cleanup and reminders
-- ⏰ **Smart Scheduling**: Automated memory reminders and maintenance tasks
+- 🧠 **Advanced Memory System**: Persistent memory with user preferences, observations, and reminders
+- ⏰ **Smart Scheduling**: Automated memory reminders and background task processing
 - 🌐 **Context-Aware**: Combines conversation history, weather, calendar, and location data for intelligent responses
 - 📊 **FastAPI Web Interface**: RESTful API for monitoring and control
+- 🚀 **Optimized Performance**: Background processing for faster response times
 
 ## Architecture
 
@@ -17,23 +22,42 @@ Yume is built with a modular architecture consisting of several key components:
 
 ### Core Services
 
-- **AI Engine** (`services/ai_engine.py`): Central intelligence using OpenAI Agents framework
+- **AI Engine** (`services/ai_engine.py`): Unified AI agent that handles both decision-making and response generation using the OpenAI Agents framework
 - **Matrix Bot** (`services/matrix_bot.py`): Matrix protocol client for chat integration
 - **AI Scheduler** (`services/ai_scheduler.py`): Background task scheduling with APScheduler
 - **Context Manager** (`services/context_manager.py`): Aggregates data from multiple sources into unified context
-- **Memory Manager** (`services/memory_manager.py`): Persistent memory storage and retrieval
+- **Memory Manager** (`services/memory_manager.py`): Persistent memory storage with support for user preferences, observations, and reminders
 - **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API
 
 ### AI Agents
 
-- **Answer Machine** (`aiagents/answer_machine.py`): Generates contextual responses
-- **Memory Manager** (`aiagents/memory_manager.py`): Handles memory operations and cleanup
+- **Memory Manager** (`aiagents/memory_manager.py`): Handles memory operations and intelligent cleanup
+- **AI Scheduler** (`aiagents/ai_scheduler.py`): Determines optimal timing for memory-based reminders
+
+### Memory System
+
+The memory system supports three types of entries:
+- **User Preferences**: Settings and preferences (e.g., "User prefers morning reminders")
+- **User Observations**: Observations with dates (e.g., "User's birthday is 2023-12-15")
+- **Reminders**: One-time or recurring reminders with scheduling options
+
+### Tools Integration
+
+- **Memory Tools** (`tools/memory.py`): Function tools for memory operations including search and CRUD operations
+- **Home Assistant Tools** (`tools/home_assistant.py`): Integration tools for smart home control
 
 ### Components
 
 - **Conversation** (`components/conversation.py`): Message history data structures
 - **Calendar & Weather** (`components/calendar.py`, `components/weather.py`): Data models for external services
 - **Logging Manager** (`components/logging_manager.py`): Centralized logging system
+- **Agent Hooks** (`components/agent_hooks.py`): Custom hooks for AI agent behavior
+
+## Performance Optimizations
+
+- **Background Processing**: Memory updates and scheduling run asynchronously for faster response times
+- **Unified AI Agent**: Single agent handles both decision-making and response generation, reducing API calls by 50%
+- **Efficient Memory Access**: Formatted memory retrieval with consistent formatting across the application
 
 ## Installation
 
@@ -79,6 +103,9 @@ Yume is built with a modular architecture consisting of several key components:
 
    # OpenAI Configuration
    OPENAI_API_KEY=your_openai_api_key
+   
+   # User Configuration
+   USER_LANGUAGE=en  # Language for AI responses
    ```
 
 ## Usage
@@ -97,67 +124,48 @@ The application will start:
 - FastAPI server on `http://0.0.0.0:8200`
 - Matrix bot connecting to your configured room
 - AI scheduler with automatic memory management
+- Background processing for optimal performance
+
+### Memory Management
+
+Yume automatically manages memories with the following features:
+
+- **Automatic Categorization**: Messages are analyzed and relevant information is stored as preferences, observations, or reminders
+- **Smart Reminders**: The system determines optimal timing for reminders based on content and user behavior
+- **Background Processing**: Memory updates happen asynchronously to maintain fast response times
+- **Formatted Retrieval**: Consistent memory formatting across all system components
+
+### API Endpoints
+
+The FastAPI interface provides several endpoints for monitoring and control:
+
+- `GET /` - Health check and system status
+- `POST /webhook` - Webhook endpoint for external integrations
+- Additional endpoints for memory and scheduling management
 
 ### Docker Deployment
 
-```bash
-# Build the image
+```dockerfile
+# Use the provided Dockerfile for containerized deployment
 docker build -t yume .
-
-# Run with environment variables
-docker run -d --name yume \
-  --env-file .env \
-  -p 8200:8200 \
-  yume
+docker run -d --name yume -p 8200:8200 --env-file .env yume
 ```
-
-## Key Features Explained
-
-### Context-Aware Responses
-
-Yume builds comprehensive context from multiple sources:
-- **Recent conversation history** from Matrix chat
-- **Weather forecasts** for the next 24 hours
-- **Calendar events** for the next 48 hours  
-- **User location** from device tracker
-- **Current date and time**
-
-This context is automatically included in AI responses to provide more relevant and helpful answers.
-
-### Memory System
-
-- **Automatic Memory Reminders**: Scheduled 15 minutes after startup and can be rescheduled based on AI decisions
-- **Memory Janitor**: Runs every 12 hours to clean up old or irrelevant memories
-- **Persistent Storage**: Memories are stored and retrieved across sessions
-
-### Smart Scheduling
-
-The AI scheduler manages:
-- One-time memory reminder tasks
-- Recurring memory maintenance (every 12 hours)
-- Custom scheduled events based on AI decisions
-
-## API Endpoints
-
-The FastAPI application provides a web interface at `http://localhost:8200` with automatic API documentation available at `/docs`.
 
 ## Configuration
 
-### Matrix Setup
+### Memory System
 
-1. Create a Matrix account for your bot
-2. Join the bot to your desired room
-3. Get the room ID (usually starts with `!`)
-4. Configure the environment variables
+The memory system can be configured through the following parameters:
 
-### Home Assistant Setup
+- **Data Directory**: Default `./data` - stores `memories.json`
+- **Memory Types**: Support for user_preference, user_observation, and reminder entries
+- **Automatic Cleanup**: Configurable memory retention and cleanup policies
 
-1. Create a Long-Lived Access Token in Home Assistant
-2. Configure entity IDs for:
-   - Device tracker (for location)
-   - Weather service
-   - Calendar integration
-3. Set your timezone for proper date/time handling
+### AI Behavior
+
+- **Response Style**: Conversational, natural language with emoji support
+- **Language Support**: Configurable user language via `USER_LANGUAGE` environment variable
+- **Context Integration**: Automatic inclusion of weather, calendar, location, and memory data
 
 ## Development
 
@@ -166,63 +174,28 @@ The FastAPI application provides a web interface at `http://localhost:8200` with
 ```
 yume/
 ├── main.py                 # Application entry point
-├── services/               # Core services
-├── aiagents/              # AI agent implementations  
-├── components/            # Reusable components
-├── tools/                 # Utility tools
-└── data/                  # Data storage
+├── services/              # Core business logic
+├── aiagents/             # AI-specific modules
+├── components/           # Shared components and data models
+├── tools/               # Function tools for AI agents
+├── data/               # Persistent data storage
+└── README.md           # This file
 ```
 
-### Adding New Features
-
-1. **New AI Agents**: Add to `aiagents/` directory
-2. **External Integrations**: Add to `services/` directory
-3. **Data Models**: Add to `components/` directory
-4. **Utility Functions**: Add to `tools/` directory
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Matrix Connection Failed**
-   - Verify homeserver URL and credentials
-   - Check network connectivity
-   - Ensure bot account has proper permissions
-
-2. **Home Assistant Integration Issues**
-   - Verify HA_URL and HA_TOKEN
-   - Check entity IDs exist in your Home Assistant instance
-   - Ensure Home Assistant is accessible from Yume
-
-3. **Memory Issues**
-   - Check file permissions in data directory
-   - Verify disk space availability
-   - Review memory janitor logs
-
-### Logging
-
-Yume uses comprehensive logging. Check the console output for detailed information about:
-- Service startup and shutdown
-- Message processing
-- API calls to external services
-- Scheduled task execution
-- Error conditions
-
-## Contributing
+### Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+3. Make your changes with appropriate tests
+4. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- Built with [OpenAI Agents](https://github.com/pydantic/openai-agents) framework
-- Uses [matrix-nio](https://github.com/poljar/matrix-nio) for Matrix protocol support
-- Powered by [FastAPI](https://fastapi.tiangolo.com/) for the web interface
-- Scheduling provided by [APScheduler](https://apscheduler.readthedocs.io/)
+- Built with the OpenAI Agents framework
+- Matrix SDK for Python
+- FastAPI for web interface
+- APScheduler for background tasks

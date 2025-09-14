@@ -2,17 +2,14 @@ from collections import deque
 import datetime
 from typing import List, Dict, Any
 from dataclasses import dataclass
+from components.timezone_utils import now_user_tz
 
 
 @dataclass
 class LogEntry:
-    timestamp: datetime.datetime
     message: str
-    extra_data: Dict[str, Any] = None
-
-    def __post_init__(self):
-        if self.extra_data is None:
-            self.extra_data = {}
+    timestamp: datetime.datetime
+    level: str = "INFO"
 
 class LoggingManager:
     """
@@ -27,16 +24,23 @@ class LoggingManager:
     def _add_to_history(self, message: str, **kwargs):
         """Add a log entry to the history."""
         entry = LogEntry(
-            timestamp=datetime.datetime.now(datetime.UTC),
             message=message,
-            extra_data=kwargs
+            timestamp=now_user_tz(),
+            level="INFO",
         )
         self._log_history.append(entry)
 
-    def log(self, message: str):
-        """Log an info message."""
-        print(f"{datetime.datetime.now(datetime.UTC).isoformat(timespec="milliseconds")} - {message}")
-        self._add_to_history(message)
+    def log(self, message: str, level: str = "INFO"):
+        """Add a log entry with current timestamp"""
+        entry = LogEntry(
+            message=message,
+            level=level,
+            timestamp=now_user_tz(),
+        )
+        self._log_history.append(entry)
+
+        # Also print to console for immediate visibility
+        print(f"{now_user_tz().isoformat(timespec='milliseconds')} - {message}")
 
     def get_recent_logs(self, count: int = None) -> List[LogEntry]:
         """Get the most recent log entries."""

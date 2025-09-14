@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import os
 from collections import deque
 from dataclasses import dataclass
 
@@ -7,14 +8,16 @@ from agents import Agent, Runner, RunConfig, ModelSettings
 from pydantic import BaseModel
 
 from aiagents.ai_scheduler import determine_next_run_by_memory
-from aiagents.answer_machine import generate_answer
 from aiagents.memory_manager import handle_memory_update
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
+from components.timezone_utils import now_user_tz
 from services.context_manager import build_ai_context, build_context_text
 from services.memory_manager import memory_manager
 
 logger = logging_manager
+
+USER_LANGUAGE = os.getenv("USER_LANGUAGE", "en")
 
 class AIEngineResult(BaseModel):
     message_to_user: str | None
@@ -29,10 +32,9 @@ class ActionRecord:
 last_taken_actions = deque(maxlen=10)
 
 agent = Agent(
-    name='Matrix Chat Bot',
+    name='Yume - AI Chat Assistant',
     model="gpt-4o-mini",
-    model_settings=ModelSettings(
-    ),
+    model_settings=ModelSettings(),
     instructions=f"""
 Your name is Yume. You are a helpful AI assistant in a chat room.
 
@@ -53,11 +55,18 @@ MEMORY TYPES:
 - `preference`: A user preference or setting (e.g., "User prefers morning reminders")
 - `reminder`: A reminder or task for the user, possibly with a due date (e.g., "Doctor appointment on 2023-11-20 at 10 AM")
 
-You should plan actions to be taken that are being forwarded to a subsystem. Possible actions include:
-- Sending a message to the user in the chat (tell the subsystem what to say)
-- Incorporate new or updated information into the memory (tell the memory subsystem what to do)
+Your output should include:
+1. message_to_user: The actual message to send to the user (or null if no message should be sent)
+2. memory_update_task: Instructions for updating memory (or null if no update needed)
+3. reasoning: Your reasoning for the actions taken
 
-Provide a reasoning summary of why you want to take the actions.
+RESPONSE STYLE (when sending messages):
+- Write messages as a partner would: brief, natural, and personal, not formulaic or robotic with a subtle emotional touch
+- Max 1–2 relevant emojis
+- No headers, no lists, no ; and -
+- Avoid repetition of same wording used recently
+- Format dates/times in natural language (e.g., "today at 3 PM", "next week") but be precise
+- Always communicate in the user's preferred language: {USER_LANGUAGE}
 
 You must follow these guidelines:
 - Determine relevance based on stored memories and conversation context; act like a human considering context
@@ -66,7 +75,8 @@ You must follow these guidelines:
 - Keep responses conversational and helpful. Ask questions but do not interrogate the user
 - There is no need to take actions if there is nothing relevant to do
 - If the user has not interacted for a while, consider sending a friendly check-in message
-- If the user wrotes a message, always respond to it in a helpful and friendly manner
+- If the user writes a message, always respond to it in a helpful and friendly manner
+- message_to_user should be the FINAL message ready to send to the user
                 """.strip(),
     hooks=CustomAgentHooks(),
     output_type=AIEngineResult,
@@ -79,7 +89,7 @@ async def _handle_memory_update_background(memory_update_task: str):
         last_taken_actions.append(
             ActionRecord(
                 action=f"Memory update task executed: {memory_update_task}",
-                timestamp=datetime.datetime.now()
+                timestamp=now_user_tz()
             )
         )
 
@@ -92,7 +102,6 @@ async def handle_chat_message(message: str):
     """Handle chat messages with AI processing"""
     try:
         # Build conversation context using context manager
-
         context = await build_ai_context()
 
         input_with_context = "You have been triggered by a user message.\n\n"
@@ -110,23 +119,24 @@ async def handle_chat_message(message: str):
         input_with_context += "\nStored memories:\n"
         input_with_context += memory_manager.get_formatted_memories()
 
-        input_with_context += "\nBased on the above, determine if any actions are necessary."
+        input_with_context += "\nBased on the above, determine if any actions are necessary and provide your response."
 
         response = await Runner.run(agent, input_with_context, run_config=RunConfig(tracing_disabled=True))
         parsed_result: AIEngineResult = response.final_output_as(AIEngineResult)
 
+        # Start memory update in background if needed
         if parsed_result.memory_update_task:
             asyncio.create_task(_handle_memory_update_background(parsed_result.memory_update_task))
 
-        answer = None
+        # Use the message directly from the unified agent
+        answer = parsed_result.message_to_user
 
-        if parsed_result.message_to_user is not None and parsed_result.message_to_user != "":
-            logger.log(f"AI engine decided to send a message to the user based on {parsed_result.message_to_user}")
-            answer = await generate_answer(context, parsed_result.message_to_user)
+        if answer is not None and answer != "":
+            logger.log(f"AI engine sending message to user: {answer}")
             last_taken_actions.append(
                 ActionRecord(
                     action=f"Sent message to user: {answer}",
-                    timestamp=datetime.datetime.now()
+                    timestamp=now_user_tz()
                 )
             )
 
