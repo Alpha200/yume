@@ -7,6 +7,8 @@ from components.conversation import ConversationEntry
 from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz
 from components.weather import WeatherForecast
+from services.matrix_bot import matrix_chat_bot
+from services.home_assistant import get_weather_forecast_24h, get_current_geofence_for_user, get_calendar_events_48h
 
 logger = logging_manager
 
@@ -18,7 +20,7 @@ class AIContext:
     chat_history: List[ConversationEntry]
 
 
-async def build_ai_context(matrix_bot=None, home_assistant_module=None, max_chat_messages: int = 10) -> AIContext:
+async def build_ai_context(max_chat_messages: int = 10) -> AIContext:
     """Build AIContext by collecting data from matrix_bot and home_assistant services"""
     logger.log("Building AIContext from external services")
 
@@ -29,34 +31,31 @@ async def build_ai_context(matrix_bot=None, home_assistant_module=None, max_chat
     chat_history = []
 
     # Get weather forecast from home assistant
-    if home_assistant_module:
-        try:
-            forecast = await home_assistant_module.get_weather_forecast_24h()
-            logger.log(f"Retrieved {len(forecast)} weather forecast entries")
-        except Exception as e:
-            logger.log(f"Failed to get weather forecast: {e}")
+    try:
+        forecast = await get_weather_forecast_24h()
+        logger.log(f"Retrieved {len(forecast)} weather forecast entries")
+    except Exception as e:
+        logger.log(f"Failed to get weather forecast: {e}")
 
-        try:
-            user_location = await home_assistant_module.get_current_geofence_for_user()
-            logger.log(f"User location: {user_location}")
-        except Exception as e:
-            logger.log(f"Failed to get user location: {e}")
+    try:
+        user_location = await get_current_geofence_for_user()
+        logger.log(f"User location: {user_location}")
+    except Exception as e:
+        logger.log(f"Failed to get user location: {e}")
 
-        try:
-            calendar_entries = await home_assistant_module.get_calendar_events_48h()
-            logger.log(f"Retrieved {len(calendar_entries)} calendar events")
-        except Exception as e:
-            logger.log(f"Failed to get calendar events: {e}")
+    try:
+        calendar_entries = await get_calendar_events_48h()
+        logger.log(f"Retrieved {len(calendar_entries)} calendar events")
+    except Exception as e:
+        logger.log(f"Failed to get calendar events: {e}")
 
-    # Get chat history from matrix bot
-    if matrix_bot and hasattr(matrix_bot, 'conversation_history'):
-        try:
-            # Get recent messages from the bot's conversation history
-            recent_messages = list(matrix_bot.conversation_history)[-max_chat_messages:] if len(matrix_bot.conversation_history) > max_chat_messages else list(matrix_bot.conversation_history)
-            chat_history = recent_messages
-            logger.log(f"Retrieved {len(chat_history)} chat history entries")
-        except Exception as e:
-            logger.log(f"Failed to get chat history: {e}")
+    try:
+        # Get recent messages from the bot's conversation history
+        recent_messages = list(matrix_chat_bot.conversation_history)[-max_chat_messages:] if len(matrix_chat_bot.conversation_history) > max_chat_messages else list(matrix_bot.conversation_history)
+        chat_history = recent_messages
+        logger.log(f"Retrieved {len(chat_history)} chat history entries")
+    except Exception as e:
+        logger.log(f"Failed to get chat history: {e}")
 
     # Create and store the AIContext
     current_context = AIContext(

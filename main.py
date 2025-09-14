@@ -7,23 +7,21 @@ from fastapi.staticfiles import StaticFiles
 
 from aiagents.ai_scheduler import determine_next_run_by_memory
 from controllers.api_controller import router as api_router
+from services.matrix_bot import matrix_chat_bot
 from services.ai_scheduler import ai_scheduler
-from services.matrix_bot import MatrixChatBot
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Manage the lifespan of the FastAPI app and Matrix bot"""
-    matrix_bot = MatrixChatBot()
-
-    asyncio.create_task(matrix_bot.start())
+    asyncio.create_task(matrix_chat_bot.start())
     ai_scheduler.start()
     asyncio.create_task(determine_next_run_by_memory())
     print("Services started")
 
     yield
 
-    await matrix_bot.stop()
+    await matrix_chat_bot.stop()
     ai_scheduler.stop()
     print("Services stopped")
 

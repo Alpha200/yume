@@ -4,7 +4,6 @@ from collections import deque
 import os
 from components.conversation import ConversationEntry
 from components.logging_manager import logging_manager
-from services.ai_engine import handle_chat_message
 
 logger = logging_manager
 
@@ -66,6 +65,7 @@ class MatrixChatBot:
 
             try:
                 # Process with AI engine
+                from services.ai_engine import handle_chat_message
                 ai_response = await handle_chat_message(
                     message=event.body,
                 )
@@ -162,3 +162,5 @@ class MatrixChatBot:
 
     async def stop(self):
         await self.client.close()
+
+matrix_chat_bot = MatrixChatBot()
