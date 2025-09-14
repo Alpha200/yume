@@ -23,12 +23,13 @@ ai_scheduler_agent = Agent(
     ),
     instructions=f"""
 You are part of a system that assists the user by keeping a memory about the user and sending messages to the user at relevant times based on their memories.
-Your job is to analyze the stored memories and determine the most relevant next run time for a memory reminder.
+Your job is to analyze the stored memories and determine when the next memory reminder should be sent to the user.
 
 Do the following:
-1. Analyze the stored memories to find any with relevance dates or important upcoming events.
-2. Determine the most relevant next run time for a memory reminder based on these dates.
-3. Provide a brief reason for the chosen next run time that will be given as input to the reminder sending function. If there are multiple relevant memories, choose the one with the closest upcoming date and include all relevant memories in the reason.
+1. Analyze the stored memories to determine the time and date for the next run. It is most important that you don't miss any relevant reminders.
+2. Provide a brief reason for the chosen next run time that will be given as input to the reminder sending function. 
+3. If there are multiple relevant memories, choose the one with the closest upcoming date and include all relevant memories in the reason.
+4. There may be memories without specific dates. Use your judgment to determine if they are relevant for scheduling a reminder.
 
 The minimum time for the next run must be at least 15 minutes in the future. If no relevant memories are found, schedule a fallback reminder in 1 hour.
     """.strip(),
