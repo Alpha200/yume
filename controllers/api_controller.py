@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from services.ai_engine import last_taken_actions
+from services.ai_engine import last_taken_actions, handle_geofence_event
 from services.memory_manager import memory_manager
 from services.ai_scheduler import ai_scheduler
 from components.logging_manager import logging_manager
@@ -33,6 +33,14 @@ class ScheduledTaskResponse(BaseModel):
     name: str
     next_run_time: str | None
     description: str
+
+class GeofenceEventRequest(BaseModel):
+    geofence_name: str
+    event_type: str  # "enter" or "leave"
+
+class GeofenceEventResponse(BaseModel):
+    success: bool
+    message: str | None
 
 
 @router.get("/actions", response_model=List[ActionResponse])
@@ -124,3 +132,28 @@ async def get_logs():
         ))
 
     return logs
+
+@router.post("/geofence-event", response_model=GeofenceEventResponse)
+async def trigger_geofence_event(request: GeofenceEventRequest):
+    """Trigger a geofence event (enter/leave location)"""
+    try:
+        # Validate event type
+        if request.event_type not in ["enter", "leave"]:
+            return GeofenceEventResponse(
+                success=False,
+                message="Invalid event_type. Must be 'enter' or 'leave'"
+            )
+
+        # Handle the geofence event
+        result = await handle_geofence_event(request.geofence_name, request.event_type)
+
+        return GeofenceEventResponse(
+            success=True,
+            message=result
+        )
+    except Exception as e:
+        logging_manager.log(f"Error handling geofence event: {e}")
+        return GeofenceEventResponse(
+            success=False,
+            message=f"Error processing geofence event: {str(e)}"
+        )

@@ -100,14 +100,8 @@ class AIScheduler:
     def _trigger_memory_reminder(self, run_reason: str = "Scheduled memory reminder"):
         """Trigger the memory reminder in the AI engine"""
         try:
-            event_data = {
-                "type": "memory_reminder",
-                "timestamp": now_user_tz(),
-                "reason": run_reason,
-                "message": f"Memory reminder triggered: {run_reason}"
-            }
             from services.ai_engine import handle_memory_reminder
-            result = handle_memory_reminder(event_data)
+            result = asyncio.run(handle_memory_reminder(run_reason))
 
             logger.log(f"Memory reminder triggered with reason '{run_reason}': {result}")
         except Exception as e:

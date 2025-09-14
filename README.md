@@ -4,16 +4,18 @@
   <img src="assets/yume.jpg" alt="Yume AI Assistant" width="400" />
 </div>
 
-**Yume** (夢 - "dream" in Japanese) is an intelligent AI assistant that integrates with Matrix chat and Home Assistant to provide contextual responses, memory management, and automated scheduling capabilities.
+**Yume** (夢 - "dream" in Japanese) is an intelligent AI assistant that integrates with Matrix chat and Home Assistant to provide contextual responses, memory management, automated scheduling capabilities, and location-based triggers.
 
 ## Features
 
 - 🤖 **Matrix Chat Integration**: Responds to messages in Matrix rooms with AI-powered responses
 - 🏠 **Home Assistant Integration**: Fetches weather forecasts, calendar events, and user location data
+- 📍 **Geofence Events**: Triggers AI responses when entering or leaving locations via API endpoints
 - 🧠 **Advanced Memory System**: Persistent memory with user preferences, observations, and reminders
 - ⏰ **Smart Scheduling**: Automated memory reminders and background task processing
 - 🌐 **Context-Aware**: Combines conversation history, weather, calendar, and location data for intelligent responses
-- 📊 **FastAPI Web Interface**: RESTful API for monitoring and control
+- 📊 **FastAPI Web Interface**: RESTful API for monitoring, control, and triggering location events
+- 🎯 **Vue.js Dashboard**: Real-time monitoring of memories, actions, scheduled tasks, and system logs
 - 🚀 **Optimized Performance**: Background processing for faster response times
 
 ## Architecture

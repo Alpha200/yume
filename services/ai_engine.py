@@ -98,14 +98,16 @@ async def _handle_memory_update_background(memory_update_task: str):
     except Exception as e:
         logger.log(f"Error in background memory update: {e}")
 
-async def handle_chat_message(message: str):
-    """Handle chat messages with AI processing"""
+async def _process_ai_event(trigger_description: str, event_context: str = ""):
+    """Common logic for processing AI events (chat, geofence, memory reminders)"""
     try:
         # Build conversation context using context manager
         context = await build_ai_context()
 
-        input_with_context = "You have been triggered by a user message.\n\n"
-        input_with_context += f"User Input:\n{message}\n\n"
+        input_with_context = f"{trigger_description}\n\n"
+        if event_context:
+            input_with_context += f"{event_context}\n\n"
+
         input_with_context += build_context_text(context)
 
         input_with_context += "\nThese are the last actions taken by the AI:\n"
@@ -140,18 +142,46 @@ async def handle_chat_message(message: str):
                 )
             )
 
-        logger.log("AI engine processed message successfully. Reasoning: " + parsed_result.reasoning)
+        logger.log(f"AI engine processed event successfully. Reasoning: {parsed_result.reasoning}")
         return answer
 
     except Exception as e:
-        logger.log(f"Error processing message in AI engine: {e}")
+        logger.log(f"Error processing event in AI engine: {e}")
         return None
 
+async def handle_chat_message(message: str):
+    """Handle chat messages with AI processing"""
+    trigger_description = "You have been triggered by a user message."
+    event_context = f"User Input:\n{message}"
 
-def handle_geofence_event(event):
-    # Placeholder for handling geofence events
-    return f"Geofence event handled: {event}"
+    return await _process_ai_event(trigger_description, event_context)
 
-def handle_memory_reminder(event):
-    # Placeholder for handling other types of events
-    return f"Other event handled: {event}"
+async def handle_geofence_event(geofence_name: str, event_type: str):
+    """Handle geofence events (enter/leave)"""
+    trigger_description = f"You have been triggered by a geofence event."
+    event_context = f"Geofence Event:\nLocation: {geofence_name}\nEvent: {event_type} (user has {'entered' if event_type == 'enter' else 'left'} this location)"
+
+    # Log the geofence event
+    last_taken_actions.append(
+        ActionRecord(
+            action=f"Geofence event: {event_type} {geofence_name}",
+            timestamp=now_user_tz()
+        )
+    )
+
+    return await _process_ai_event(trigger_description, event_context)
+
+async def handle_memory_reminder(event_details: str):
+    """Handle scheduled memory reminder events"""
+    trigger_description = "You have been triggered by a scheduled memory reminder."
+    event_context = f"Memory Reminder Event:\n{event_details}"
+
+    # Log the memory reminder event
+    last_taken_actions.append(
+        ActionRecord(
+            action=f"Memory reminder triggered: {event_details}",
+            timestamp=now_user_tz()
+        )
+    )
+
+    return await _process_ai_event(trigger_description, event_context)

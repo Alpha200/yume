@@ -46,7 +46,7 @@ RUN poetry install --only main --no-interaction --no-ansi
 COPY . .
 
 # Copy built frontend from the first stage
-COPY --from=frontend-builder /app/ui/dist ./ui
+COPY --from=frontend-builder /app/ui/dist ./ui/dist
 
 # Expose port
 EXPOSE 8200
