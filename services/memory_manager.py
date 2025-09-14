@@ -290,6 +290,41 @@ class MemoryManager:
             if entry.type == memory_type
         }
 
+    def get_formatted_memories(self) -> str:
+        """Get all stored memories as a formatted string"""
+        memories = self.get_all_memories()
+
+        if not memories:
+            return "No memories stored."
+
+        memory_list = []
+        for memory_id, entry in memories.items():
+            memory_info = f"ID: {memory_id}\n"
+            memory_info += f"Type: {entry.type}\n"
+            memory_info += f"Content: {entry.content}\n"
+            if entry.place:
+                memory_info += f"Place: {entry.place}\n"
+            memory_info += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            memory_info += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+
+            # Add observation date for user_observation entries
+            if isinstance(entry, UserObservationEntry):
+                memory_info += f"Observation Date: {entry.observation_date.strftime('%Y-%m-%d %H:%M:%S')}\n"
+
+            # Add reminder options for reminder entries
+            elif isinstance(entry, ReminderEntry):
+                memory_info += "Reminder Options:\n"
+                if entry.reminder_options.datetime_value:
+                    memory_info += f"  One-time reminder: {entry.reminder_options.datetime_value.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                if entry.reminder_options.time_value:
+                    memory_info += f"  Recurring time: {entry.reminder_options.time_value}\n"
+                if entry.reminder_options.days_of_week:
+                    memory_info += f"  Days of week: {', '.join(entry.reminder_options.days_of_week)}\n"
+
+            memory_list.append(memory_info.rstrip())
+
+        return "\n\n".join(memory_list)
+
     def delete_memory(self, memory_id: str) -> bool:
         """Delete a memory entry by ID. Returns True if deleted, False if not found"""
         if memory_id in self.memory_entries:
@@ -298,13 +333,5 @@ class MemoryManager:
             return True
         return False
 
-_manager: MemoryManager | None = None
-
-def get_memory_manager() -> MemoryManager:
-    global _manager
-
-    if _manager is None:
-        _manager = MemoryManager()
-        _manager.load_memories()
-
-    return _manager
+memory_manager = MemoryManager()
+memory_manager.load_memories()

@@ -3,6 +3,7 @@ import os
 from agents import Agent, Runner, RunConfig
 
 from services.context_manager import AIContext, build_context_text
+from services.memory_manager import memory_manager
 
 USER_LANGUAGE = os.getenv("USER_LANGUAGE", "en")
 
@@ -14,12 +15,12 @@ You are an AI assistant that generates concise and accurate answers based on a s
 
 You will be provided with:
 1. A user input message (if any)
-2. A list of actions that have been taken
-3. The most recent chat history
-4. The current date and time
-5. The current users location based on geofencing (if available)
-6. The current weather at the user's location (if available)
-7. Users calendar events for the day (if available)
+2. The most recent chat history
+3. The current date and time
+4. The current users location based on geofencing (if available)
+5. The current weather at the user's location (if available)
+6. Users calendar events for the day (if available)
+7. Stored memories about the user (if available)
 
 Use the following message style:
 - Write the messages as a partner would: brief, natural, and personal, not formulaic or robotic with a subtle emotional touch
@@ -29,7 +30,9 @@ Use the following message style:
 - Format dates/times in natural language (e.g., "today at 3 PM", "next week") but be precise
 - Always communicate in the user's preferred language: {USER_LANGUAGE}
 
-Only answer with the final answer that should be sent to the user. Do not include any explanations or additional text.
+Constraints:
+- Only answer with the final answer that should be sent to the user. Do not include any explanations or additional text.
+- Your only communication channel is the chat messages you send
     """.strip(),
 )
 
@@ -41,6 +44,8 @@ async def generate_answer(ai_context: AIContext, user_input: str | None = None, 
         context += f"User Input:\n{user_input}\n\n"
 
     context += build_context_text(ai_context)
+    context += "\nStored memories about the user:\n"
+    context += memory_manager.get_formatted_memories()
 
     context += "\nBased on the above, generate a concise and accurate answer to the user's message."
 

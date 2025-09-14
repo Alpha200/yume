@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
-from tools.memory import get_memory, delete_memory, upsert_user_observation, upsert_user_preference, upsert_reminder, get_user_preferences, get_user_observations, get_reminders
+from tools.memory import get_memory, delete_memory, upsert_user_observation, upsert_user_preference, upsert_reminder
 
 logger = logging_manager
 
@@ -45,9 +45,6 @@ Always provide a list of actions taken and a reasoning summary in your final out
     hooks=CustomAgentHooks(),
     tools=[
         get_memory,
-        get_user_preferences,
-        get_user_observations,
-        get_reminders,
         upsert_user_preference,
         upsert_user_observation,
         upsert_reminder,

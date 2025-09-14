@@ -1,15 +1,19 @@
 import datetime
 
-from agents import function_tool, Agent, ModelSettings, Runner, RunConfig
+from agents import Agent, ModelSettings, Runner, RunConfig
 from openai.types import Reasoning
 from pydantic import BaseModel
 
 from components.agent_hooks import CustomAgentHooks
-from services.memory_manager import get_memory_manager
+from components.logging_manager import logging_manager
+from services.memory_manager import memory_manager
+
 
 class NextRun(BaseModel):
     next_run_time: datetime.datetime
     reason: str
+
+logger = logging_manager
 
 ai_scheduler_agent = Agent(
     name='AI Scheduler',
@@ -37,7 +41,6 @@ The minimum time for the next run must be at least 15 minutes in the future. If 
 
 async def determine_next_run_by_memory():
     """Main function to determine the next memory reminder run time"""
-    memory_manager = get_memory_manager()
     memories = memory_manager.get_all_memories()
 
     if not memories:
@@ -50,6 +53,7 @@ async def determine_next_run_by_memory():
         next_run_result = await _run_ai_analysis(formatted_input)
         return _validate_and_adjust_time(next_run_result)
     except Exception as e:
+        logger.log(f"Error during AI analysis: {e}")
         return _create_fallback_schedule("Agent error occurred - scheduling fallback reminder", minutes=15)
 
 def _create_fallback_schedule(reason: str, hours: int = 0, minutes: int = 0) -> NextRun:

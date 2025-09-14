@@ -1,50 +1,14 @@
 from agents import function_tool
 from services.memory_manager import (
-    get_memory_manager,
-    ReminderOptions,
-    UserObservationEntry,
-    ReminderEntry
+    ReminderOptions, memory_manager
 )
 from typing import Optional, List
 import datetime
 
-memory_manager = get_memory_manager()
-
 @function_tool
 def get_memory() -> str:
     """Get all stored memories as a formatted string"""
-    memories = memory_manager.get_all_memories()
-
-    if not memories:
-        return "No memories stored."
-
-    memory_list = []
-    for memory_id, entry in memories.items():
-        memory_info = f"ID: {memory_id}\n"
-        memory_info += f"Type: {entry.type}\n"
-        memory_info += f"Content: {entry.content}\n"
-        if entry.place:
-            memory_info += f"Place: {entry.place}\n"
-        memory_info += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
-        memory_info += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
-
-        # Add observation date for user_observation entries
-        if isinstance(entry, UserObservationEntry):
-            memory_info += f"Observation Date: {entry.observation_date.strftime('%Y-%m-%d %H:%M:%S')}\n"
-
-        # Add reminder options for reminder entries
-        elif isinstance(entry, ReminderEntry):
-            memory_info += "Reminder Options:\n"
-            if entry.reminder_options.datetime_value:
-                memory_info += f"  One-time reminder: {entry.reminder_options.datetime_value.strftime('%Y-%m-%d %H:%M:%S')}\n"
-            if entry.reminder_options.time_value:
-                memory_info += f"  Recurring time: {entry.reminder_options.time_value}\n"
-            if entry.reminder_options.days_of_week:
-                memory_info += f"  Days of week: {', '.join(entry.reminder_options.days_of_week)}\n"
-
-        memory_list.append(memory_info.rstrip())
-
-    return "\n\n".join(memory_list)
+    return memory_manager.get_formatted_memories()
 
 @function_tool
 def upsert_user_preference(content: str, memory_id: Optional[str] = None, place: Optional[str] = None) -> str:
@@ -119,39 +83,3 @@ def delete_memory(memory_id: str) -> str:
         return f"Memory with ID {memory_id} has been deleted."
     else:
         return f"Memory with ID {memory_id} not found."
-
-@function_tool
-def search_memories(search_term: str) -> str:
-    """Search for memories containing the given term"""
-    memories = memory_manager.get_all_memories()
-    matching_memories = []
-
-    for memory_id, entry in memories.items():
-        if search_term.lower() in entry.content.lower():
-            memory_info = f"ID: {memory_id}\n"
-            memory_info += f"Type: {entry.type}\n"
-            memory_info += f"Content: {entry.content}\n"
-            if entry.place:
-                memory_info += f"Place: {entry.place}\n"
-            memory_info += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
-
-            # Add observation date for user_observation entries
-            if isinstance(entry, UserObservationEntry):
-                memory_info += f"\nObservation Date: {entry.observation_date.strftime('%Y-%m-%d %H:%M:%S')}"
-
-            # Add reminder options for reminder entries
-            elif isinstance(entry, ReminderEntry):
-                memory_info += "\nReminder Options:"
-                if entry.reminder_options.datetime_value:
-                    memory_info += f"\n  One-time reminder: {entry.reminder_options.datetime_value.strftime('%Y-%m-%d %H:%M:%S')}"
-                if entry.reminder_options.time_value:
-                    memory_info += f"\n  Recurring time: {entry.reminder_options.time_value}"
-                if entry.reminder_options.days_of_week:
-                    memory_info += f"\n  Days of week: {', '.join(entry.reminder_options.days_of_week)}"
-
-            matching_memories.append(memory_info)
-
-    if not matching_memories:
-        return f"No memories found containing '{search_term}'."
-
-    return f"Found {len(matching_memories)} memory(ies) containing '{search_term}':\n\n" + "\n\n".join(matching_memories)

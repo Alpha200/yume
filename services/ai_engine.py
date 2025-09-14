@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from collections import deque
 from dataclasses import dataclass
@@ -5,11 +6,13 @@ from dataclasses import dataclass
 from agents import Agent, Runner, RunConfig, ModelSettings
 from pydantic import BaseModel
 
+from aiagents.ai_scheduler import determine_next_run_by_memory
 from aiagents.answer_machine import generate_answer
 from aiagents.memory_manager import handle_memory_update
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
 from services.context_manager import build_ai_context, build_context_text
+from services.memory_manager import memory_manager
 
 logger = logging_manager
 
@@ -69,6 +72,22 @@ You must follow these guidelines:
     output_type=AIEngineResult,
 )
 
+async def _handle_memory_update_background(memory_update_task: str):
+    """Handle memory update and scheduling in the background"""
+    try:
+        await handle_memory_update(memory_update_task)
+        last_taken_actions.append(
+            ActionRecord(
+                action=f"Memory update task executed: {memory_update_task}",
+                timestamp=datetime.datetime.now()
+            )
+        )
+
+        next_run = await determine_next_run_by_memory()
+        logger.log(f"Next memory reminder scheduled at {next_run.next_run_time} because: {next_run.reason}")
+    except Exception as e:
+        logger.log(f"Error in background memory update: {e}")
+
 async def handle_chat_message(message: str):
     """Handle chat messages with AI processing"""
     try:
@@ -88,19 +107,16 @@ async def handle_chat_message(message: str):
         else:
             input_with_context += "No previous actions taken.\n"
 
+        input_with_context += "\nStored memories:\n"
+        input_with_context += memory_manager.get_formatted_memories()
+
         input_with_context += "\nBased on the above, determine if any actions are necessary."
 
         response = await Runner.run(agent, input_with_context, run_config=RunConfig(tracing_disabled=True))
         parsed_result: AIEngineResult = response.final_output_as(AIEngineResult)
 
         if parsed_result.memory_update_task:
-            await handle_memory_update(parsed_result.memory_update_task)
-            last_taken_actions.append(
-                ActionRecord(
-                    action=f"Memory update task executed: {parsed_result.memory_update_task}",
-                    timestamp=datetime.datetime.now()
-                )
-            )
+            asyncio.create_task(_handle_memory_update_background(parsed_result.memory_update_task))
 
         answer = None
 
