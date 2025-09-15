@@ -227,11 +227,11 @@ The memory system can be configured through the following parameters:
 
 ```
 yume/
-├── main.py                 # Application entry point
-├── services/              # Core business logic
-├── aiagents/             # AI-specific modules
-├── components/           # Shared components and data models
-├── tools/               # Function tools for AI agents
+├── main.py             # Application entry point
+├── services/           # Core business logic
+├── aiagents/           # AI-specific modules
+├── components/         # Shared components and data models
+├── tools/              # Function tools for AI agents
 ├── data/               # Persistent data storage
 └── README.md           # This file
 ```
