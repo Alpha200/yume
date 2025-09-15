@@ -32,6 +32,7 @@ class ScheduledTaskResponse(BaseModel):
     id: str
     name: str
     next_run_time: str | None
+    topic: str | None = None
     description: str
 
 class GeofenceEventRequest(BaseModel):
@@ -96,11 +97,15 @@ async def get_scheduled_tasks():
     try:
         # Get next memory reminder
         next_reminder = ai_scheduler.get_next_memory_reminder()
-        if next_reminder:
+        if next_reminder is not None:
+            nr_time = next_reminder.next_run_time
+            nr_topic = next_reminder.topic
+
             tasks.append(ScheduledTaskResponse(
                 id="memory_reminder",
                 name="Memory Reminder",
-                next_run_time=next_reminder.isoformat(),
+                next_run_time=nr_time.isoformat() if nr_time else None,
+                topic=nr_topic,
                 description="Scheduled memory reminder task"
             ))
 

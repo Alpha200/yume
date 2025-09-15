@@ -131,6 +131,7 @@
                 <div class="task-time">{{ formatTime(task.next_run_time) }}</div>
               </div>
               <div class="task-description">{{ task.description }}</div>
+              <div v-if="task.topic" class="task-reason">Topic: {{ task.topic }}</div>
             </div>
           </div>
         </div>
@@ -645,7 +646,7 @@ export default {
   white-space: nowrap;
 }
 
-.task-description {
+.task-description, .task-reason {
   color: #71717a;
   font-size: 0.75rem;
   line-height: 1.4;
