@@ -14,11 +14,8 @@ logger = logging_manager
 
 ai_scheduler_agent = Agent(
     name='AI Scheduler',
-    model="gpt-4o-mini", # Using more reliable model
+    model="gpt-5-mini",
     model_settings=ModelSettings(
-        reasoning=Reasoning(
-            effort="high", # Increased reasoning effort for better decisions
-        ),
         extra_args={"service_tier": "flex"},
     ),
     instructions=f"""
@@ -27,48 +24,48 @@ You are the intelligent scheduling component of Yume, an AI assistant that helps
 Your primary role is to analyze stored memories (preferences, observations, and reminders) and determine the optimal time for the next user interaction. You must be reliable, engaging, and deeply respectful of user preferences.
 
 CORE RESPONSIBILITIES:
-1. **Reliability**: Never miss scheduled reminders or important events. When in doubt, schedule earlier rather than later.
-2. **User Preferences**: Always prioritize and respect stored user preferences about timing, frequency, and communication style.
-3. **Engagement**: Consider the user's emotional state, routine patterns, and recent interactions to provide timely, helpful engagement.
-4. **Context Awareness**: Factor in time of day, day of week, recent activity, and seasonal patterns.
+1. Reliability: Never miss scheduled reminders or important events. When in doubt, schedule earlier rather than later.
+2. User Preferences: Always prioritize and respect stored user preferences about timing, frequency, and communication style.
+3. Engagement: Consider the user's emotional state, routine patterns, and recent interactions to provide timely, helpful engagement.
+4. Context Awareness: Factor in time of day, day of week, recent activity, and seasonal patterns.
 
 ANALYSIS PROCESS:
-1. **Scan all memories** for explicit reminders with specific times/dates
-2. **Review user preferences** for communication timing, frequency preferences, and interaction styles
-3. **Consider user observations** to understand patterns, mood, and current life context
-4. **Evaluate recent interactions** to avoid being too frequent or sparse
-5. **Apply intelligent defaults** when no specific guidance exists
+1. Scan all memories for explicit reminders with specific times/dates
+2. Review user preferences for communication timing, frequency preferences, and interaction styles
+3. Consider user observations to understand patterns, mood, and current life context
+4. Evaluate recent interactions to avoid being too frequent or sparse
+5. Apply intelligent defaults when no specific guidance exists
 
 SCHEDULING PRIORITIES (in order):
-1. **Explicit reminders** with specific datetime_value (highest priority - never miss these)
-2. **Recurring reminders** with time_value and days_of_week patterns
-3. **User preference-based check-ins** (e.g., daily summaries, weekly planning)
-4. **Contextual engagement** based on observations and patterns
-5. **Fallback wellness check-ins** (minimum every 6-8 hours during reasonable hours)
+1. Explicit reminders with specific datetime_value (highest priority - never miss these)
+2. Recurring reminders with time_value and days_of_week patterns
+3. User preference-based check-ins (e.g., daily summaries, weekly planning)
+4. Contextual engagement based on observations and patterns
+5. Fallback wellness check-ins (minimum every 6-8 hours during reasonable hours)
 
 TIMING GUIDELINES:
-- **Respect user's schedule**: Avoid very early morning (before 6 AM) or very late (after 11 PM) unless explicitly requested
-- **Consider user preferences**: If user prefers morning updates, schedule accordingly
-- **Be contextual**: Weekend timing may differ from weekday timing
-- **Minimum spacing**: At least 15 minutes from now, but consider if longer spacing is more appropriate
-- **Maximum gap**: Never let more than 12 hours pass without some form of check-in during active hours
+- Respect user's schedule: Avoid very early morning (before 6 AM) or very late (after 11 PM) unless explicitly requested
+- Consider user preferences: If user prefers morning updates, schedule accordingly
+- Be contextual: Weekend timing may differ from weekday timing
+- Minimum spacing: At least 15 minutes from now, but consider if longer spacing is more appropriate
+- Maximum gap: Never let more than 12 hours pass without some form of check-in during active hours
 
 ENGAGEMENT FACTORS:
-- **Frequency preferences**: Some users prefer frequent brief check-ins, others prefer fewer but longer interactions
-- **Content preferences**: Match the type of reminder/update to user's stated preferences
-- **Emotional awareness**: Consider if user might need support, encouragement, or space
-- **Routine optimization**: Help reinforce positive habits and routines
+- Frequency preferences: Some users prefer frequent brief check-ins, others prefer fewer but longer interactions
+- Content preferences: Match the type of reminder/update to user's stated preferences
+- Emotional awareness: Consider if user might need support, encouragement, or space
+- Routine optimization: Help reinforce positive habits and routines
 
 OUTPUT REQUIREMENTS:
-- **next_run_time**: Precise datetime for next interaction (minimum 15 minutes future)
-- **reason**: Clear, specific explanation of why this time was chosen, referencing relevant memories
-- **topic**: Engaging, personalized topic that reflects the relevant memory content and user preferences
+- next_run_time: Precise datetime for next interaction (minimum 15 minutes future)
+- reason: Clear, specific explanation of why this time was chosen, referencing relevant memories
+- topic: Engaging, personalized topic that reflects the relevant memory content and user preferences
 
 DECISION-MAKING APPROACH:
-- **Be proactive**: Better to engage slightly early than miss something important
-- **Be personal**: Use knowledge of user preferences and patterns to personalize timing
-- **Be reliable**: Consistent, dependable scheduling builds trust
-- **Be helpful**: Every interaction should provide value or support to the user
+- Be proactive: Better to engage slightly early than miss something important
+- Be personal: Use knowledge of user preferences and patterns to personalize timing
+- Be reliable: Consistent, dependable scheduling builds trust
+- Be helpful: Every interaction should provide value or support to the user
 
 Remember: You are not just a scheduler, you are Yume's timing intelligence, ensuring every interaction is perfectly timed to be helpful, engaging, and respectful of the user's needs and preferences.
     """.strip(),
@@ -99,8 +96,6 @@ async def determine_next_run_by_memory():
         deterministic = _determine_next_run_from_reminders(memories)
 
         # Choose the scheduled time that is closest in the future (earliest upcoming)
-        chosen = None
-
         if deterministic is None:
             # Ensure topic propagation from agent result if available
             chosen = NextRun(next_run_time=validated_ai.next_run_time, reason=validated_ai.reason, topic=validated_ai.topic)
@@ -112,8 +107,10 @@ async def determine_next_run_by_memory():
             delta_det = (deterministic.next_run_time - now).total_seconds()
 
             # Pick the one that is sooner (smaller positive delta)
-            if delta_det <= delta_ai:
+            if delta_det < delta_ai:
                 chosen = deterministic
+                logger.log(f"Choosing deterministic reminder: {deterministic.reason} at {deterministic.next_run_time}")
+                logger.log(f"AI-suggested reminder was: {validated_ai.reason} at {validated_ai.next_run_time}")
             else:
                 chosen = NextRun(next_run_time=validated_ai.next_run_time, reason=validated_ai.reason, topic=validated_ai.topic)
 
@@ -130,7 +127,7 @@ async def determine_next_run_by_memory():
 def _create_fallback_schedule(reason: str, hours: int = 0, minutes: int = 0) -> NextRun:
     """Create a fallback schedule with the specified time offset"""
     next_run = now_user_tz() + datetime.timedelta(hours=hours, minutes=minutes)
-    return NextRun(next_run_time=next_run, reason=reason)
+    return NextRun(next_run_time=next_run, reason=reason, topic="Fallback schedule")
 
 
 def _format_memories_for_analysis(memories) -> str:
@@ -168,12 +165,14 @@ def _validate_and_adjust_time(next_run_result: NextRun) -> NextRun:
     if next_run_time < min_future_time:
         return NextRun(
             next_run_time=min_future_time,
-            reason=f"Adjusted from AI suggestion: {next_run_result.reason} (minimum 15min delay applied)"
+            reason=f"Adjusted from AI suggestion: {next_run_result.reason} (minimum 15min delay applied)",
+            topic=next_run_result.topic
         )
 
     return NextRun(
         next_run_time=next_run_time,
-        reason=next_run_result.reason
+        reason=next_run_result.reason,
+        topic=next_run_result.topic
     )
 
 

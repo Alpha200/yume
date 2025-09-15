@@ -104,25 +104,15 @@ class AIScheduler:
         except Exception as e:
             logger.log(f"Error scheduling memory reminder: {e}")
 
-    def _trigger_memory_reminder(self, run_reason: str = "Scheduled memory reminder"):
+    def _trigger_memory_reminder(self, run_reason: str, topic: str):
         """Trigger the memory reminder in the AI engine"""
         try:
             from services.ai_engine import handle_memory_reminder
-            # Try to obtain topic from scheduler kwargs via APScheduler's job if possible - but APScheduler will call
-            # this function with the kwargs we provided, so if topic was scheduled it will be passed here as an arg.
-            # Accept optional 'topic' parameter by checking locals(). If not present, fall back to run_reason.
-            topic = None
-            try:
-                # If APScheduler supplied 'topic' it will be in the function arguments when invoked
-                topic = locals().get('topic', None)
-            except Exception:
-                topic = None
 
-            # Use topic for the AI input if available, otherwise use run_reason
             ai_input = topic if topic is not None else run_reason
             result = asyncio.run(handle_memory_reminder(ai_input))
 
-            logger.log(f"Memory reminder triggered with reason '{run_reason}': {result}")
+            logger.log(f"Memory reminder triggered with reason '{run_reason} for topic {topic}': {result}")
         except Exception as e:
             logger.log(f"Error triggering memory reminder: {e}")
 
