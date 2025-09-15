@@ -83,8 +83,11 @@ async def determine_next_run_by_memory():
         )
         return
 
-    # Format memories and run AI analysis
-    formatted_input = _format_memories_for_analysis(memories)
+    # Get latest actions from AI engine
+    from services.ai_engine import last_taken_actions
+
+    # Format memories and actions for AI analysis
+    formatted_input = _format_memories_for_analysis(memories, last_taken_actions)
 
     try:
         next_run_result = await _run_ai_analysis(formatted_input)
@@ -130,8 +133,8 @@ def _create_fallback_schedule(reason: str, hours: int = 0, minutes: int = 0) -> 
     return NextRun(next_run_time=next_run, reason=reason, topic="Fallback schedule")
 
 
-def _format_memories_for_analysis(memories) -> str:
-    """Format memories into a structured text for AI analysis"""
+def _format_memories_for_analysis(memories, last_taken_actions) -> str:
+    """Format memories and recent actions into a structured text for AI analysis"""
     memory_text = "Stored memories:\n\n"
     for memory_id, entry in memories.items():
         memory_text += f"ID: {memory_id}\n"
@@ -143,10 +146,20 @@ def _format_memories_for_analysis(memories) -> str:
         memory_text += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
         memory_text += "-" * 50 + "\n"
 
-    current_time = now_user_tz()
-    context_text = f"\nCurrent date and time: {current_time.strftime('%A, %B %d, %Y at %H:%M')}\n\n"
+    # Add recent actions taken by the AI
+    actions_text = "\nRecent actions taken by the AI:\n\n"
+    if len(last_taken_actions) > 0:
+        for action in last_taken_actions:
+            actions_text += f"- {action.action} at {action.timestamp.isoformat()}\n"
+    else:
+        actions_text += "No recent actions recorded.\n"
 
-    return context_text + memory_text
+    actions_text += "\n"
+
+    current_time = now_user_tz()
+    context_text = f"Current date and time: {current_time.strftime('%A, %B %d, %Y at %H:%M')}\n\n"
+
+    return context_text + memory_text + actions_text
 
 async def _run_ai_analysis(formatted_input: str) -> NextRun:
     """Run the AI agent analysis on the formatted memory data"""
