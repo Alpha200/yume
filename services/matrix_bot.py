@@ -110,7 +110,8 @@ class MatrixChatBot:
 
         except Exception as e:
             logger.log(f"Failed to send message: {e}")
-            raise
+            # Don't re-raise the exception to prevent crashing the calling function
+            return
 
     def get_conversation_context(self, max_messages: int = 10, include_timestamps: bool = False) -> str | None:
         """Build conversation context from recent messages

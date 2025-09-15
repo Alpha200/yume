@@ -2,7 +2,7 @@ import asyncio
 import datetime
 from typing import Optional
 
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from pydantic import BaseModel
@@ -20,7 +20,7 @@ class NextRun(BaseModel):
 
 class AIScheduler:
     def __init__(self):
-        self.scheduler = BackgroundScheduler()
+        self.scheduler = AsyncIOScheduler()
         self.memory_reminder_job_id = "memory_reminder_job"
         self.memory_janitor_job_id = "memory_janitor_job"
         # Store the last scheduled NextRun (time + reason) so it can be queried by the API/UI
@@ -43,7 +43,6 @@ class AIScheduler:
 
     def _schedule_memory_janitor(self):
         """Schedule the recurring memory janitor job to run every 12 hours"""
-
         try:
             # Remove existing job if it exists
             if self.scheduler.get_job(self.memory_janitor_job_id):
@@ -104,15 +103,15 @@ class AIScheduler:
         except Exception as e:
             logger.log(f"Error scheduling memory reminder: {e}")
 
-    def _trigger_memory_reminder(self, run_reason: str, topic: str):
+    async def _trigger_memory_reminder(self, run_reason: str, topic: str):
         """Trigger the memory reminder in the AI engine"""
         try:
             from services.ai_engine import handle_memory_reminder
 
             ai_input = topic if topic is not None else run_reason
-            result = asyncio.run(handle_memory_reminder(ai_input))
+            result = await handle_memory_reminder(ai_input)
+            logger.log(f"Memory reminder triggered with reason '{run_reason}' for topic {topic}: {result}")
 
-            logger.log(f"Memory reminder triggered with reason '{run_reason} for topic {topic}': {result}")
         except Exception as e:
             logger.log(f"Error triggering memory reminder: {e}")
 

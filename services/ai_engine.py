@@ -141,6 +141,7 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
                 await matrix_chat_bot.send_message(answer)
             except Exception as e:
                 logger.log(f"Error sending message via Matrix: {e}")
+                # Don't re-raise - just log and continue
 
             last_taken_actions.append(
                 ActionRecord(
