@@ -151,18 +151,19 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
             )
 
         logger.log(f"AI engine processed event successfully. Reasoning: {parsed_result.reasoning}")
-        return answer
+        return answer, parsed_result
 
     except Exception as e:
         logger.log(f"Error processing event in AI engine: {e}")
-        return None
+        return None, None
 
 async def handle_chat_message(message: str):
     """Handle chat messages with AI processing"""
     trigger_description = "You have been triggered by a user message."
     event_context = f"User Input:\n{message}"
 
-    return await _process_ai_event(trigger_description, event_context)
+    result, _ = await _process_ai_event(trigger_description, event_context)
+    return result
 
 async def handle_geofence_event(geofence_name: str, event_type: str):
     """Handle geofence events (enter/leave)"""
@@ -177,7 +178,8 @@ async def handle_geofence_event(geofence_name: str, event_type: str):
         )
     )
 
-    return await _process_ai_event(trigger_description, event_context)
+    result, _ = await _process_ai_event(trigger_description, event_context)
+    return result
 
 async def handle_memory_reminder(event_details: str):
     """Handle scheduled memory reminder events"""
@@ -192,4 +194,21 @@ async def handle_memory_reminder(event_details: str):
         )
     )
 
-    return await _process_ai_event(trigger_description, event_context)
+    result, parsed_result = await _process_ai_event(trigger_description, event_context)
+
+    # Only schedule the next memory reminder if no memory update task was created
+    # (because _handle_memory_update_background already calls determine_next_run_by_memory)
+    if parsed_result and not parsed_result.memory_update_task:
+        # No memory update task, so we need to schedule the next reminder manually
+        try:
+            await determine_next_run_by_memory()
+            last_taken_actions.append(
+                ActionRecord(
+                    action="Next memory reminder scheduled (no memory update triggered)",
+                    timestamp=now_user_tz()
+                )
+            )
+        except Exception as e:
+            logger.log(f"Error scheduling next memory reminder: {e}")
+
+    return result
