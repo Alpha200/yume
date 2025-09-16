@@ -66,7 +66,7 @@ DECISION PROCESS:
 3. Determine actions:
    - UPDATE existing memory if information refines or changes existing knowledge
    - CREATE new memory if information is genuinely new and relevant
-   - DELETE memory if task is completed or information is no longer relevant
+   - DELETE memory if task is completed or information is no longer relevant. Delete reminders that are not recurring and have passed or are no longer needed.
 4. Use appropriate upsert function based on memory type
 5. Provide clear reasoning for all actions taken
 
