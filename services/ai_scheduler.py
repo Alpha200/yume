@@ -1,6 +1,6 @@
-import asyncio
 import datetime
-from typing import Optional
+from typing import Optional, Deque, List
+from collections import deque
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
@@ -18,6 +18,13 @@ class NextRun(BaseModel):
     reason: str
     topic: str
 
+class ExecutedReminder(BaseModel):
+    executed_at: datetime.datetime
+    run_reason: str
+    topic: Optional[str] = None
+    result: Optional[str] = None
+    success: bool = True
+
 class AIScheduler:
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
@@ -25,6 +32,8 @@ class AIScheduler:
         self.memory_janitor_job_id = "memory_janitor_job"
         # Store the last scheduled NextRun (time + reason) so it can be queried by the API/UI
         self.last_next_run: NextRun | None = None
+        # Deque to keep recent executed memory reminder jobs (most recent last)
+        self.executed_memory_reminders: Deque[ExecutedReminder] = deque(maxlen=10)
 
     def start(self):
         """Start the scheduler"""
@@ -110,10 +119,30 @@ class AIScheduler:
 
             ai_input = topic if topic is not None else run_reason
             result = await handle_memory_reminder(ai_input)
+
+            entry = ExecutedReminder(
+                executed_at=datetime.datetime.now(datetime.timezone.utc),
+                run_reason=run_reason,
+                topic=topic,
+                result=str(result),
+                success=True,
+            )
+            self.executed_memory_reminders.append(entry)
+
             logger.log(f"Memory reminder triggered with reason '{run_reason}' for topic {topic}: {result}")
+            return result
 
         except Exception as e:
             logger.log(f"Error triggering memory reminder: {e}")
+
+            entry = ExecutedReminder(
+                executed_at=datetime.datetime.now(datetime.timezone.utc),
+                run_reason=run_reason,
+                topic=topic,
+                result=str(e),
+                success=False,
+            )
+            self.executed_memory_reminders.append(entry)
 
     def cancel_memory_reminder(self):
         """Cancel the scheduled memory reminder"""
@@ -172,5 +201,17 @@ class AIScheduler:
         except Exception as e:
             logger.log(f"Error getting next memory reminder: {e}")
             return None
+
+    def get_recent_executed_reminders(self, limit: int | None = None) -> List[ExecutedReminder]:
+        """Return a list of recent executed memory reminders (most recent last). If limit is provided, return at most that many entries."""
+        try:
+            items = list(self.executed_memory_reminders)
+            if limit is not None:
+                return items[-limit:]
+            return items
+        except Exception as e:
+            logger.log(f"Error getting recent executed reminders: {e}")
+            return []
+
 
 ai_scheduler = AIScheduler()

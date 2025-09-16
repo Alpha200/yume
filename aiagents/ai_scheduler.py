@@ -1,12 +1,12 @@
 import datetime
+from typing import List
 
 from agents import Agent, ModelSettings, Runner, RunConfig
-from openai.types import Reasoning
 
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz, to_user_tz
-from services.ai_scheduler import ai_scheduler, NextRun
+from services.ai_scheduler import ai_scheduler, NextRun, ExecutedReminder
 from services.memory_manager import memory_manager
 
 
@@ -48,7 +48,7 @@ TIMING GUIDELINES:
 - Consider user preferences: If user prefers morning updates, schedule accordingly
 - Be contextual: Weekend timing may differ from weekday timing
 - Minimum spacing: At least 15 minutes from now, but consider if longer spacing is more appropriate
-- Maximum gap: Never let more than 12 hours pass without some form of check-in during active hours
+- Maximum gap: Never let more than 4 hours pass without some form of check-in during active hours. Use 'wellness check-in' as topic if no other memory is relevant
 
 ENGAGEMENT FACTORS:
 - Frequency preferences: Some users prefer frequent brief check-ins, others prefer fewer but longer interactions
@@ -84,10 +84,11 @@ async def determine_next_run_by_memory():
         return
 
     # Get latest actions from AI engine
-    from services.ai_engine import last_taken_actions
+    from services.ai_scheduler import ai_scheduler as services_ai_scheduler
 
     # Format memories and actions for AI analysis
-    formatted_input = _format_memories_for_analysis(memories, last_taken_actions)
+    recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=10)
+    formatted_input = _format_memories_for_analysis(memories, recent_executed)
 
     try:
         next_run_result = await _run_ai_analysis(formatted_input)
@@ -133,8 +134,8 @@ def _create_fallback_schedule(reason: str, hours: int = 0, minutes: int = 0) -> 
     return NextRun(next_run_time=next_run, reason=reason, topic="Fallback schedule")
 
 
-def _format_memories_for_analysis(memories, last_taken_actions) -> str:
-    """Format memories and recent actions into a structured text for AI analysis"""
+def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder]) -> str:
+    """Format memories and recent executed memory-reminder jobs into a structured text for AI analysis"""
     memory_text = "Stored memories:\n\n"
     for memory_id, entry in memories.items():
         memory_text += f"ID: {memory_id}\n"
@@ -146,13 +147,18 @@ def _format_memories_for_analysis(memories, last_taken_actions) -> str:
         memory_text += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
         memory_text += "-" * 50 + "\n"
 
-    # Add recent actions taken by the AI
-    actions_text = "\nRecent actions taken by the AI:\n\n"
-    if len(last_taken_actions) > 0:
-        for action in last_taken_actions:
-            actions_text += f"- {action.action} at {action.timestamp.isoformat()}\n"
+    # Add recent executed memory reminder jobs
+    actions_text = "\nRecent executed memory reminder jobs:\n\n"
+    if recent_executed_reminders and len(recent_executed_reminders) > 0:
+        for er in recent_executed_reminders:
+            ts = er.executed_at.isoformat()
+            rr = er.run_reason
+            topic = er.topic
+            success = er.success
+            result = er.result
+            actions_text += f"- run_reason: {rr}; topic: {topic}; at: {ts}; success: {success}; result: {result}\n"
     else:
-        actions_text += "No recent actions recorded.\n"
+        actions_text += "No recent executed reminders recorded.\n"
 
     actions_text += "\n"
 
@@ -200,15 +206,15 @@ def _determine_next_run_from_reminders(memories) -> NextRun | None:
 
     for memory_id, entry in memories.items():
         try:
-            if getattr(entry, "type", None) != "reminder":
+            if entry.type != "reminder":
                 continue
 
-            ro = getattr(entry, "reminder_options", None)
+            ro = entry.reminder_options
             if not ro:
                 continue
 
             # One-time reminder with explicit datetime
-            dt = getattr(ro, "datetime_value", None)
+            dt = ro.datetime_value
             if dt:
                 dt_local = to_user_tz(dt)
                 if dt_local >= min_future_time:
@@ -216,8 +222,8 @@ def _determine_next_run_from_reminders(memories) -> NextRun | None:
                 continue
 
             # Recurring by time_value (HH:MM) and optional days_of_week
-            time_str = getattr(ro, "time_value", None)
-            days = getattr(ro, "days_of_week", None)
+            time_str = ro.time_value
+            days = ro.days_of_week
 
             if not time_str:
                 # No usable scheduling info
