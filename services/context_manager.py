@@ -51,7 +51,7 @@ async def build_ai_context(max_chat_messages: int = 10) -> AIContext:
 
     try:
         # Get recent messages from the bot's conversation history
-        recent_messages = list(matrix_chat_bot.conversation_history)[-max_chat_messages:] if len(matrix_chat_bot.conversation_history) > max_chat_messages else list(matrix_bot.conversation_history)
+        recent_messages = list(matrix_chat_bot.conversation_history)[-max_chat_messages:] if len(matrix_chat_bot.conversation_history) > max_chat_messages else list(matrix_chat_bot.conversation_history)
         chat_history = recent_messages
         logger.log(f"Retrieved {len(chat_history)} chat history entries")
     except Exception as e:
