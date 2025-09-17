@@ -78,6 +78,7 @@ You must follow these guidelines:
 - Keep responses conversational and helpful. Ask questions but do not interrogate the user
 - There is no need to take actions if there is nothing relevant to do
 - If the user writes a message, always respond to it in a helpful and friendly manner
+- If the user says he or she completed a task, acknowledge it and update your memories accordingly
 
 Your output should include:
 1. message_to_user: The actual message to send to the user (or null if no message should be sent)
