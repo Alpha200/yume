@@ -20,10 +20,7 @@ class NextRun(BaseModel):
 
 class ExecutedReminder(BaseModel):
     executed_at: datetime.datetime
-    run_reason: str
-    topic: Optional[str] = None
-    result: Optional[str] = None
-    success: bool = True
+    topic: str
 
 class AIScheduler:
     def __init__(self):
@@ -117,32 +114,20 @@ class AIScheduler:
         try:
             from services.ai_engine import handle_memory_reminder
 
+            entry = ExecutedReminder(
+                executed_at=datetime.datetime.now(datetime.timezone.utc),
+                topic=topic,
+            )
+            self.executed_memory_reminders.append(entry)
+            logger.log(f"Memory reminder triggered with reason '{run_reason}' for topic {topic}")
+
             ai_input = topic if topic is not None else run_reason
             result = await handle_memory_reminder(ai_input)
 
-            entry = ExecutedReminder(
-                executed_at=datetime.datetime.now(datetime.timezone.utc),
-                run_reason=run_reason,
-                topic=topic,
-                result=str(result),
-                success=True,
-            )
-            self.executed_memory_reminders.append(entry)
-
-            logger.log(f"Memory reminder triggered with reason '{run_reason}' for topic {topic}: {result}")
             return result
 
         except Exception as e:
             logger.log(f"Error triggering memory reminder: {e}")
-
-            entry = ExecutedReminder(
-                executed_at=datetime.datetime.now(datetime.timezone.utc),
-                run_reason=run_reason,
-                topic=topic,
-                result=str(e),
-                success=False,
-            )
-            self.executed_memory_reminders.append(entry)
 
     def cancel_memory_reminder(self):
         """Cancel the scheduled memory reminder"""

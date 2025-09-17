@@ -33,7 +33,7 @@ ANALYSIS PROCESS:
 1. Scan all memories for explicit reminders with specific times/dates
 2. Review user preferences for communication timing, frequency preferences, and interaction styles
 3. Consider user observations to understand patterns, mood, and current life context
-4. Evaluate recent interactions to avoid being too frequent or sparse
+4. Evaluate recent interactions to avoid being too frequent or sparse (consider last communication with the user). Check last executed reminders so you don't repeat the same topic too soon
 5. Apply intelligent defaults when no specific guidance exists
 
 SCHEDULING PRIORITIES (in order):
@@ -44,11 +44,11 @@ SCHEDULING PRIORITIES (in order):
 5. Fallback wellness check-ins (minimum every 6-8 hours during reasonable hours)
 
 TIMING GUIDELINES:
-- Respect user's schedule: Avoid very early morning (before 6 AM) or very late (after 11 PM) unless explicitly requested
-- Consider user preferences: If user prefers morning updates, schedule accordingly
+- Consider user preferences and the users schedule
 - Be contextual: Weekend timing may differ from weekday timing
-- Minimum spacing: At least 15 minutes from now, but consider if longer spacing is more appropriate
-- Maximum gap: Never let more than 4 hours pass without some form of check-in during active hours. Use 'wellness check-in' as topic if no other memory is relevant
+- Minimum spacing: At least 15 minutes from now, but consider if longer spacing is more appropriate. Only use 15 minutes if something urgent is needed
+- Maximum gap: Never let more than 4 hours pass without some form of check-in during active hours. Use 'wellness check-in' as topic if no other memory is relevant.
+- Your last interaction with the user was right now, so consider that when scheduling the next interaction
 
 ENGAGEMENT FACTORS:
 - Frequency preferences: Some users prefer frequent brief check-ins, others prefer fewer but longer interactions
@@ -59,7 +59,7 @@ ENGAGEMENT FACTORS:
 OUTPUT REQUIREMENTS:
 - next_run_time: Precise datetime for next interaction (minimum 15 minutes future)
 - reason: Clear, specific explanation of why this time was chosen, referencing relevant memories
-- topic: Engaging, personalized topic that reflects the relevant memory content and user preferences
+- topic: Topic that reflects the relevant memory content and user preferences that should be the topic of the interaction
 
 DECISION-MAKING APPROACH:
 - Be proactive: Better to engage slightly early than miss something important
@@ -87,7 +87,7 @@ async def determine_next_run_by_memory():
     from services.ai_scheduler import ai_scheduler as services_ai_scheduler
 
     # Format memories and actions for AI analysis
-    recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=10)
+    recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=5)
     formatted_input = _format_memories_for_analysis(memories, recent_executed)
 
     try:
@@ -145,22 +145,17 @@ def _format_memories_for_analysis(memories, recent_executed_reminders: List[Exec
             memory_text += f"Place: {entry.place}\n"
         memory_text += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
         memory_text += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
-        memory_text += "-" * 50 + "\n"
+        memory_text += "-" * 10 + "\n\n"
 
     # Add recent executed memory reminder jobs
     actions_text = "\nRecent executed memory reminder jobs:\n\n"
     if recent_executed_reminders and len(recent_executed_reminders) > 0:
         for er in recent_executed_reminders:
             ts = er.executed_at.isoformat()
-            rr = er.run_reason
             topic = er.topic
-            success = er.success
-            result = er.result
-            actions_text += f"- run_reason: {rr}; topic: {topic}; at: {ts}; success: {success}; result: {result}\n"
+            actions_text += f"Job run at {ts} with topic {topic}\n\n"
     else:
         actions_text += "No recent executed reminders recorded.\n"
-
-    actions_text += "\n"
 
     current_time = now_user_tz()
     context_text = f"Current date and time: {current_time.strftime('%A, %B %d, %Y at %H:%M')}\n\n"
