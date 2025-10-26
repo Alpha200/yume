@@ -334,6 +334,64 @@ class MemoryManager:
 
         return "\n\n".join(memory_list)
 
+    def get_formatted_preferences(self) -> str:
+        """Get user preferences as a formatted string for agent instructions"""
+        preferences = self.get_user_preferences()
+
+        if not preferences:
+            return "No user preferences stored."
+
+        pref_list = []
+        for memory_id, entry in preferences.items():
+            pref_info = f"- {entry.content}"
+            if entry.place:
+                pref_info += f" (Place: {entry.place})"
+            pref_list.append(pref_info)
+
+        return "\n".join(pref_list)
+
+    def get_formatted_observations_and_reminders(self) -> str:
+        """Get observations and reminders as a formatted string (excludes preferences)"""
+        observations = self.get_user_observations()
+        reminders = self.get_reminders()
+
+        memory_list = []
+
+        # Add observations
+        for memory_id, entry in observations.items():
+            memory_info = f"ID: {memory_id}\n"
+            memory_info += f"Type: {entry.type}\n"
+            memory_info += f"Content: {entry.content}\n"
+            if entry.place:
+                memory_info += f"Place: {entry.place}\n"
+            memory_info += f"Observation Date: {entry.observation_date.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            memory_info += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            memory_info += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            memory_list.append(memory_info.rstrip())
+
+        # Add reminders
+        for memory_id, entry in reminders.items():
+            memory_info = f"ID: {memory_id}\n"
+            memory_info += f"Type: {entry.type}\n"
+            memory_info += f"Content: {entry.content}\n"
+            if entry.place:
+                memory_info += f"Place: {entry.place}\n"
+            memory_info += "Reminder Options:\n"
+            if entry.reminder_options.datetime_value:
+                memory_info += f"  One-time reminder: {entry.reminder_options.datetime_value.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            if entry.reminder_options.time_value:
+                memory_info += f"  Recurring time: {entry.reminder_options.time_value}\n"
+            if entry.reminder_options.days_of_week:
+                memory_info += f"  Days of week: {', '.join(entry.reminder_options.days_of_week)}\n"
+            memory_info += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            memory_info += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            memory_list.append(memory_info.rstrip())
+
+        if not memory_list:
+            return "No observations or reminders stored."
+
+        return "\n\n".join(memory_list)
+
     def delete_memory(self, memory_id: str) -> bool:
         """Delete a memory entry by ID. Returns True if deleted, False if not found"""
         if memory_id in self.memory_entries:

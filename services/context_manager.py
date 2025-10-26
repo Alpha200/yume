@@ -87,12 +87,10 @@ def build_context_text(context: AIContext, include_chat_history: bool = True, ma
 
     # Weather forecast
     if context.forecast:
-        text_parts.append("Weather forecast (next 24 hours):")
-        for i, weather in enumerate(context.forecast[:8]):  # Show first 8 hours for brevity
+        text_parts.append("Weather forecast (next 12 hours):")
+        for i, weather in enumerate(context.forecast[:12]):  # Show first 12 hours for brevity
             weather_time = datetime.fromisoformat(weather.datetime.replace('Z', '+00:00')).strftime('%H:%M')
-            text_parts.append(f"  {weather_time}: {weather.condition}, {weather.temperature}°C, wind {weather.wind_speed} km/h")
-        if len(context.forecast) > 8:
-            text_parts.append(f"  ... and {len(context.forecast) - 8} more forecast entries")
+            text_parts.append(f"{weather_time}: {weather.condition}, {weather.temperature}°C, wind speed: {weather.wind_speed} km/h")
         text_parts.append("")
 
     # Calendar events
@@ -123,12 +121,6 @@ def build_context_text(context: AIContext, include_chat_history: bool = True, ma
 
             text_parts.append(f"{sender_name}: {msg.message}")
         text_parts.append("")
-
-    # Add instruction for AI
-    if include_chat_history and context.chat_history:
-        text_parts.append("Please respond to the most recent message considering this full context.")
-    else:
-        text_parts.append("Please provide assistance based on the available context.")
 
     result = "\n".join(text_parts)
     return result
