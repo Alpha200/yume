@@ -2,12 +2,14 @@ import asyncio
 import datetime
 import os
 from collections import deque
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from agents import Agent, Runner, RunConfig, ModelSettings
 from pydantic import BaseModel
 
 from aiagents.ai_scheduler import determine_next_run_by_memory
+from aiagents.ha_agent import get_home_assistant_agent
 from aiagents.memory_manager import handle_memory_update
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
@@ -19,23 +21,7 @@ logger = logging_manager
 
 USER_LANGUAGE = os.getenv("USER_LANGUAGE", "en")
 
-class AIEngineResult(BaseModel):
-    message_to_user: str | None
-    memory_update_task: str | None
-    reasoning: str
-
-@dataclass
-class ActionRecord:
-    action: str
-    timestamp: datetime.datetime
-
-last_taken_actions = deque(maxlen=10)
-
-agent = Agent(
-    name='Yume - AI Chat Assistant',
-    model="gpt-4o-mini",
-    model_settings=ModelSettings(),
-    instructions=f"""
+INSTRUCTIONS = f"""
 Your name is Yume. You are a helpful personal AI assistant. The user will interact with you in a chat via a messaging app.
 
 You are part of a system that assists the user by keeping a memory about the user and deciding when to send messages to the user based on their memories and context.
@@ -80,14 +66,44 @@ You must follow these guidelines:
 - If the user writes a message, always respond to it in a helpful and friendly manner
 - If the user says he or she completed a task, acknowledge it and update your memories accordingly
 
+You also have access to a Home Assistant instance and can interact with it via the provided tool home_assistant
+Only use the tool if the user requests you to control something in his or her smart home. Don't use it for anything else.
+You should define clearly to the tool what you want to do, e.g., "Turn on the living room light" or "Set the thermostat to 22 degrees Celsius".
+The tool will return what happened after you call it. Tell the user what happened in a friendly way.
+
 Your output should include:
 1. message_to_user: The actual message to send to the user (or null if no message should be sent)
 2. memory_update_task: Instructions for updating memory (or null if no update needed)
 3. reasoning: Your reasoning for the actions taken
-                """.strip(),
-    hooks=CustomAgentHooks(),
-    output_type=AIEngineResult,
-)
+"""
+
+class AIEngineResult(BaseModel):
+    message_to_user: str | None
+    memory_update_task: str | None
+    reasoning: str
+
+@dataclass
+class ActionRecord:
+    action: str
+    timestamp: datetime.datetime
+
+last_taken_actions = deque(maxlen=10)
+
+
+@asynccontextmanager
+def get_ai_engine_agent():
+    with get_home_assistant_agent() as ha_agent:
+        agent = Agent(
+            name='Yume - AI Chat Assistant',
+            model="gpt-4o-mini",
+            model_settings=ModelSettings(),
+            instructions=INSTRUCTIONS,
+            hooks=CustomAgentHooks(),
+            output_type=AIEngineResult,
+            tools=[ha_agent.as_tool("home_assistant", "Interact with the user's Home Assistant instance")],
+        )
+
+        yield agent
 
 async def _handle_memory_update_background(memory_update_task: str):
     """Handle memory update and scheduling in the background"""
@@ -129,7 +145,9 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
 
         input_with_context += "\nBased on the above, determine if any actions are necessary and provide your response."
 
-        response = await Runner.run(agent, input_with_context, run_config=RunConfig(tracing_disabled=True))
+        with get_ai_engine_agent() as agent:
+            response = await Runner.run(agent, input_with_context, run_config=RunConfig(tracing_disabled=True))
+
         parsed_result: AIEngineResult = response.final_output_as(AIEngineResult)
 
         # Start memory update in background if needed
