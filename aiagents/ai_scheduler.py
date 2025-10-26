@@ -4,9 +4,11 @@ from typing import List
 from agents import Agent, ModelSettings, Runner, RunConfig
 
 from components.agent_hooks import CustomAgentHooks
+from components.calendar import CalendarEvent
 from components.logging_manager import logging_manager
-from components.timezone_utils import now_user_tz, to_user_tz
+from components.timezone_utils import now_user_tz, to_user_tz, from_isoformat_user_tz
 from services.ai_scheduler import ai_scheduler, NextRun, ExecutedReminder
+from services.home_assistant import get_calendar_events_48h
 from services.memory_manager import memory_manager
 
 
@@ -21,28 +23,38 @@ ai_scheduler_agent = Agent(
     instructions=f"""
 You are the intelligent scheduling component of Yume, an AI assistant that helps users stay organized and engaged with their daily lives.
 
-Your primary role is to analyze stored memories (preferences, observations, and reminders) and determine the optimal time for the next user interaction. You must be reliable, engaging, and deeply respectful of user preferences.
+Your primary role is to analyze stored memories (preferences, observations, and reminders), upcoming calendar events, and determine the optimal time for the next user interaction. You must be reliable, engaging, and deeply respectful of user preferences.
 
 Your core principles are:
 
 1. Reliability: NEVER miss scheduled reminders or important events. When in doubt, schedule earlier rather than later.
 2. User Preferences: Always prioritize and respect stored user preferences about timing and frequency.
 3. Engagement: Consider the user's emotional state, routine patterns, and recent interactions to provide timely, helpful engagement.
-4. Context Awareness: Factor in time of day, day of week, recent activity, and seasonal patterns.
+4. Context Awareness: Factor in time of day, day of week, recent activity, upcoming calendar events, and seasonal patterns.
+5. Calendar Intelligence: Schedule interactions at appropriate times before calendar events (e.g., 15-30 minutes before meetings, morning of all-day events).
 
 You should follow this structured approach:
 1. Scan all memories for explicit reminders with specific times/dates
-2. Review user preferences for communication timing, frequency preferences, and interaction styles
-3. Consider user observations to understand patterns, mood, and current life context
-4. Evaluate recent interactions to avoid being too frequent or sparse (consider last communication with the user). Check last executed reminders so you don't repeat the same topic too soon
-5. Apply intelligent defaults when no specific guidance exists
+2. Review upcoming calendar events and consider scheduling interactions before important events
+3. Review user preferences for communication timing, frequency preferences, and interaction styles
+4. Consider user observations to understand patterns, mood, and current life context
+5. Evaluate recent interactions to avoid being too frequent or sparse (consider last communication with the user). Check last executed reminders so you don't repeat the same topic too soon
+6. Apply intelligent defaults when no specific guidance exists
 
 You should prioritize reminders and interactions as follows (from highest to lowest):
 1. Explicit reminders with specific datetime_value (highest priority - NEVER miss these)
-2. Recurring reminders with time_value and days_of_week patterns
-3. User preference-based check-ins (e.g., daily summaries, weekly planning)
-4. Contextual engagement based on observations and patterns
-5. Wellness check-ins (every few hours during users active hours if no other interactions are scheduled)
+2. Calendar event reminders (schedule 15-30 minutes before meetings/appointments, or morning of all-day events)
+3. Recurring reminders with time_value and days_of_week patterns
+4. User preference-based check-ins (e.g., daily summaries, weekly planning)
+5. Contextual engagement based on observations and patterns
+6. Wellness check-ins (every few hours during users active hours if no other interactions are scheduled)
+
+Calendar Event Guidelines:
+- For timed events (meetings, appointments): Schedule 15-30 minutes before the event starts
+- For all-day events: Schedule in the morning (e.g., 8-9 AM) on the day of the event
+- For events with travel required (check location): Allow extra time for travel preparation
+- Consider the importance and type of event when deciding timing
+- Don't schedule too many reminders for the same event
 
 You should follow these timing guidelines:
 - Consider user preferences and the users schedule
@@ -59,12 +71,12 @@ You should consider these factors in your decision:
 
 The output MUST be as follows:
 - next_run_time: Precise datetime for next interaction (minimum 15 minutes future)
-- reason: Clear, specific explanation of why this time was chosen, referencing relevant memories
-- topic: Topic that reflects the relevant memory content and user preferences that should be the topic of the interaction
+- reason: Clear, specific explanation of why this time was chosen, referencing relevant memories and/or calendar events
+- topic: Topic that reflects the relevant memory content, calendar event, and user preferences that should be the topic of the interaction
 
 Wellness check ins may not lead to a specific action but are necessary to check the current users context.
 
-Remember: You are not just a scheduler, you are Yume's timing intelligence, ensuring every interaction is perfectly timed to be helpful, engaging, and respectful of the user's needs and preferences.
+Remember: You are not just a scheduler, you are Yume's timing intelligence, ensuring every interaction is perfectly timed to be helpful, engaging, and respectful of the user's needs, preferences, and schedule.
     """.strip(),
     hooks=CustomAgentHooks(),
     output_type=NextRun,
@@ -83,9 +95,16 @@ async def determine_next_run_by_memory():
     # Get latest actions from AI engine
     from services.ai_scheduler import ai_scheduler as services_ai_scheduler
 
-    # Format memories and actions for AI analysis
+    # Fetch calendar events for context
+    try:
+        calendar_events = await get_calendar_events_48h()
+    except Exception as e:
+        logger.log(f"Error fetching calendar events: {e}")
+        calendar_events = []
+
+    # Format memories, actions, and calendar events for AI analysis
     recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=5)
-    formatted_input = _format_memories_for_analysis(memories, recent_executed)
+    formatted_input = _format_memories_for_analysis(memories, recent_executed, calendar_events)
 
     try:
         next_run_result = await _run_ai_analysis(formatted_input)
@@ -131,8 +150,8 @@ def _create_fallback_schedule(reason: str, hours: int = 0, minutes: int = 0) -> 
     return NextRun(next_run_time=next_run, reason=reason, topic="Fallback schedule")
 
 
-def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder]) -> str:
-    """Format memories and recent executed memory-reminder jobs into a structured text for AI analysis"""
+def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder], calendar_events: List[CalendarEvent]) -> str:
+    """Format memories, recent executed memory-reminder jobs, and calendar events into a structured text for AI analysis"""
     memory_text = "Stored memories:\n\n"
     for memory_id, entry in memories.items():
         memory_text += f"ID: {memory_id}\n"
@@ -154,10 +173,25 @@ def _format_memories_for_analysis(memories, recent_executed_reminders: List[Exec
     else:
         actions_text += "No recent executed reminders recorded.\n"
 
+    # Add calendar events
+    calendar_text = "\nUpcoming calendar events (next 48 hours):\n\n"
+    if calendar_events and len(calendar_events) > 0:
+        for event in calendar_events:
+            calendar_text += f"Summary: {event.summary}\n"
+            calendar_text += f"Start: {event.start}\n"
+            calendar_text += f"End: {event.end}\n"
+            if event.location:
+                calendar_text += f"Location: {event.location}\n"
+            if event.description:
+                calendar_text += f"Description: {event.description}\n"
+            calendar_text += "-" * 10 + "\n\n"
+    else:
+        calendar_text += "No upcoming calendar events in the next 48 hours.\n"
+
     current_time = now_user_tz()
     context_text = f"Current date and time: {current_time.strftime('%A, %B %d, %Y at %H:%M')}\n\n"
 
-    return context_text + memory_text + actions_text
+    return context_text + memory_text + actions_text + calendar_text
 
 async def _run_ai_analysis(formatted_input: str) -> NextRun:
     """Run the AI agent analysis on the formatted memory data"""
