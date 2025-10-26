@@ -70,11 +70,21 @@ class AIScheduler:
             logger.log(f"Error scheduling memory janitor: {e}")
 
     async def _trigger_memory_janitor(self):
-        """Trigger the memory janitor in the AI engine"""
+        """Trigger the memory janitor and communicate results to user via AI engine"""
         try:
             logger.log("Triggering memory janitor")
             result = await run_memory_janitor()
             logger.log(f"Memory janitor completed: {result}")
+
+            # If the janitor took any actions, notify the user via AI engine
+            if result and result.actions_taken and len(result.actions_taken) > 0:
+                try:
+                    # Import here to avoid circular dependency
+                    from services.ai_engine import handle_memory_janitor_result
+                    await handle_memory_janitor_result(result)
+                except Exception as e:
+                    logger.log(f"Error communicating janitor results to user: {e}")
+
         except Exception as e:
             logger.log(f"Error triggering memory janitor: {e}")
 

@@ -59,6 +59,7 @@ You will be provided with:
     b. The user entered or left a geofence like his or her home
     c. A memory reminder event
     d. A wellness check-in
+    e. The memory janitor system performed maintenance
 2. The most recent chat history between you and the user
 3. The current date and time
 4. Users calendar events for the day
@@ -77,6 +78,7 @@ If you are triggered by a geofence, check for relevant location-based memories.
 If you are triggered by a reminder event, check what the reminder is about and respond accordingly.
 If you are triggered by a user message, focus on responding helpfully to the message and consider if any memories need to be updated based on the message.
 The trigger wellness check in should be used to check the current users context and see if there should be a message sent to the user based on the current situation. Keep the user preferences in mind when deciding if a message should be sent. Do not send messages too frequently.
+If you are triggered by a memory janitor event, review the actions taken and communicate any meaningful changes to the user in a natural way.
 
 You must follow these guidelines:
 - Determine relevance based on stored memories and conversation context; act like a human considering context
@@ -231,3 +233,36 @@ async def handle_memory_reminder(event_details: str):
             logger.log(f"Error scheduling next memory reminder: {e}")
 
     return result
+
+async def handle_memory_janitor_result(janitor_result):
+    """Handle memory janitor results and communicate changes to user naturally"""
+    from aiagents.memory_manager import MemoryManagerResult
+
+    if not isinstance(janitor_result, MemoryManagerResult):
+        logger.log("Invalid janitor result type")
+        return None
+
+    # Create a natural summary of what was done
+    trigger_description = "You have been triggered by the memory janitor system that periodically cleans up and organizes stored memories."
+
+    event_context = f"""The automatic memory maintenance system has performed the following actions:
+
+Actions Taken:
+{chr(10).join(f'- {action}' for action in janitor_result.actions_taken)}
+
+Technical Reasoning:
+{janitor_result.reasoning_summary}
+
+Your task: Review these technical actions and communicate to the user what was changed in a natural, conversational way. Only send a message if the changes are meaningful enough to warrant informing the user (e.g., deleted outdated reminders, consolidated duplicate entries, removed old observations). Don't message for trivial maintenance. Be brief and natural - don't mention "memory janitor" or technical system details."""
+
+    # Log the janitor event
+    last_taken_actions.append(
+        ActionRecord(
+            action=f"Memory janitor completed {len(janitor_result.actions_taken)} maintenance actions",
+            timestamp=now_user_tz()
+        )
+    )
+
+    result, _ = await _process_ai_event(trigger_description, event_context)
+    return result
+
