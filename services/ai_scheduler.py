@@ -69,11 +69,11 @@ class AIScheduler:
         except Exception as e:
             logger.log(f"Error scheduling memory janitor: {e}")
 
-    def _trigger_memory_janitor(self):
+    async def _trigger_memory_janitor(self):
         """Trigger the memory janitor in the AI engine"""
         try:
             logger.log("Triggering memory janitor")
-            result = run_memory_janitor()
+            result = await run_memory_janitor()
             logger.log(f"Memory janitor completed: {result}")
         except Exception as e:
             logger.log(f"Error triggering memory janitor: {e}")
