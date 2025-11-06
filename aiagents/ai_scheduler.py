@@ -1,4 +1,5 @@
 import datetime
+import os
 from typing import List
 
 from agents import Agent, ModelSettings, Runner, RunConfig
@@ -6,17 +7,18 @@ from agents import Agent, ModelSettings, Runner, RunConfig
 from components.agent_hooks import CustomAgentHooks
 from components.calendar import CalendarEvent
 from components.logging_manager import logging_manager
-from components.timezone_utils import now_user_tz, to_user_tz, from_isoformat_user_tz
+from components.timezone_utils import now_user_tz, to_user_tz
 from services.ai_scheduler import ai_scheduler, NextRun, ExecutedReminder
 from services.home_assistant import get_calendar_events_48h
 from services.memory_manager import memory_manager
 
 
+AI_SCHEDULER_MODEL = os.getenv("AI_SCHEDULER_MODEL", "gpt-5-mini")
 logger = logging_manager
 
 ai_scheduler_agent = Agent(
     name='AI Scheduler',
-    model="gpt-5-mini",
+    model=AI_SCHEDULER_MODEL,
     model_settings=ModelSettings(
         extra_args={"service_tier": "flex"},
     ),

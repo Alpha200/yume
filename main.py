@@ -1,9 +1,24 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 
 import uvicorn
+from agents import set_default_openai_client, set_tracing_disabled
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from openai import AsyncOpenAI
+
+AI_ENDPOINT_URL = os.getenv("AI_ENDPOINT_URL", None)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+kwargs = dict(api_key=OPENAI_API_KEY)
+
+if AI_ENDPOINT_URL:
+    kwargs["base_url"] = AI_ENDPOINT_URL
+
+custom_client = AsyncOpenAI(**kwargs)
+set_default_openai_client(custom_client)
+set_tracing_disabled(True)
 
 from aiagents.ai_scheduler import determine_next_run_by_memory
 from controllers.api_controller import router as api_router

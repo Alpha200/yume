@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 from agents import Agent, ModelSettings, Runner, RunConfig
@@ -10,13 +11,15 @@ from tools.memory import get_memory, delete_memory, upsert_user_observation, ups
 
 logger = logging_manager
 
+AI_MEMORY_MODEL = os.getenv("AI_MEMORY_MODEL", "gpt-5-mini")
+
 class MemoryManagerResult(BaseModel):
     actions_taken: List[str]
     reasoning_summary: str
 
 memory_manager_agent = Agent(
     name='Memory Manager',
-    model="gpt-5-mini",
+    model=AI_MEMORY_MODEL,
     model_settings=ModelSettings(
         tool_choice="required",
         reasoning=Reasoning(

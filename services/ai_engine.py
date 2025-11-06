@@ -18,6 +18,7 @@ from services.memory_manager import memory_manager
 logger = logging_manager
 
 USER_LANGUAGE = os.getenv("USER_LANGUAGE", "en")
+AI_ASSISTANT_MODEL = os.getenv("AI_ASSISTANT_MODEL", "gpt-4o-mini")
 
 class AIEngineResult(BaseModel):
     message_to_user: str | None
@@ -109,7 +110,7 @@ def _create_agent() -> Agent:
     """Create a new agent instance with current instructions"""
     return Agent(
         name='Yume - AI Chat Assistant',
-        model="gpt-4o-mini",
+        model=AI_ASSISTANT_MODEL,
         model_settings=ModelSettings(),
         instructions=_build_agent_instructions(),
         hooks=CustomAgentHooks(),

@@ -106,6 +106,12 @@ The memory system supports three types of entries:
    # OpenAI Configuration
    OPENAI_API_KEY=your_openai_api_key
    
+   # AI Model Configuration (Optional)
+   AI_ASSISTANT_MODEL=gpt-4o-mini  # Model for main chat assistant (defaults to AI_MODEL)
+   AI_SCHEDULER_MODEL=gpt-5-mini  # Model for scheduling agent (defaults to AI_MODEL)
+   AI_MEMORY_MODEL=gpt-5-mini  # Model for memory manager agent (defaults to AI_MODEL)
+   AI_ENDPOINT_URL=  # Optional: Custom OpenAI API endpoint URL (leave empty for default)
+   
    # User Configuration
    USER_LANGUAGE=en  # Language for AI responses
    ```
