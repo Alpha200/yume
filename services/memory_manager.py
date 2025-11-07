@@ -299,6 +299,22 @@ class MemoryManager:
             if entry.type == memory_type
         }
 
+    def _format_reminder_schedule(self, reminder_entry: ReminderEntry) -> str:
+        """Format reminder schedule information for display"""
+        ro = reminder_entry.reminder_options
+        schedule_info = "Reminder Schedule:\n"
+        if ro.datetime_value:
+            schedule_info += f"  Type: One-time\n"
+            schedule_info += f"  Scheduled for: {ro.datetime_value.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        elif ro.time_value:
+            schedule_info += f"  Type: Recurring\n"
+            schedule_info += f"  Time: {ro.time_value}\n"
+            if ro.days_of_week and len(ro.days_of_week) > 0:
+                schedule_info += f"  Days: {', '.join(ro.days_of_week)}\n"
+            else:
+                schedule_info += f"  Days: Daily\n"
+        return schedule_info
+
     def get_formatted_memories(self) -> str:
         """Get all stored memories as a formatted string"""
         memories = self.get_all_memories()
@@ -322,13 +338,7 @@ class MemoryManager:
 
             # Add reminder options for reminder entries
             elif isinstance(entry, ReminderEntry):
-                memory_info += "Reminder Options:\n"
-                if entry.reminder_options.datetime_value:
-                    memory_info += f"  One-time reminder: {entry.reminder_options.datetime_value.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                if entry.reminder_options.time_value:
-                    memory_info += f"  Recurring time: {entry.reminder_options.time_value}\n"
-                if entry.reminder_options.days_of_week:
-                    memory_info += f"  Days of week: {', '.join(entry.reminder_options.days_of_week)}\n"
+                memory_info += self._format_reminder_schedule(entry)
 
             memory_list.append(memory_info.rstrip())
 
@@ -376,13 +386,7 @@ class MemoryManager:
             memory_info += f"Content: {entry.content}\n"
             if entry.place:
                 memory_info += f"Place: {entry.place}\n"
-            memory_info += "Reminder Options:\n"
-            if entry.reminder_options.datetime_value:
-                memory_info += f"  One-time reminder: {entry.reminder_options.datetime_value.strftime('%Y-%m-%d %H:%M:%S')}\n"
-            if entry.reminder_options.time_value:
-                memory_info += f"  Recurring time: {entry.reminder_options.time_value}\n"
-            if entry.reminder_options.days_of_week:
-                memory_info += f"  Days of week: {', '.join(entry.reminder_options.days_of_week)}\n"
+            memory_info += self._format_reminder_schedule(entry)
             memory_info += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
             memory_info += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
             memory_list.append(memory_info.rstrip())

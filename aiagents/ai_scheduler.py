@@ -154,17 +154,101 @@ def _create_fallback_schedule(reason: str, hours: int = 0, minutes: int = 0) -> 
     return NextRun(next_run_time=next_run, reason=reason, topic="Fallback schedule")
 
 
+def _calculate_next_reminder_occurrence(reminder_options):
+    """Calculate the next occurrence of a recurring reminder based on time_value and days_of_week"""
+    if not reminder_options.time_value:
+        return None
+
+    try:
+        t = datetime.datetime.strptime(reminder_options.time_value, "%H:%M").time()
+    except ValueError:
+        return None
+
+    today = now_user_tz().date()
+    days = reminder_options.days_of_week
+
+    if days and len(days) > 0:
+        # Map weekday names to numbers (Monday=0 ... Sunday=6)
+        wk_map = {
+            "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+            "friday": 4, "saturday": 5, "sunday": 6
+        }
+        # Find the next occurrence among specified days
+        target_weekdays = []
+        for d in days:
+            if isinstance(d, str):
+                key = d.strip().lower()
+                if key in wk_map:
+                    target_weekdays.append(wk_map[key])
+
+        if not target_weekdays:
+            return None
+
+        # Find the earliest upcoming occurrence
+        for wd in sorted(target_weekdays):
+            days_ahead = (wd - today.weekday() + 7) % 7
+            if days_ahead == 0:
+                # Check if the time today has already passed
+                candidate_dt = to_user_tz(datetime.datetime.combine(today, t))
+                if candidate_dt > now_user_tz():
+                    return candidate_dt
+                # Already passed today, schedule for next week
+                days_ahead = 7
+
+            candidate_date = today + datetime.timedelta(days=days_ahead)
+            candidate_dt = to_user_tz(datetime.datetime.combine(candidate_date, t))
+            return candidate_dt
+    else:
+        # Daily reminder
+        candidate_dt = to_user_tz(datetime.datetime.combine(today, t))
+        if candidate_dt > now_user_tz():
+            return candidate_dt
+        # Already passed today, schedule for tomorrow
+        candidate_dt = to_user_tz(datetime.datetime.combine(today + datetime.timedelta(days=1), t))
+        return candidate_dt
+
+
 def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder], calendar_events: List[CalendarEvent]) -> str:
     """Format memories, recent executed memory-reminder jobs, and calendar events into a structured text for AI analysis"""
     memory_text = "Stored memories:\n\n"
     for memory_id, entry in memories.items():
-        memory_text += f"ID: {memory_id}\n"
         memory_text += f"Type: {entry.type}\n"
         memory_text += f"Content: {entry.content}\n"
         if entry.place:
             memory_text += f"Place: {entry.place}\n"
         memory_text += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
         memory_text += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+
+        # Add reminder scheduling information if it's a reminder
+        if entry.type == "reminder" and entry.reminder_options:
+            ro = entry.reminder_options
+            memory_text += "Reminder Schedule:\n"
+
+            # One-time reminder
+            if ro.datetime_value:
+                dt_local = to_user_tz(ro.datetime_value)
+                memory_text += f"  Type: One-time\n"
+                memory_text += f"  Scheduled for: {dt_local.strftime('%Y-%m-%d %H:%M:%S')}\n"
+
+            # Recurring reminder
+            if ro.time_value:
+                memory_text += f"  Type: Recurring\n"
+                memory_text += f"  Time: {ro.time_value}\n"
+                if ro.days_of_week and len(ro.days_of_week) > 0:
+                    memory_text += f"  Days: {', '.join(ro.days_of_week)}\n"
+                else:
+                    memory_text += f"  Days: Daily\n"
+
+                # Calculate and show next occurrence
+                try:
+                    next_occurrence = _calculate_next_reminder_occurrence(ro)
+                    if next_occurrence:
+                        memory_text += f"  Next occurrence: {next_occurrence.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                except Exception:
+                    pass
+
+            memory_text += "\n"
+
         memory_text += "-" * 10 + "\n\n"
 
     # Add recent executed memory reminder jobs
@@ -262,7 +346,7 @@ def _determine_next_run_from_reminders(memories) -> NextRun | None:
             if dt:
                 dt_local = to_user_tz(dt)
                 if dt_local >= min_future_time:
-                    candidates.append((dt_local, f"Reminder {memory_id}: {entry.content}", memory_id, entry.content))
+                    candidates.append((dt_local, f"Reminder: {entry.content}", memory_id, entry.content))
                 continue
 
             # Recurring by time_value (HH:MM) and optional days_of_week
@@ -308,14 +392,14 @@ def _determine_next_run_from_reminders(memories) -> NextRun | None:
                         candidate_dt = to_user_tz(datetime.datetime.combine(candidate_date, t))
 
                     if candidate_dt >= min_future_time:
-                        candidates.append((candidate_dt, f"Reminder {memory_id}: {entry.content}", memory_id, entry.content))
+                        candidates.append((candidate_dt, f"Reminder: {entry.content}", memory_id, entry.content))
             else:
                 # No days specified, use next today/tomorrow occurrence
                 candidate_dt = to_user_tz(datetime.datetime.combine(today, t))
                 if candidate_dt < min_future_time:
                     candidate_dt = candidate_dt + datetime.timedelta(days=1)
                 if candidate_dt >= min_future_time:
-                    candidates.append((candidate_dt, f"Reminder {memory_id}: {entry.content}", memory_id, entry.content))
+                    candidates.append((candidate_dt, f"Reminder: {entry.content}", memory_id, entry.content))
 
         except Exception:
             # Skip problematic entries
