@@ -125,7 +125,8 @@ async def handle_memory_update(information: str):
             metadata={
                 "action_count": len(result.actions_taken),
                 "trigger": "memory_update"
-            }
+            },
+            system_instructions=memory_manager_agent.instructions
         )
 
         # Log each action in detail
@@ -158,7 +159,8 @@ async def run_memory_janitor():
             metadata={
                 "action_count": len(response_object.actions_taken),
                 "trigger": "janitor"
-            }
+            },
+            system_instructions=memory_manager_agent.instructions
         )
 
         # Log each action in detail

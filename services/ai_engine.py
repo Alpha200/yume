@@ -174,7 +174,8 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
                 "trigger": trigger_description,
                 "has_message": parsed_result.message_to_user is not None,
                 "has_memory_update": parsed_result.memory_update_task is not None
-            }
+            },
+            system_instructions=agent.instructions
         )
 
         # Start memory update in background if needed

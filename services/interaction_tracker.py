@@ -15,6 +15,7 @@ class AgentInteraction:
     input_data: str
     output_data: str
     metadata: Optional[Dict[str, Any]] = None
+    system_instructions: Optional[str] = None
 
 
 class InteractionTracker:
@@ -30,7 +31,8 @@ class InteractionTracker:
         agent_type: str,
         input_data: str,
         output_data: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        system_instructions: Optional[str] = None
     ) -> str:
         """
         Track a new agent interaction
@@ -40,6 +42,7 @@ class InteractionTracker:
             input_data: Full input sent to the agent
             output_data: Full output received from the agent
             metadata: Optional metadata about the interaction
+            system_instructions: Optional system instructions/prompt used for the interaction
 
         Returns:
             The ID of the tracked interaction
@@ -53,7 +56,8 @@ class InteractionTracker:
             timestamp=now_user_tz(),
             input_data=input_data,
             output_data=output_data,
-            metadata=metadata or {}
+            metadata=metadata or {},
+            system_instructions=system_instructions
         )
 
         self.interactions.append(interaction)

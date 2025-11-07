@@ -6,6 +6,10 @@
         <button class="close-btn" @click="$emit('close')">✕</button>
       </div>
       <div class="modal-body">
+        <div v-if="interaction.system_instructions" class="detail-section system-instructions-section">
+          <div class="detail-label">System Instructions</div>
+          <pre class="detail-code system-instructions">{{ interaction.system_instructions }}</pre>
+        </div>
         <div class="detail-section">
           <div class="detail-label">Timestamp</div>
           <div class="detail-value">{{ formatTime(interaction.timestamp) }}</div>
@@ -185,6 +189,19 @@ export default {
 .detail-code::-webkit-scrollbar-thumb {
   background: #52525b;
   border-radius: 3px;
+}
+
+.system-instructions-section {
+  border: 1px solid #a855f7;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: rgba(168, 85, 247, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.system-instructions {
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
 }
 </style>
 

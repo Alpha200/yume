@@ -303,7 +303,8 @@ async def _run_ai_analysis(formatted_input: str) -> NextRun:
         metadata={
             "next_run_time": next_run.next_run_time.isoformat() if next_run.next_run_time else None,
             "topic": next_run.topic
-        }
+        },
+        system_instructions=ai_scheduler_agent.instructions
     )
 
     return next_run

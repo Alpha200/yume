@@ -56,6 +56,7 @@ class InteractionDetailResponse(BaseModel):
     input_data: str
     output_data: str
     metadata: Dict[str, Any] | None
+    system_instructions: str | None = None
 
 
 @router.get("/actions", response_model=List[ActionResponse])
@@ -204,6 +205,7 @@ async def get_interaction_detail(interaction_id: str):
         timestamp=interaction.timestamp.isoformat(),
         input_data=interaction.input_data,
         output_data=interaction.output_data,
-        metadata=interaction.metadata
+        metadata=interaction.metadata,
+        system_instructions=interaction.system_instructions
     )
 
