@@ -103,12 +103,9 @@ class MatrixChatBot:
                 }
             )
 
-            # Add our own message to conversation history
-            self.conversation_history.append(ConversationEntry(
-                sender=self.client.user_id,
-                message=message,
-                timestamp=datetime.now().isoformat()
-            ))
+            # Don't add message to history here - it will be added when the message
+            # comes back from the Matrix server in the _handle_message callback
+            # This prevents duplicate messages in the conversation history
 
             logger.log(f"Sent message to {self.room_id}: {message}")
 
