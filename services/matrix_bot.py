@@ -52,13 +52,16 @@ class MatrixChatBot:
 
             logger.log(f"Received message from {event.sender} in {room.room_id}: {event.body}")
 
+            # Convert server timestamp (milliseconds) to ISO format
+            msg_timestamp = datetime.fromtimestamp(event.server_timestamp / 1000).isoformat()
+
             # Only respond if message is not from us
             if event.sender == self.client.user_id:
                 # Add our own message to conversation history immediately
                 self.conversation_history.append(ConversationEntry(
                     sender=event.sender,
                     message=event.body,
-                    timestamp=datetime.now().isoformat()
+                    timestamp=msg_timestamp
                 ))
                 return
 
@@ -73,7 +76,7 @@ class MatrixChatBot:
             self.conversation_history.append(ConversationEntry(
                 sender=event.sender,
                 message=event.body,
-                timestamp=datetime.now().isoformat()
+                timestamp=msg_timestamp
             ))
 
         except Exception as e:
