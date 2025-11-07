@@ -157,12 +157,17 @@ async def get_calendar_events_48h() -> List[CalendarEvent]:
             events = entity_data["events"]
 
             for event in events:
+                # Detect if this is an all-day event (start/end are dates without time component)
+                start_str = event.get("start", "")
+                is_all_day = len(start_str) == 10  # Format: YYYY-MM-DD for all-day events
+
                 calendar_event = CalendarEvent(
-                    start=event.get("start"),
+                    start=start_str,
                     end=event.get("end"),
                     summary=event.get("summary"),
                     description=event.get("description"),
-                    location=event.get("location")
+                    location=event.get("location"),
+                    is_all_day=is_all_day
                 )
                 events_data.append(calendar_event)
 

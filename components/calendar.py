@@ -10,3 +10,4 @@ class CalendarEvent:
     summary: str
     description: Optional[str] = None
     location: Optional[str] = None
+    is_all_day: bool = False
