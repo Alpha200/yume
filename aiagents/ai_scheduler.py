@@ -5,16 +5,18 @@ from typing import List
 from agents import Agent, ModelSettings, Runner, RunConfig
 
 from components.agent_hooks import CustomAgentHooks
-from components.calendar import CalendarEvent
 from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz, to_user_tz
-from services.ai_scheduler import ai_scheduler, NextRun, ExecutedReminder
-from services.home_assistant import get_calendar_events_48h
+from services.home_assistant import get_calendar_events_48h, CalendarEvent
 from services.memory_manager import memory_manager
+from services.interaction_tracker import interaction_tracker
 
 
 AI_SCHEDULER_MODEL = os.getenv("AI_SCHEDULER_MODEL", "gpt-5-mini")
 logger = logging_manager
+
+# Import after to avoid circular dependency
+from services.ai_scheduler import NextRun, ExecutedReminder, ai_scheduler
 
 ai_scheduler_agent = Agent(
     name='AI Scheduler',
@@ -199,7 +201,21 @@ async def _run_ai_analysis(formatted_input: str) -> NextRun:
     """Run the AI agent analysis on the formatted memory data"""
     run_config = RunConfig(tracing_disabled=True)
     result = await Runner.run(ai_scheduler_agent, formatted_input, run_config=run_config)
-    return result.final_output_as(NextRun)
+    next_run = result.final_output_as(NextRun)
+
+    # Track the interaction for debugging
+    output_data = f"Next run time: {next_run.next_run_time}\nReason: {next_run.reason}\nTopic: {next_run.topic}"
+    interaction_tracker.track_interaction(
+        agent_type="ai_scheduler",
+        input_data=formatted_input,
+        output_data=output_data,
+        metadata={
+            "next_run_time": next_run.next_run_time.isoformat() if next_run.next_run_time else None,
+            "topic": next_run.topic
+        }
+    )
+
+    return next_run
 
 
 def _validate_and_adjust_time(next_run_result: NextRun) -> NextRun:

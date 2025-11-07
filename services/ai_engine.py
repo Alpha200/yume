@@ -14,6 +14,7 @@ from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz
 from services.context_manager import build_ai_context, build_context_text
 from services.memory_manager import memory_manager
+from services.interaction_tracker import interaction_tracker
 
 logger = logging_manager
 
@@ -162,6 +163,19 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
 
         response = await Runner.run(agent, input_with_context, run_config=RunConfig(tracing_disabled=True))
         parsed_result: AIEngineResult = response.final_output_as(AIEngineResult)
+
+        # Track the interaction for debugging
+        output_data = f"Message to user: {parsed_result.message_to_user}\n\nMemory update task: {parsed_result.memory_update_task}\n\nReasoning: {parsed_result.reasoning}"
+        interaction_tracker.track_interaction(
+            agent_type="ai_engine",
+            input_data=input_with_context,
+            output_data=output_data,
+            metadata={
+                "trigger": trigger_description,
+                "has_message": parsed_result.message_to_user is not None,
+                "has_memory_update": parsed_result.memory_update_task is not None
+            }
+        )
 
         # Start memory update in background if needed
         if parsed_result.memory_update_task:

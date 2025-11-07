@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
 from tools.memory import get_memory, delete_memory, upsert_user_observation, upsert_user_preference, upsert_reminder
+from services.interaction_tracker import interaction_tracker
 
 logger = logging_manager
 
@@ -115,6 +116,18 @@ async def handle_memory_update(information: str):
         response = await Runner.run(memory_manager_agent, agent_input, run_config=RunConfig(tracing_disabled=True))
         result = response.final_output_as(MemoryManagerResult)
 
+        # Track the interaction for debugging
+        output_data = f"Actions taken:\n" + "\n".join(f"  - {action}" for action in result.actions_taken) + f"\n\nReasoning: {result.reasoning_summary}"
+        interaction_tracker.track_interaction(
+            agent_type="memory_manager",
+            input_data=agent_input,
+            output_data=output_data,
+            metadata={
+                "action_count": len(result.actions_taken),
+                "trigger": "memory_update"
+            }
+        )
+
         # Log each action in detail
         if result.actions_taken:
             logger.log(f"Memory update completed with {len(result.actions_taken)} actions:")
@@ -135,6 +148,18 @@ async def run_memory_janitor():
     try:
         response = await Runner.run(memory_manager_agent, task)
         response_object = response.final_output_as(MemoryManagerResult)
+
+        # Track the interaction for debugging
+        output_data = f"Actions taken:\n" + "\n".join(f"  - {action}" for action in response_object.actions_taken) + f"\n\nReasoning: {response_object.reasoning_summary}"
+        interaction_tracker.track_interaction(
+            agent_type="memory_manager",
+            input_data=task,
+            output_data=output_data,
+            metadata={
+                "action_count": len(response_object.actions_taken),
+                "trigger": "janitor"
+            }
+        )
 
         # Log each action in detail
         if response_object.actions_taken:

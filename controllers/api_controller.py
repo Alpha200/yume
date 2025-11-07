@@ -6,6 +6,7 @@ from services.ai_engine import last_taken_actions, handle_geofence_event
 from services.memory_manager import memory_manager
 from services.ai_scheduler import ai_scheduler
 from components.logging_manager import logging_manager
+from services.interaction_tracker import interaction_tracker
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -42,6 +43,19 @@ class GeofenceEventRequest(BaseModel):
 class GeofenceEventResponse(BaseModel):
     success: bool
     message: str | None
+
+class InteractionSummaryResponse(BaseModel):
+    id: str
+    agent_type: str
+    timestamp: str
+
+class InteractionDetailResponse(BaseModel):
+    id: str
+    agent_type: str
+    timestamp: str
+    input_data: str
+    output_data: str
+    metadata: Dict[str, Any] | None
 
 
 @router.get("/actions", response_model=List[ActionResponse])
@@ -162,3 +176,34 @@ async def trigger_geofence_event(request: GeofenceEventRequest):
             success=False,
             message=f"Error processing geofence event: {str(e)}"
         )
+
+@router.get("/interactions", response_model=List[InteractionSummaryResponse])
+async def get_interactions():
+    """Get all agent interactions (summary view)"""
+    interactions = interaction_tracker.get_all_interactions()
+    return [
+        InteractionSummaryResponse(
+            id=interaction.id,
+            agent_type=interaction.agent_type,
+            timestamp=interaction.timestamp.isoformat()
+        )
+        for interaction in interactions
+    ]
+
+@router.get("/interactions/{interaction_id}", response_model=InteractionDetailResponse)
+async def get_interaction_detail(interaction_id: str):
+    """Get detailed view of a specific interaction"""
+    interaction = interaction_tracker.get_interaction_by_id(interaction_id)
+    if not interaction:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Interaction not found")
+
+    return InteractionDetailResponse(
+        id=interaction.id,
+        agent_type=interaction.agent_type,
+        timestamp=interaction.timestamp.isoformat(),
+        input_data=interaction.input_data,
+        output_data=interaction.output_data,
+        metadata=interaction.metadata
+    )
+
