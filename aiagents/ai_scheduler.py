@@ -185,19 +185,26 @@ def _calculate_next_reminder_occurrence(reminder_options):
             return None
 
         # Find the earliest upcoming occurrence
+        candidates = []
         for wd in sorted(target_weekdays):
             days_ahead = (wd - today.weekday() + 7) % 7
             if days_ahead == 0:
                 # Check if the time today has already passed
                 candidate_dt = to_user_tz(datetime.datetime.combine(today, t))
                 if candidate_dt > now_user_tz():
-                    return candidate_dt
+                    candidates.append(candidate_dt)
+                    continue
                 # Already passed today, schedule for next week
                 days_ahead = 7
 
             candidate_date = today + datetime.timedelta(days=days_ahead)
             candidate_dt = to_user_tz(datetime.datetime.combine(candidate_date, t))
-            return candidate_dt
+            candidates.append(candidate_dt)
+
+        # Return the earliest candidate if any found
+        if candidates:
+            return min(candidates)
+        return None
     else:
         # Daily reminder
         candidate_dt = to_user_tz(datetime.datetime.combine(today, t))
