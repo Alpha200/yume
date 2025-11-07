@@ -208,7 +208,17 @@ async def handle_chat_message(message: str):
     trigger_description = "You have been triggered by a user message."
     event_context = f"User Input:\n{message}"
 
-    result, _ = await _process_ai_event(trigger_description, event_context)
+    result, parsed_result = await _process_ai_event(trigger_description, event_context)
+
+    # Trigger scheduler after user interaction
+    # If a memory update was created, the scheduler will be called after the update
+    # Otherwise, trigger it now
+    if parsed_result and not parsed_result.memory_update_task:
+        try:
+            await determine_next_run_by_memory()
+        except Exception as e:
+            logger.log(f"Error triggering scheduler after chat: {e}")
+
     return result
 
 async def handle_geofence_event(geofence_name: str, event_type: str):
@@ -224,7 +234,17 @@ async def handle_geofence_event(geofence_name: str, event_type: str):
         )
     )
 
-    result, _ = await _process_ai_event(trigger_description, event_context)
+    result, parsed_result = await _process_ai_event(trigger_description, event_context)
+
+    # Trigger scheduler after geofence event
+    # If a memory update was created, the scheduler will be called after the update
+    # Otherwise, trigger it now
+    if parsed_result and not parsed_result.memory_update_task:
+        try:
+            await determine_next_run_by_memory()
+        except Exception as e:
+            logger.log(f"Error triggering scheduler after geofence event: {e}")
+
     return result
 
 async def handle_memory_reminder(event_details: str):

@@ -8,16 +8,13 @@
 
 ## Features
 
-- 🤖 **Matrix Chat Integration**: Responds to messages in Matrix rooms with AI-powered responses
-- 🏠 **Home Assistant Integration**: Fetches weather forecasts, calendar events, and user location data
-- 📍 **Geofence Events**: Triggers AI responses when entering or leaving locations via API endpoints
-- 🧠 **Advanced Memory System**: Persistent memory with user preferences, observations, and reminders
-- ⏰ **Intelligent AI Scheduler**: AI-powered scheduling agent that analyzes memories, preferences, and calendar events to determine optimal timing for reminders and interactions
-- 🌐 **Context-Aware**: Combines conversation history, weather, calendar, location data, and memory context for intelligent responses
-- 📊 **FastAPI Web Interface**: RESTful API for monitoring, control, and triggering location events
-- 🎯 **Vue.js Dashboard**: Real-time monitoring of memories, actions, scheduled tasks, executed reminders, and system logs
-- 🚀 **Optimized Performance**: Background processing with async operations for faster response times
-- 📈 **Interaction Tracking**: Detailed tracking of all agent interactions with input/output data for debugging and optimization
+- 🤖 **Matrix Chat Integration**: AI-powered responses to messages in Matrix rooms
+- 🏠 **Home Assistant Integration**: Weather, calendar, and location data integration
+- 📍 **Geofence Events**: Location-based triggers for user interactions
+- 🧠 **Advanced Memory System**: Persistent storage with preferences, observations, and reminders
+- ⏰ **Intelligent AI Scheduler**: Context-aware scheduling with deferred execution and adaptive re-evaluation
+- 📊 **FastAPI Web Interface & Vue.js Dashboard**: Real-time monitoring and control
+- 🚀 **Async Processing**: Background operations for optimal performance
 
 ## Architecture
 
@@ -35,21 +32,23 @@ Yume is built with a modular architecture consisting of several key components:
 ### AI Agents
 
 - **Memory Manager** (`aiagents/memory_manager.py`): Handles memory operations including intelligent cleanup and archival
-- **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling agent that analyzes stored memories, user preferences, calendar events, and recent interactions to determine optimal timing for the next reminder or user engagement. Prioritizes reliability and respects user preferences while maintaining contextual awareness.
+- **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling agent that analyzes stored memories, user preferences, calendar events, conversation history, and recent interactions to determine optimal timing for the next reminder or user engagement. Features include:
+  - Deferred execution with 60-second debounce to consolidate multiple scheduling triggers
+  - Automatic re-evaluation of existing schedules based on current context
+  - Triggered after every user interaction (chat messages, geofence events, memory reminders)
+  - Dual-approach scheduling combining deterministic reminders and AI-powered timing optimization
 
 ### Memory System
 
 The memory system supports three types of entries:
 - **User Preferences**: Settings and preferences (e.g., "User prefers morning reminders")
 - **User Observations**: Observations with optional dates (e.g., "User's birthday is 2023-12-15")
-- **Reminders**: One-time or recurring reminders with intelligent scheduling options:
-  - **One-time Reminders**: Scheduled for a specific datetime (exact timing)
-  - **Recurring Reminders**: Scheduled by time of day (HH:MM) with optional days of the week filter (e.g., "09:00 on Monday and Friday")
+- **Reminders**: One-time or recurring reminders with intelligent scheduling
 
-The AI Scheduler intelligently determines the optimal next interaction time using a dual-approach strategy:
-1. **Deterministic Scheduling**: Explicitly scheduled reminders are prioritized to ensure no scheduled reminders are missed
-2. **AI-Powered Scheduling**: When no explicit reminders exist, the AI agent analyzes context to suggest optimal timing based on calendar events, user patterns, and preferences
-3. **Conflict Resolution**: The scheduler chooses whichever approach results in the earliest suitable next interaction time
+The AI Scheduler uses a dual-approach strategy:
+1. **Deterministic Scheduling**: Explicitly scheduled reminders are prioritized first
+2. **AI-Powered Scheduling**: Analyzes calendar events, patterns, and preferences for optimal timing
+3. **Conflict Resolution**: Chooses whichever approach results in the earliest suitable interaction time
 
 ### Tools Integration
 
@@ -66,14 +65,11 @@ The AI Scheduler intelligently determines the optimal next interaction time usin
 
 ### Interaction Tracking
 
-Yume includes comprehensive interaction tracking to monitor and debug AI agent behavior:
-- **Agent Type Tracking**: Records which agent executed the interaction (e.g., ai_scheduler, ai_engine)
-- **Input/Output Capture**: Stores full input data and generated output for each interaction
-- **Metadata Storage**: Captures interaction metadata including next_run_time and topic for schedulers
-- **System Instructions**: Logs the system instructions used by each agent for transparency and debugging
-- **Persistent History**: Interaction history is persisted to `data/interactions.json` for analysis
-
-This enables detailed debugging, performance optimization, and understanding of how agents make decisions.
+Yume tracks all AI agent interactions to enable debugging and optimization:
+- **Agent Type**: Records which agent executed the interaction (ai_scheduler, ai_engine, etc.)
+- **Input/Output**: Stores full input data and generated output for each interaction
+- **Metadata**: Captures next_run_time, topic, system instructions, and execution details
+- **Persistent History**: Stored in `data/interactions.json` for analysis
 
 ## Performance Optimizations
 
@@ -156,22 +152,11 @@ The application will start:
 
 ### Memory Management
 
-Yume automatically manages memories with the following features:
-
-- **Automatic Categorization**: Messages are analyzed and relevant information is stored as preferences, observations, or reminders
-- **Intelligent Reminder Scheduling**: Create one-time or recurring reminders with flexible scheduling options
-  - Set specific dates and times for one-time reminders
-  - Create daily reminders at specific times
-  - Schedule recurring reminders for specific days of the week
-- **AI-Powered Timing**: The AI Scheduler analyzes calendar events, user preferences, and interaction patterns to determine optimal timing for reminders
-- **Smart Reminders**: The system determines optimal timing based on content and user behavior, considering:
-  - Upcoming calendar events (schedules reminders 15-30 minutes before meetings)
-  - User preferences and communication frequency
-  - Recent interactions to avoid repetition
-  - Time of day and day of week patterns
-- **Background Processing**: Memory updates and scheduling happen asynchronously to maintain fast response times
-- **Formatted Retrieval**: Consistent memory formatting across all system components
-- **Automatic Cleanup**: The Memory Janitor runs every 12 hours to archive and clean up old memories
+- **Automatic Categorization**: Messages are analyzed and stored as preferences, observations, or reminders
+- **Intelligent Reminder Scheduling**: Create one-time reminders (specific datetime) or recurring reminders (time of day with optional day filter)
+- **Adaptive Scheduling**: Re-evaluates existing schedules whenever a new interaction occurs (chat, geofence, or reminder) to adjust timing based on current context
+- **Deferred Execution**: 60-second debounce consolidates multiple triggers into a single evaluation, preventing rapid rescheduling
+- **Automatic Cleanup**: Memory Janitor runs every 12 hours to archive and clean up old memories
 
 ### API Endpoints
 
@@ -245,74 +230,20 @@ docker run --rm -v yume-data:/data -v $(pwd):/backup alpine tar czf /backup/yume
 
 **Important**: The `/app/data` directory is configured as a Docker volume to persist memory data across container restarts. Without a named volume or bind mount, data will be lost when the container is removed.
 
-## AI Scheduler Agent
-
-The AI Scheduler is the intelligent timing engine that determines when Yume should next interact with the user. It uses a sophisticated analysis of memories, calendar events, and user preferences to optimize engagement timing.
-
-### Core Principles
-
-1. **Reliability**: Never misses scheduled reminders or important events. When in doubt, schedules earlier rather than later.
-2. **User Preferences**: Always prioritizes and respects stored user preferences about timing and frequency.
-3. **Engagement**: Considers the user's emotional state, routine patterns, and recent interactions to provide timely, helpful engagement.
-4. **Context Awareness**: Factors in time of day, day of week, recent activity, upcoming calendar events, and seasonal patterns.
-5. **Calendar Intelligence**: Schedules interactions at appropriate times before calendar events (15-30 minutes before meetings, morning of all-day events).
-
-### Interaction Priority
-
-The scheduler prioritizes interactions in the following order:
-
-1. **Explicit Reminders** (highest priority): One-time reminders with specific datetime values - NEVER missed
-2. **Calendar Event Reminders**: Scheduled 15-30 minutes before timed events or morning of all-day events
-3. **Recurring Reminders**: Recurring reminders with time_value and days_of_week patterns
-4. **User Preference-Based Check-ins**: Daily summaries, weekly planning, or preference-specified interactions
-5. **Contextual Engagement**: Based on user observations and identified patterns
-6. **Wellness Check-ins**: Every few hours during active hours if no other interactions are scheduled
-
-### Timing Guidelines
-
-- **Minimum Gap**: At least 15 minutes from current time (only 15 minutes for urgent items)
-- **Maximum Gap**: Never more than 4 hours during active hours without some form of check-in
-- **Context Sensitivity**: Weekend timing differs from weekday timing
-- **Frequency Adaptation**: Respects user preferences for brief frequent check-ins vs. fewer longer interactions
-
 ## Configuration
 
-### Memory System
+### AI Models
 
-The memory system can be configured through the following parameters:
+Configure which AI models to use:
 
-- **Data Directory**: Default `./data` - stores `memories.json`
-- **Memory Types**: Support for user_preference, user_observation, and reminder entries
-- **Automatic Cleanup**: Configurable memory retention and cleanup policies
+- `AI_ASSISTANT_MODEL`: Main chat assistant (default: gpt-4o-mini)
+- `AI_SCHEDULER_MODEL`: Scheduling agent (default: gpt-5-mini)
+- `AI_MEMORY_MODEL`: Memory manager agent (default: gpt-5-mini)
 
-### AI Behavior
+### Other Settings
 
-- **Response Style**: Conversational, natural language with emoji support
-- **Language Support**: Configurable user language via `USER_LANGUAGE` environment variable
-- **Context Integration**: Automatic inclusion of weather, calendar, location, and memory data
-
-
-## Development
-
-### Project Structure
-
-```
-yume/
-├── main.py             # Application entry point
-├── services/           # Core business logic
-├── aiagents/           # AI-specific modules
-├── components/         # Shared components and data models
-├── tools/              # Function tools for AI agents
-├── data/               # Persistent data storage
-└── README.md           # This file
-```
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with appropriate tests
-4. Submit a pull request
+- `USER_LANGUAGE`: Language for AI responses (default: en)
+- Data directory: `./data` (contains memories and interactions)
 
 ## License
 

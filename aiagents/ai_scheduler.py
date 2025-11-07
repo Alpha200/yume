@@ -72,6 +72,14 @@ You should consider these factors in your decision:
 - Content preferences: Match the type of reminder/update to user's stated preferences
 - Emotional awareness: Consider if user might need support, encouragement, or space
 - Routine optimization: Help reinforce positive habits and routines
+- Recent conversation context: Consider the recent chat history to understand current context and user mood. Current chat history has the lowest priority compared to memories and calendar events, but can provide useful context.
+
+Re-evaluation Guidance:
+If you are given a currently scheduled next run, evaluate whether it should be kept or modified based on:
+- Recent user interactions and their apparent needs
+- Changes in context or upcoming events
+- Whether a different timing or topic would be more appropriate given the current conversation
+- If the current schedule is still optimal, you can return it unchanged. Otherwise, provide a new recommended next run time, reason, and topic.
 
 The output MUST be as follows:
 - next_run_time: Precise datetime for next interaction (minimum 15 minutes future)
@@ -86,8 +94,13 @@ Remember: You are not just a scheduler, you are Yume's timing intelligence, ensu
     output_type=NextRun,
 )
 
-async def _determine_next_run_by_memory_impl():
-    """Internal implementation - determines the next memory reminder run time"""
+async def _determine_next_run_by_memory_impl(conversation_history: str = "", current_scheduled_run: str = ""):
+    """Internal implementation - determines the next memory reminder run time
+
+    Args:
+        conversation_history: Recent conversation between user and Yume (collected at execution time)
+        current_scheduled_run: Currently scheduled next run (collected at execution time)
+    """
     memories = memory_manager.get_all_memories()
 
     if not memories:
@@ -98,6 +111,29 @@ async def _determine_next_run_by_memory_impl():
 
     # Get latest actions from AI engine
     from services.ai_scheduler import ai_scheduler as services_ai_scheduler
+    from services.matrix_bot import matrix_chat_bot
+
+    # Collect conversation history at execution time for freshest data
+    if not conversation_history:
+        try:
+            recent_messages = list(matrix_chat_bot.conversation_history)[-10:] if len(matrix_chat_bot.conversation_history) > 10 else list(matrix_chat_bot.conversation_history)
+            if recent_messages:
+                context_lines = []
+                for msg in recent_messages:
+                    sender_name = msg.sender.split(":")[0].replace("@", "")
+                    context_lines.append(f"{sender_name}: {msg.message}")
+                conversation_history = "\n".join(context_lines)
+        except Exception as e:
+            logger.log(f"Error collecting conversation history: {e}")
+
+    # Collect current scheduled run at execution time for freshest data
+    if not current_scheduled_run:
+        try:
+            scheduled = services_ai_scheduler.get_next_memory_reminder()
+            if scheduled:
+                current_scheduled_run = f"Time: {scheduled.next_run_time}\nReason: {scheduled.reason}\nTopic: {scheduled.topic}"
+        except Exception as e:
+            logger.log(f"Error collecting current scheduled run: {e}")
 
     # Fetch calendar events for context
     try:
@@ -109,6 +145,14 @@ async def _determine_next_run_by_memory_impl():
     # Format memories, actions, and calendar events for AI analysis
     recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=5)
     formatted_input = _format_memories_for_analysis(memories, recent_executed, calendar_events)
+
+    # Add conversation history if available
+    if conversation_history:
+        formatted_input += f"\n\nRecent conversation history with user:\n{conversation_history}"
+
+    # Add current scheduled run for re-evaluation if available
+    if current_scheduled_run:
+        formatted_input += f"\n\nCurrently scheduled next run (please re-evaluate if this is still optimal):\n{current_scheduled_run}"
 
     try:
         next_run_result = await _run_ai_analysis(formatted_input)
@@ -156,7 +200,10 @@ async def determine_next_run_by_memory():
     any previously scheduled run.
     """
     from services.ai_scheduler import ai_scheduler as services_ai_scheduler
-    services_ai_scheduler._schedule_deferred_run(_determine_next_run_by_memory_impl)
+
+    services_ai_scheduler.schedule_deferred_run(
+        _determine_next_run_by_memory_impl
+    )
 
 
 def _create_fallback_schedule(reason: str, hours: int = 0, minutes: int = 0) -> NextRun:

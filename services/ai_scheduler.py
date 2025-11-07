@@ -209,7 +209,7 @@ class AIScheduler:
             logger.log(f"Error getting recent executed reminders: {e}")
             return []
 
-    def _schedule_deferred_run(self, callback: Callable):
+    def schedule_deferred_run(self, callback: Callable):
         """Schedule a deferred AI run to happen 60 seconds from now.
 
         If another deferred run is already scheduled, it will be cancelled and replaced.
