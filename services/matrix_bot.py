@@ -52,25 +52,29 @@ class MatrixChatBot:
 
             logger.log(f"Received message from {event.sender} in {room.room_id}: {event.body}")
 
-            # Add message to history (including our own messages from other apps)
-            self.conversation_history.append(ConversationEntry(
-                sender=event.sender,
-                message=event.body,
-                timestamp=datetime.now().isoformat()
-            ))
-
             # Only respond if message is not from us
             if event.sender == self.client.user_id:
+                # Add our own message to conversation history immediately
+                self.conversation_history.append(ConversationEntry(
+                    sender=event.sender,
+                    message=event.body,
+                    timestamp=datetime.now().isoformat()
+                ))
                 return
 
             try:
                 from services.ai_engine import handle_chat_message
                 await handle_chat_message(message=event.body)
-
             except Exception as e:
                 logger.log(f"Error processing message: {e}")
                 return  # Do nothing on error
 
+            # Add user message to history AFTER AI processing so it's not included in AI context
+            self.conversation_history.append(ConversationEntry(
+                sender=event.sender,
+                message=event.body,
+                timestamp=datetime.now().isoformat()
+            ))
 
         except Exception as e:
             logger.log(f"Unhandled error in _handle_message: {e}")

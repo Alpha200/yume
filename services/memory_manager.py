@@ -369,26 +369,20 @@ class MemoryManager:
 
         # Add observations
         for memory_id, entry in observations.items():
-            memory_info = f"ID: {memory_id}\n"
-            memory_info += f"Type: {entry.type}\n"
+            memory_info = f"Type: {entry.type}\n"
             memory_info += f"Content: {entry.content}\n"
             if entry.place:
                 memory_info += f"Place: {entry.place}\n"
             memory_info += f"Observation Date: {entry.observation_date.strftime('%Y-%m-%d %H:%M:%S')}\n"
-            memory_info += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
-            memory_info += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
             memory_list.append(memory_info.rstrip())
 
         # Add reminders
         for memory_id, entry in reminders.items():
-            memory_info = f"ID: {memory_id}\n"
-            memory_info += f"Type: {entry.type}\n"
+            memory_info = f"Type: {entry.type}\n"
             memory_info += f"Content: {entry.content}\n"
             if entry.place:
                 memory_info += f"Place: {entry.place}\n"
             memory_info += self._format_reminder_schedule(entry)
-            memory_info += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
-            memory_info += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
             memory_list.append(memory_info.rstrip())
 
         if not memory_list:

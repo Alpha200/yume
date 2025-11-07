@@ -81,7 +81,7 @@ def build_context_text(context: AIContext, include_chat_history: bool = True, ma
     # User location
     if context.user_location and context.user_location != "unknown":
         text_parts.extend([
-            f"User location: {context.user_location}",
+            f"The user is currently at the following location: {context.user_location}",
             ""
         ])
 
