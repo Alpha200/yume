@@ -86,8 +86,8 @@ Remember: You are not just a scheduler, you are Yume's timing intelligence, ensu
     output_type=NextRun,
 )
 
-async def determine_next_run_by_memory():
-    """Main function to determine the next memory reminder run time"""
+async def _determine_next_run_by_memory_impl():
+    """Internal implementation - determines the next memory reminder run time"""
     memories = memory_manager.get_all_memories()
 
     if not memories:
@@ -146,6 +146,17 @@ async def determine_next_run_by_memory():
         ai_scheduler.schedule_next_run(
             _create_fallback_schedule("Agent error occurred - scheduling fallback reminder", hours=1)
         )
+
+
+async def determine_next_run_by_memory():
+    """Main function to determine the next memory reminder run time.
+
+    This function is automatically wrapped with deferred 60-second execution by the scheduler.
+    When called, it schedules the actual execution 60 seconds in the future, cancelling
+    any previously scheduled run.
+    """
+    from services.ai_scheduler import ai_scheduler as services_ai_scheduler
+    services_ai_scheduler._schedule_deferred_run(_determine_next_run_by_memory_impl)
 
 
 def _create_fallback_schedule(reason: str, hours: int = 0, minutes: int = 0) -> NextRun:

@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional, Deque, List
+from typing import Optional, Deque, List, Callable
 from collections import deque
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -27,6 +27,7 @@ class AIScheduler:
         self.scheduler = AsyncIOScheduler()
         self.memory_reminder_job_id = "memory_reminder_job"
         self.memory_janitor_job_id = "memory_janitor_job"
+        self.deferred_run_job_id = "deferred_ai_run_job"
         # Store the last scheduled NextRun (time + reason) so it can be queried by the API/UI
         self.last_next_run: NextRun | None = None
         # Deque to keep recent executed memory reminder jobs (most recent last)
@@ -207,6 +208,47 @@ class AIScheduler:
         except Exception as e:
             logger.log(f"Error getting recent executed reminders: {e}")
             return []
+
+    def _schedule_deferred_run(self, callback: Callable):
+        """Schedule a deferred AI run to happen 60 seconds from now.
+
+        If another deferred run is already scheduled, it will be cancelled and replaced.
+        This prevents multiple runs from happening in quick succession.
+
+        Args:
+            callback: Async callable to execute
+        """
+        try:
+
+            # Remove existing deferred job if it exists
+            if self.scheduler.get_job(self.deferred_run_job_id):
+                self.scheduler.remove_job(self.deferred_run_job_id)
+                logger.log("Cancelled previous deferred AI run, scheduling new one")
+
+            # Schedule the job to run 60 seconds from now
+            run_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=60)
+
+            self.scheduler.add_job(
+                func=self._execute_deferred_run,
+                trigger=DateTrigger(run_date=run_time),
+                id=self.deferred_run_job_id,
+                name="Deferred AI Run",
+                replace_existing=True,
+                kwargs={"callback": callback}
+            )
+
+            logger.log(f"Scheduled deferred AI scheduler run in 60 seconds (at {run_time})")
+
+        except Exception as e:
+            logger.log(f"Error scheduling deferred run: {e}")
+
+    async def _execute_deferred_run(self, callback: Callable):
+        """Execute the deferred run callback"""
+        try:
+            logger.log("Executing deferred AI run")
+            await callback()
+        except Exception as e:
+            logger.log(f"Error executing deferred run: {e}")
 
 
 ai_scheduler = AIScheduler()
