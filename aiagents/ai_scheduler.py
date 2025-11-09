@@ -7,7 +7,7 @@ from agents import Agent, ModelSettings, Runner, RunConfig
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz, to_user_tz
-from services.home_assistant import get_calendar_events_48h, CalendarEvent
+from services.home_assistant import get_calendar_events_48h, get_current_geofence_for_user, CalendarEvent
 from services.memory_manager import memory_manager
 from services.interaction_tracker import interaction_tracker
 
@@ -142,9 +142,16 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
         logger.log(f"Error fetching calendar events: {e}")
         calendar_events = []
 
+    # Fetch current user location for context
+    current_location = None
+    try:
+        current_location = await get_current_geofence_for_user()
+    except Exception as e:
+        logger.log(f"Error fetching current location: {e}")
+
     # Format memories, actions, and calendar events for AI analysis
     recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=5)
-    formatted_input = _format_memories_for_analysis(memories, recent_executed, calendar_events)
+    formatted_input = _format_memories_for_analysis(memories, recent_executed, calendar_events, current_location)
 
     # Add conversation history if available
     if conversation_history:
@@ -273,8 +280,8 @@ def _calculate_next_reminder_occurrence(reminder_options):
         return candidate_dt
 
 
-def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder], calendar_events: List[CalendarEvent]) -> str:
-    """Format memories, recent executed memory-reminder jobs, and calendar events into a structured text for AI analysis"""
+def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder], calendar_events: List[CalendarEvent], current_location: str = None) -> str:
+    """Format memories, recent executed memory-reminder jobs, calendar events, and current location into a structured text for AI analysis"""
     memory_text = "Stored memories:\n\n"
     for memory_id, entry in memories.items():
         memory_text += f"Type: {entry.type}\n"
@@ -342,7 +349,13 @@ def _format_memories_for_analysis(memories, recent_executed_reminders: List[Exec
         calendar_text += "No upcoming calendar events in the next 48 hours.\n"
 
     current_time = now_user_tz()
-    context_text = f"Current date and time: {current_time.strftime('%A, %B %d, %Y at %H:%M')}\n\n"
+    context_text = f"Current date and time: {current_time.strftime('%A, %B %d, %Y at %H:%M')}\n"
+
+    # Add current user location if available
+    if current_location:
+        context_text += f"Current user location: {current_location}\n"
+
+    context_text += "\n"
 
     return context_text + memory_text + actions_text + calendar_text
 

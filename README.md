@@ -9,8 +9,8 @@
 ## Features
 
 - 🤖 **Matrix Chat Integration**: AI-powered responses to messages in Matrix rooms
-- 🏠 **Home Assistant Integration**: Weather, calendar, and location data integration
-- 📍 **Geofence Events**: Location-based triggers for user interactions
+- 🏠 **Home Assistant Integration**: Weather, calendar, location and proximity data integration
+- 📍 **Geofence Events**: Location-based triggers with distance context from proximity sensors
 - 🧠 **Advanced Memory System**: Persistent storage with preferences, observations, and reminders
 - ⏰ **Intelligent AI Scheduler**: Context-aware scheduling with deferred execution and adaptive re-evaluation
 - 📊 **FastAPI Web Interface & Vue.js Dashboard**: Real-time monitoring and control
@@ -27,12 +27,12 @@ Yume is built with a modular architecture consisting of several key components:
 - **AI Scheduler** (`services/ai_scheduler.py`): Background task scheduling with APScheduler
 - **Context Manager** (`services/context_manager.py`): Aggregates data from multiple sources into unified context
 - **Memory Manager** (`services/memory_manager.py`): Persistent memory storage with support for user preferences, observations, and reminders
-- **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API
+- **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API for weather forecasts, calendar events, geofence tracking, and proximity-based distance context
 
 ### AI Agents
 
 - **Memory Manager** (`aiagents/memory_manager.py`): Handles memory operations including intelligent cleanup and archival
-- **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling agent that analyzes stored memories, user preferences, calendar events, conversation history, and recent interactions to determine optimal timing for the next reminder or user engagement. Features include:
+- **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling agent that analyzes stored memories, user preferences, calendar events, current user location, conversation history, and recent interactions to determine optimal timing for the next reminder or user engagement. Features include:
   - Deferred execution with 60-second debounce to consolidate multiple scheduling triggers
   - Automatic re-evaluation of existing schedules based on current context
   - Triggered after every user interaction (chat messages, geofence events, memory reminders)
@@ -61,7 +61,7 @@ The AI Scheduler uses a dual-approach strategy:
 - **Calendar & Weather** (`components/calendar.py`, `components/weather.py`): Data models for external services
 - **Logging Manager** (`components/logging_manager.py`): Centralized logging system with recent log tracking
 - **Agent Hooks** (`components/agent_hooks.py`): Custom hooks for AI agent behavior customization
-- **Timezone Utils** (`components/timezone_utils.py`): Timezone-aware datetime handling for user context
+- **Timezone Utils** (`components/timezone_utils.py`): Timezone-aware datetime handling for user context and consistent time handling across services
 
 ### Interaction Tracking
 
@@ -117,6 +117,8 @@ Yume tracks all AI agent interactions to enable debugging and optimization:
    HA_DEVICE_TRACKER_ENTITY=device_tracker.phone
    HA_WEATHER_ENTITY=weather.forecast_home
    HA_CALENDAR_ENTITY=calendar.personal
+   HA_PROXIMITY_ENTITY=sensor.proximity_home_distance
+   HA_HOME_GEOFENCE=home
    HA_TIMEZONE=Europe/Berlin
 
    # OpenAI Configuration

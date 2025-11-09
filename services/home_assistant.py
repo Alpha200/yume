@@ -16,6 +16,8 @@ HA_TOKEN = os.getenv("HA_TOKEN")
 HA_DEVICE_TRACKER_ENTITY = os.getenv("HA_DEVICE_TRACKER_ENTITY", "device_tracker.phone")
 HA_WEATHER_ENTITY = os.getenv("HA_WEATHER_ENTITY", "weather.forecast_home")
 HA_CALENDAR_ENTITY = os.getenv("HA_CALENDAR_ENTITY", "calendar.personal")
+HA_PROXIMITY_ENTITY = os.getenv("HA_PROXIMITY_ENTITY", "sensor.proximity_home_distance")
+HA_HOME_GEOFENCE = os.getenv("HA_HOME_GEOFENCE", "home")
 
 
 async def ha_request(method: str, endpoint: str, payload: dict = None) -> dict:
@@ -47,8 +49,40 @@ async def ha_request(method: str, endpoint: str, payload: dict = None) -> dict:
             logger.log(f"Error making request to {endpoint}: {e}")
             return {"status": 500, "data": str(e)}
 
+async def get_proximity_distance() -> str:
+    """Fetch the proximity distance from Home Assistant proximity entity.
+
+    Returns the distance as a string (e.g., "42 km", "150 m", etc.)
+    or an empty string if the entity is not available.
+    """
+    entity_id = HA_PROXIMITY_ENTITY
+    logger.log(f"Fetching proximity distance for entity: {entity_id}")
+
+    result = await ha_request("GET", f"/api/states/{entity_id}")
+    if result["status"] == 200:
+        data = result["data"]
+        state = data.get("state", None)
+
+        # The state of a proximity entity is the distance value
+        if state is not None and state != "unknown":
+            logger.log(f"Proximity distance: {state}")
+            return str(state)
+        else:
+            logger.log("Proximity state is unknown")
+            return ""
+    elif result["status"] == 404:
+        logger.log(f"Proximity entity '{entity_id}' not found in Home Assistant")
+        return ""
+    else:
+        logger.log(f"Failed to fetch proximity: {result['status']} - {result['data']}")
+        return ""
+
+
 async def get_current_geofence_for_user() -> str:
-    """Fetch the current geofence (zone) of the user from Home Assistant via the device tracker entity."""
+    """Fetch the current geofence (zone) of the user from Home Assistant via the device tracker entity.
+
+    If not in the home geofence, appends the proximity distance to provide context.
+    """
     entity_id = HA_DEVICE_TRACKER_ENTITY
     logger.log(f"Fetching geofence for entity: {entity_id}")
 
@@ -56,10 +90,24 @@ async def get_current_geofence_for_user() -> str:
     if result["status"] == 200:
         geofence = result["data"].get("state", None)
         if geofence is not None:
+            # If user is not at home, fetch proximity distance
+            if geofence.lower() != HA_HOME_GEOFENCE.lower():
+                proximity_distance = await get_proximity_distance()
+                if proximity_distance:
+                    geofence_with_distance = f"{geofence} ({proximity_distance} away)"
+                    logger.log(f"Current geofence: {geofence_with_distance}")
+                    return geofence_with_distance
+
             logger.log(f"Current geofence: {geofence}")
             return geofence
         else:
             logger.log("No geofence state found, user is on the way")
+            # Fetch proximity distance when on the way
+            proximity_distance = await get_proximity_distance()
+            if proximity_distance:
+                on_the_way_with_distance = f"on the way ({proximity_distance} away)"
+                logger.log(f"Current status: {on_the_way_with_distance}")
+                return on_the_way_with_distance
             return "on the way"
     elif result["status"] == 404:
         logger.log(f"Entity '{entity_id}' not found in Home Assistant")
