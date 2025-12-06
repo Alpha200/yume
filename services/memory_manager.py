@@ -77,7 +77,6 @@ class MemoryManager:
         self.client = None
         self.db = None
         self.collection = None
-        self.memory_entries: Dict[str, MemoryEntry] = {}
         
         self._connect()
     
@@ -176,29 +175,11 @@ class MemoryManager:
                 modified_at=modified_at
             )
     
-    def load_memories(self):
-        """Load all memories from MongoDB"""
-        try:
-            documents = self.collection.find()
-            self.memory_entries = {}
-            for doc in documents:
-                entry = self._document_to_entry(doc)
-                self.memory_entries[entry.id] = entry
-            logger.log(f"Loaded {len(self.memory_entries)} memories from MongoDB")
-        except Exception as e:
-            logger.log(f"Error loading memories from MongoDB: {e}")
-            raise
-    
-    def save_memories(self):
-        """No-op for compatibility - MongoDB saves individually"""
-        pass
-    
     def save_memory(self, entry: MemoryEntry):
         """Save or update a single memory entry in MongoDB"""
         try:
             doc = self._entry_to_document(entry)
             self.collection.replace_one({"_id": entry.id}, doc, upsert=True)
-            self.memory_entries[entry.id] = entry
         except Exception as e:
             logger.log(f"Error saving memory to MongoDB: {e}")
             raise
@@ -214,7 +195,12 @@ class MemoryManager:
             memory_id = str(uuid.uuid4())
             created_at = now_user_tz()
         else:
-            created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else now_user_tz()
+            # Try to get existing entry's creation time from DB
+            existing_doc = self.collection.find_one({"_id": memory_id})
+            if existing_doc and "created_at" in existing_doc:
+                created_at = from_isoformat_user_tz(existing_doc["created_at"])
+            else:
+                created_at = now_user_tz()
         
         entry = UserPreferenceEntry(
             id=memory_id,
@@ -239,7 +225,12 @@ class MemoryManager:
             memory_id = str(uuid.uuid4())
             created_at = now_user_tz()
         else:
-            created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else now_user_tz()
+            # Try to get existing entry's creation time from DB
+            existing_doc = self.collection.find_one({"_id": memory_id})
+            if existing_doc and "created_at" in existing_doc:
+                created_at = from_isoformat_user_tz(existing_doc["created_at"])
+            else:
+                created_at = now_user_tz()
         
         observation_date = to_user_tz(observation_date)
         
@@ -267,7 +258,12 @@ class MemoryManager:
             memory_id = str(uuid.uuid4())
             created_at = now_user_tz()
         else:
-            created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else now_user_tz()
+            # Try to get existing entry's creation time from DB
+            existing_doc = self.collection.find_one({"_id": memory_id})
+            if existing_doc and "created_at" in existing_doc:
+                created_at = from_isoformat_user_tz(existing_doc["created_at"])
+            else:
+                created_at = now_user_tz()
         
         if reminder_options.datetime_value:
             reminder_options.datetime_value = to_user_tz(reminder_options.datetime_value)
@@ -285,40 +281,72 @@ class MemoryManager:
         return memory_id
     
     def get_all_memories(self) -> Dict[str, MemoryEntry]:
-        """Get all memory entries"""
-        return self.memory_entries.copy()
+        """Get all memory entries from MongoDB"""
+        try:
+            documents = self.collection.find()
+            memories = {}
+            for doc in documents:
+                entry = self._document_to_entry(doc)
+                memories[entry.id] = entry
+            return memories
+        except Exception as e:
+            logger.log(f"Error fetching memories from MongoDB: {e}")
+            return {}
     
     def get_user_preferences(self) -> Dict[str, UserPreferenceEntry]:
-        """Get all user preference entries"""
-        return {
-            memory_id: entry
-            for memory_id, entry in self.memory_entries.items()
-            if isinstance(entry, UserPreferenceEntry)
-        }
+        """Get all user preference entries from MongoDB"""
+        try:
+            documents = self.collection.find({"type": "user_preference"})
+            preferences = {}
+            for doc in documents:
+                entry = self._document_to_entry(doc)
+                if isinstance(entry, UserPreferenceEntry):
+                    preferences[entry.id] = entry
+            return preferences
+        except Exception as e:
+            logger.log(f"Error fetching preferences from MongoDB: {e}")
+            return {}
     
     def get_user_observations(self) -> Dict[str, UserObservationEntry]:
-        """Get all user observation entries"""
-        return {
-            memory_id: entry
-            for memory_id, entry in self.memory_entries.items()
-            if isinstance(entry, UserObservationEntry)
-        }
+        """Get all user observation entries from MongoDB"""
+        try:
+            documents = self.collection.find({"type": "user_observation"})
+            observations = {}
+            for doc in documents:
+                entry = self._document_to_entry(doc)
+                if isinstance(entry, UserObservationEntry):
+                    observations[entry.id] = entry
+            return observations
+        except Exception as e:
+            logger.log(f"Error fetching observations from MongoDB: {e}")
+            return {}
     
     def get_reminders(self) -> Dict[str, ReminderEntry]:
-        """Get all reminder entries"""
-        return {
-            memory_id: entry
-            for memory_id, entry in self.memory_entries.items()
-            if isinstance(entry, ReminderEntry)
-        }
+        """Get all reminder entries from MongoDB"""
+        try:
+            documents = self.collection.find({"type": "reminder"})
+            reminders = {}
+            for doc in documents:
+                entry = self._document_to_entry(doc)
+                if isinstance(entry, ReminderEntry):
+                    reminders[entry.id] = entry
+            return reminders
+        except Exception as e:
+            logger.log(f"Error fetching reminders from MongoDB: {e}")
+            return {}
     
     def get_memories_by_type(self, memory_type: Literal["user_preference", "user_observation", "reminder"]) -> Dict[str, MemoryEntry]:
-        """Get all memories of a specific type"""
-        return {
-            memory_id: entry
-            for memory_id, entry in self.memory_entries.items()
-            if entry.type == memory_type
-        }
+        """Get all memories of a specific type from MongoDB"""
+        try:
+            documents = self.collection.find({"type": memory_type})
+            memories = {}
+            for doc in documents:
+                entry = self._document_to_entry(doc)
+                memories[entry.id] = entry
+            return memories
+        except Exception as e:
+            logger.log(f"Error fetching memories by type from MongoDB: {e}")
+            return {}
     
     def _format_reminder_schedule(self, reminder_entry: ReminderEntry) -> str:
         """Format reminder schedule information for display"""
@@ -407,12 +435,10 @@ class MemoryManager:
         return "\n\n".join(memory_list)
     
     def delete_memory(self, memory_id: str) -> bool:
-        """Delete a memory entry by ID. Returns True if deleted, False if not found"""
+        """Delete a memory entry by ID from MongoDB. Returns True if deleted, False if not found"""
         try:
             result = self.collection.delete_one({"_id": memory_id})
             if result.deleted_count > 0:
-                if memory_id in self.memory_entries:
-                    del self.memory_entries[memory_id]
                 return True
             return False
         except Exception as e:
@@ -426,4 +452,3 @@ class MemoryManager:
 
 
 memory_manager = MemoryManager()
-memory_manager.load_memories()
