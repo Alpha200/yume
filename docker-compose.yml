@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:8-alpine
+    container_name: yume-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: yume
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    command: mongod --wiredTigerCacheSizeGB=0.25 --logpath=/dev/null
+
+volumes:
+  mongodb_data:
+    driver: local

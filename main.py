@@ -24,11 +24,15 @@ from aiagents.ai_scheduler import determine_next_run_by_memory
 from controllers.api_controller import router as api_router
 from services.matrix_bot import matrix_chat_bot
 from services.ai_scheduler import ai_scheduler
+from services.migration import migrate_json_to_mongodb
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Manage the lifespan of the FastAPI app and Matrix bot"""
+    # Run migration on startup
+    migrate_json_to_mongodb()
+    
     asyncio.create_task(matrix_chat_bot.start())
     ai_scheduler.start()
     asyncio.create_task(determine_next_run_by_memory())
@@ -56,3 +60,4 @@ app.mount("/", StaticFiles(directory="ui/dist", html=True), name="static")
 
 if __name__ == '__main__':
     uvicorn.run(app, host="0.0.0.0", port=8200)
+

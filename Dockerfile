@@ -24,9 +24,8 @@ ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies
+# Install system dependencies (minimal for MongoDB)
 RUN apt-get update && apt-get install -y \
-    build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -47,10 +46,6 @@ COPY . .
 
 # Copy built frontend from the first stage
 COPY --from=frontend-builder /app/ui/dist ./ui/dist
-
-# Create data directory and set up volume for persistence
-RUN mkdir -p /app/data
-VOLUME ["/app/data"]
 
 # Expose port
 EXPOSE 8200

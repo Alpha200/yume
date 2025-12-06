@@ -21,9 +21,6 @@ from services.ai_scheduler import NextRun, ExecutedReminder, ai_scheduler
 ai_scheduler_agent = Agent(
     name='AI Scheduler',
     model=AI_SCHEDULER_MODEL,
-    model_settings=ModelSettings(
-        extra_args={"service_tier": "flex"},
-    ),
     instructions=f"""
 You are the intelligent scheduling component of Yume, an AI assistant that helps users stay organized and engaged with their daily lives.
 

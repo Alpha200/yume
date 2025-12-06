@@ -1,12 +1,18 @@
 import datetime
-from dataclasses import dataclass
-import json
 import os
 import uuid
 from typing import Dict, Literal, Optional, List, Union
 from abc import ABC
+from dataclasses import dataclass
+
+from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError
 
 from components.timezone_utils import now_user_tz, to_user_tz, from_isoformat_user_tz
+from components.logging_manager import logging_manager
+
+logger = logging_manager
+
 
 @dataclass
 class ReminderOptions:
@@ -14,6 +20,7 @@ class ReminderOptions:
     datetime_value: Optional[datetime.datetime] = None  # For one-time reminders
     time_value: Optional[str] = None  # Time in HH:MM format for recurring reminders
     days_of_week: Optional[List[str]] = None  # List of weekday names for recurring reminders
+
 
 @dataclass
 class BaseMemoryEntry(ABC):
@@ -24,10 +31,12 @@ class BaseMemoryEntry(ABC):
     created_at: datetime.datetime
     modified_at: datetime.datetime
 
+
 @dataclass
 class UserPreferenceEntry(BaseMemoryEntry):
     """Memory entry for user preferences"""
     type: Literal["user_preference"] = "user_preference"
+
 
 @dataclass
 class UserObservationEntry(BaseMemoryEntry):
@@ -35,148 +44,165 @@ class UserObservationEntry(BaseMemoryEntry):
     observation_date: datetime.datetime
     type: Literal["user_observation"] = "user_observation"
 
+
 @dataclass
 class ReminderEntry(BaseMemoryEntry):
     """Memory entry for reminders with reminder options"""
     reminder_options: ReminderOptions
     type: Literal["reminder"] = "reminder"
 
+
 # Union type for all memory entry types
 MemoryEntry = Union[UserPreferenceEntry, UserObservationEntry, ReminderEntry]
 
+
 class MemoryManager:
-    def __init__(self, data_dir: str = "./data"):
-        self.data_dir = data_dir
-        self.memories_file = os.path.join(data_dir, "memories.json")
+    """Memory manager using MongoDB for persistence"""
+    
+    def __init__(self, 
+                 mongo_uri: str = None,
+                 db_name: str = "yume",
+                 collection_name: str = "memories"):
+        """
+        Initialize MongoDB memory manager.
+        
+        Args:
+            mongo_uri: MongoDB connection string (default: env var MONGODB_URI or local)
+            db_name: Database name
+            collection_name: Collection name
+        """
+        self.mongo_uri = mongo_uri or os.getenv("MONGODB_URI", "mongodb://mongodb:27017")
+        self.db_name = db_name
+        self.collection_name = collection_name
+        self.client = None
+        self.db = None
+        self.collection = None
         self.memory_entries: Dict[str, MemoryEntry] = {}
-
-        # Ensure data directory exists
-        os.makedirs(data_dir, exist_ok=True)
-
-    def save_memories(self):
-        """Save memories to disk"""
-        data = {
-            "version": 3,  # Updated version for new structure
-            "memories": {}
-        }
-
-        for memory_id, entry in self.memory_entries.items():
-            entry_data = {
-                "content": entry.content,
-                "place": entry.place,
-                "type": entry.type,
-                "created_at": entry.created_at.isoformat(),
-                "modified_at": entry.modified_at.isoformat()
-            }
-
-            # Add observation_date for user_observation entries
-            if isinstance(entry, UserObservationEntry):
-                entry_data["observation_date"] = entry.observation_date.isoformat()
-
-            # Add reminder_options for reminder entries
-            elif isinstance(entry, ReminderEntry):
-                reminder_data = {}
-                if entry.reminder_options.datetime_value:
-                    reminder_data["datetime_value"] = entry.reminder_options.datetime_value.isoformat()
-                if entry.reminder_options.time_value:
-                    reminder_data["time_value"] = entry.reminder_options.time_value
-                if entry.reminder_options.days_of_week:
-                    reminder_data["days_of_week"] = entry.reminder_options.days_of_week
-
-                # Only add reminder_options if we have actual data
-                if reminder_data:
-                    entry_data["reminder_options"] = reminder_data
-
-            data["memories"][memory_id] = entry_data
-
-        with open(self.memories_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-
-    def load_memories(self):
-        """Load memories from disk"""
-        if not os.path.exists(self.memories_file):
-            return
-
+        
+        self._connect()
+    
+    def _connect(self):
+        """Establish connection to MongoDB"""
         try:
-            with open(self.memories_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            # Check if this is an empty file
-            if not data:
-                return
-
-            memories_data = data.get("memories", {})
-
-            for memory_id, entry_data in memories_data.items():
-                created_at = now_user_tz()
-                if entry_data.get("created_at"):
-                    created_at = from_isoformat_user_tz(entry_data["created_at"])
-
-                modified_at = now_user_tz()
-                if entry_data.get("modified_at"):
-                    modified_at = from_isoformat_user_tz(entry_data["modified_at"])
-
-                # Handle legacy memory types - convert old types to new ones
-                memory_type = entry_data.get("type", "user_preference")
-                if memory_type == "user":
-                    memory_type = "user_preference"
-                elif memory_type in ["system", "instructions"]:
-                    # Skip loading old system and instructions entries
-                    continue
-
-                # Create appropriate memory entry subclass based on type
-                if memory_type == "user_preference":
-                    entry = UserPreferenceEntry(
-                        id=memory_id,
-                        content=entry_data["content"],
-                        place=entry_data.get("place"),
-                        created_at=created_at,
-                        modified_at=modified_at
-                    )
-                elif memory_type == "user_observation":
-                    observation_date = now_user_tz()
-                    if entry_data.get("observation_date"):
-                        observation_date = from_isoformat_user_tz(entry_data["observation_date"])
-
-                    entry = UserObservationEntry(
-                        id=memory_id,
-                        content=entry_data["content"],
-                        place=entry_data.get("place"),
-                        created_at=created_at,
-                        modified_at=modified_at,
-                        observation_date=observation_date
-                    )
-                elif memory_type == "reminder":
-                    reminder_options = ReminderOptions()
-                    if entry_data.get("reminder_options"):
-                        reminder_data = entry_data["reminder_options"]
-                        if reminder_data.get("datetime_value"):
-                            reminder_options.datetime_value = from_isoformat_user_tz(reminder_data["datetime_value"])
-                        reminder_options.time_value = reminder_data.get("time_value")
-                        reminder_options.days_of_week = reminder_data.get("days_of_week")
-
-                    entry = ReminderEntry(
-                        id=memory_id,
-                        content=entry_data["content"],
-                        place=entry_data.get("place"),
-                        created_at=created_at,
-                        modified_at=modified_at,
-                        reminder_options=reminder_options
-                    )
-                else:
-                    # Default to user preference for unknown types
-                    entry = UserPreferenceEntry(
-                        id=memory_id,
-                        content=entry_data["content"],
-                        place=entry_data.get("place"),
-                        created_at=created_at,
-                        modified_at=modified_at
-                    )
-
-                self.memory_entries[memory_id] = entry
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            print(f"Error loading memories: {e}")
-
+            self.client = MongoClient(self.mongo_uri, serverSelectionTimeoutMS=5000)
+            # Verify connection
+            self.client.admin.command('ping')
+            self.db = self.client[self.db_name]
+            self.collection = self.db[self.collection_name]
+            logger.log("Connected to MongoDB successfully")
+        except ServerSelectionTimeoutError:
+            logger.log(f"Failed to connect to MongoDB at {self.mongo_uri}")
+            raise
+    
+    def _entry_to_document(self, entry: MemoryEntry) -> dict:
+        """Convert memory entry to MongoDB document"""
+        doc = {
+            "_id": entry.id,
+            "content": entry.content,
+            "place": entry.place,
+            "type": entry.type,
+            "created_at": entry.created_at.isoformat(),
+            "modified_at": entry.modified_at.isoformat()
+        }
+        
+        if isinstance(entry, UserObservationEntry):
+            doc["observation_date"] = entry.observation_date.isoformat()
+        elif isinstance(entry, ReminderEntry):
+            reminder_data = {}
+            if entry.reminder_options.datetime_value:
+                reminder_data["datetime_value"] = entry.reminder_options.datetime_value.isoformat()
+            if entry.reminder_options.time_value:
+                reminder_data["time_value"] = entry.reminder_options.time_value
+            if entry.reminder_options.days_of_week:
+                reminder_data["days_of_week"] = entry.reminder_options.days_of_week
+            
+            if reminder_data:
+                doc["reminder_options"] = reminder_data
+        
+        return doc
+    
+    def _document_to_entry(self, doc: dict) -> MemoryEntry:
+        """Convert MongoDB document to memory entry"""
+        memory_id = doc["_id"]
+        created_at = from_isoformat_user_tz(doc["created_at"])
+        modified_at = from_isoformat_user_tz(doc["modified_at"])
+        memory_type = doc.get("type", "user_preference")
+        
+        if memory_type == "user_preference":
+            return UserPreferenceEntry(
+                id=memory_id,
+                content=doc["content"],
+                place=doc.get("place"),
+                created_at=created_at,
+                modified_at=modified_at
+            )
+        elif memory_type == "user_observation":
+            observation_date = now_user_tz()
+            if doc.get("observation_date"):
+                observation_date = from_isoformat_user_tz(doc["observation_date"])
+            
+            return UserObservationEntry(
+                id=memory_id,
+                content=doc["content"],
+                place=doc.get("place"),
+                created_at=created_at,
+                modified_at=modified_at,
+                observation_date=observation_date
+            )
+        elif memory_type == "reminder":
+            reminder_options = ReminderOptions()
+            if doc.get("reminder_options"):
+                reminder_data = doc["reminder_options"]
+                if reminder_data.get("datetime_value"):
+                    reminder_options.datetime_value = from_isoformat_user_tz(reminder_data["datetime_value"])
+                reminder_options.time_value = reminder_data.get("time_value")
+                reminder_options.days_of_week = reminder_data.get("days_of_week")
+            
+            return ReminderEntry(
+                id=memory_id,
+                content=doc["content"],
+                place=doc.get("place"),
+                created_at=created_at,
+                modified_at=modified_at,
+                reminder_options=reminder_options
+            )
+        else:
+            # Default to user preference for unknown types
+            return UserPreferenceEntry(
+                id=memory_id,
+                content=doc["content"],
+                place=doc.get("place"),
+                created_at=created_at,
+                modified_at=modified_at
+            )
+    
+    def load_memories(self):
+        """Load all memories from MongoDB"""
+        try:
+            documents = self.collection.find()
+            self.memory_entries = {}
+            for doc in documents:
+                entry = self._document_to_entry(doc)
+                self.memory_entries[entry.id] = entry
+            logger.log(f"Loaded {len(self.memory_entries)} memories from MongoDB")
+        except Exception as e:
+            logger.log(f"Error loading memories from MongoDB: {e}")
+            raise
+    
+    def save_memories(self):
+        """No-op for compatibility - MongoDB saves individually"""
+        pass
+    
+    def save_memory(self, entry: MemoryEntry):
+        """Save or update a single memory entry in MongoDB"""
+        try:
+            doc = self._entry_to_document(entry)
+            self.collection.replace_one({"_id": entry.id}, doc, upsert=True)
+            self.memory_entries[entry.id] = entry
+        except Exception as e:
+            logger.log(f"Error saving memory to MongoDB: {e}")
+            raise
+    
     def create_user_preference(
         self,
         content: str,
@@ -189,7 +215,7 @@ class MemoryManager:
             created_at = now_user_tz()
         else:
             created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else now_user_tz()
-
+        
         entry = UserPreferenceEntry(
             id=memory_id,
             content=content,
@@ -197,11 +223,10 @@ class MemoryManager:
             created_at=created_at,
             modified_at=now_user_tz()
         )
-
-        self.memory_entries[memory_id] = entry
-        self.save_memories()
+        
+        self.save_memory(entry)
         return memory_id
-
+    
     def create_user_observation(
         self,
         content: str,
@@ -215,10 +240,9 @@ class MemoryManager:
             created_at = now_user_tz()
         else:
             created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else now_user_tz()
-
-        # Ensure observation_date is in user timezone
+        
         observation_date = to_user_tz(observation_date)
-
+        
         entry = UserObservationEntry(
             id=memory_id,
             content=content,
@@ -227,11 +251,10 @@ class MemoryManager:
             modified_at=now_user_tz(),
             observation_date=observation_date
         )
-
-        self.memory_entries[memory_id] = entry
-        self.save_memories()
+        
+        self.save_memory(entry)
         return memory_id
-
+    
     def create_reminder(
         self,
         content: str,
@@ -245,11 +268,10 @@ class MemoryManager:
             created_at = now_user_tz()
         else:
             created_at = self.memory_entries[memory_id].created_at if memory_id in self.memory_entries else now_user_tz()
-
-        # Ensure reminder datetime is in user timezone if present
+        
         if reminder_options.datetime_value:
             reminder_options.datetime_value = to_user_tz(reminder_options.datetime_value)
-
+        
         entry = ReminderEntry(
             id=memory_id,
             content=content,
@@ -258,15 +280,14 @@ class MemoryManager:
             modified_at=now_user_tz(),
             reminder_options=reminder_options
         )
-
-        self.memory_entries[memory_id] = entry
-        self.save_memories()
+        
+        self.save_memory(entry)
         return memory_id
-
+    
     def get_all_memories(self) -> Dict[str, MemoryEntry]:
         """Get all memory entries"""
         return self.memory_entries.copy()
-
+    
     def get_user_preferences(self) -> Dict[str, UserPreferenceEntry]:
         """Get all user preference entries"""
         return {
@@ -274,7 +295,7 @@ class MemoryManager:
             for memory_id, entry in self.memory_entries.items()
             if isinstance(entry, UserPreferenceEntry)
         }
-
+    
     def get_user_observations(self) -> Dict[str, UserObservationEntry]:
         """Get all user observation entries"""
         return {
@@ -282,7 +303,7 @@ class MemoryManager:
             for memory_id, entry in self.memory_entries.items()
             if isinstance(entry, UserObservationEntry)
         }
-
+    
     def get_reminders(self) -> Dict[str, ReminderEntry]:
         """Get all reminder entries"""
         return {
@@ -290,7 +311,7 @@ class MemoryManager:
             for memory_id, entry in self.memory_entries.items()
             if isinstance(entry, ReminderEntry)
         }
-
+    
     def get_memories_by_type(self, memory_type: Literal["user_preference", "user_observation", "reminder"]) -> Dict[str, MemoryEntry]:
         """Get all memories of a specific type"""
         return {
@@ -298,7 +319,7 @@ class MemoryManager:
             for memory_id, entry in self.memory_entries.items()
             if entry.type == memory_type
         }
-
+    
     def _format_reminder_schedule(self, reminder_entry: ReminderEntry) -> str:
         """Format reminder schedule information for display"""
         ro = reminder_entry.reminder_options
@@ -314,14 +335,14 @@ class MemoryManager:
             else:
                 schedule_info += f"  Days: Daily\n"
         return schedule_info
-
+    
     def get_formatted_memories(self) -> str:
         """Get all stored memories as a formatted string"""
         memories = self.get_all_memories()
-
+        
         if not memories:
             return "No memories stored."
-
+        
         memory_list = []
         for memory_id, entry in memories.items():
             memory_info = f"ID: {memory_id}\n"
@@ -331,43 +352,39 @@ class MemoryManager:
                 memory_info += f"Place: {entry.place}\n"
             memory_info += f"Created: {entry.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
             memory_info += f"Modified: {entry.modified_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
-
-            # Add observation date for user_observation entries
+            
             if isinstance(entry, UserObservationEntry):
                 memory_info += f"Observation Date: {entry.observation_date.strftime('%Y-%m-%d %H:%M:%S')}\n"
-
-            # Add reminder options for reminder entries
             elif isinstance(entry, ReminderEntry):
                 memory_info += self._format_reminder_schedule(entry)
-
+            
             memory_list.append(memory_info.rstrip())
-
+        
         return "\n\n".join(memory_list)
-
+    
     def get_formatted_preferences(self) -> str:
         """Get user preferences as a formatted string for agent instructions"""
         preferences = self.get_user_preferences()
-
+        
         if not preferences:
             return "No user preferences stored."
-
+        
         pref_list = []
         for memory_id, entry in preferences.items():
             pref_info = f"- {entry.content}"
             if entry.place:
                 pref_info += f" (Place: {entry.place})"
             pref_list.append(pref_info)
-
+        
         return "\n".join(pref_list)
-
+    
     def get_formatted_observations_and_reminders(self) -> str:
         """Get observations and reminders as a formatted string (excludes preferences)"""
         observations = self.get_user_observations()
         reminders = self.get_reminders()
-
+        
         memory_list = []
-
-        # Add observations
+        
         for memory_id, entry in observations.items():
             memory_info = f"Type: {entry.type}\n"
             memory_info += f"Content: {entry.content}\n"
@@ -375,8 +392,7 @@ class MemoryManager:
                 memory_info += f"Place: {entry.place}\n"
             memory_info += f"Observation Date: {entry.observation_date.strftime('%Y-%m-%d %H:%M:%S')}\n"
             memory_list.append(memory_info.rstrip())
-
-        # Add reminders
+        
         for memory_id, entry in reminders.items():
             memory_info = f"Type: {entry.type}\n"
             memory_info += f"Content: {entry.content}\n"
@@ -384,19 +400,30 @@ class MemoryManager:
                 memory_info += f"Place: {entry.place}\n"
             memory_info += self._format_reminder_schedule(entry)
             memory_list.append(memory_info.rstrip())
-
+        
         if not memory_list:
             return "No observations or reminders stored."
-
+        
         return "\n\n".join(memory_list)
-
+    
     def delete_memory(self, memory_id: str) -> bool:
         """Delete a memory entry by ID. Returns True if deleted, False if not found"""
-        if memory_id in self.memory_entries:
-            del self.memory_entries[memory_id]
-            self.save_memories()
-            return True
-        return False
+        try:
+            result = self.collection.delete_one({"_id": memory_id})
+            if result.deleted_count > 0:
+                if memory_id in self.memory_entries:
+                    del self.memory_entries[memory_id]
+                return True
+            return False
+        except Exception as e:
+            logger.log(f"Error deleting memory from MongoDB: {e}")
+            raise
+    
+    def close(self):
+        """Close MongoDB connection"""
+        if self.client:
+            self.client.close()
+
 
 memory_manager = MemoryManager()
 memory_manager.load_memories()

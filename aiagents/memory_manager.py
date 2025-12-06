@@ -23,9 +23,6 @@ memory_manager_agent = Agent(
     model=AI_MEMORY_MODEL,
     model_settings=ModelSettings(
         tool_choice="required",
-        reasoning=Reasoning(
-            effort="medium",
-        ),
     ),
     instructions=f"""
 You are the memory management component of Yume, an AI assistant that helps users stay organized and engaged. Your role is to maintain an accurate, organized, and useful memory system about the user.
