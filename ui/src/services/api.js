@@ -60,6 +60,42 @@ export const apiService = {
   async getInteractionDetail(interactionId) {
     const response = await api.get(`/interactions/${interactionId}`)
     return response.data
+  },
+
+  /**
+   * Fetch train station mappings
+   */
+  async getTrainStationMappings() {
+    const response = await api.get('/settings/train-station-mappings')
+    return response.data.mappings
+  },
+
+  /**
+   * Add a new train station mapping
+   */
+  async addTrainStationMapping(stationName, entityId) {
+    const response = await api.post('/settings/train-station-mappings', {
+      station_name: stationName,
+      entity_id: entityId
+    })
+    return response.data
+  },
+
+  /**
+   * Update an existing train station mapping
+   */
+  async updateTrainStationMapping(id, stationName, entityId) {
+    const response = await api.put(`/settings/train-station-mappings/${id}`, {
+      station_name: stationName,
+      entity_id: entityId
+    })
+    return response.data
+  },
+
+  /**
+   * Delete a train station mapping
+   */
+  async deleteTrainStationMapping(id) {
+    await api.delete(`/settings/train-station-mappings/${id}`)
   }
 }
-

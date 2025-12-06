@@ -32,6 +32,13 @@
       >
         📋 System Logs
       </button>
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'settings' }"
+        @click="switchTab('settings')"
+      >
+        ⚙️ Settings
+      </button>
     </div>
 
     <!-- Memory Section -->
@@ -116,6 +123,9 @@
         <LogItem v-for="log in items" :key="log.timestamp" :log="log" />
       </template>
     </Section>
+
+    <!-- Settings Section -->
+    <Settings v-if="activeTab === 'settings'" />
   </div>
 </template>
 
@@ -128,6 +138,7 @@ import TaskItem from './components/TaskItem.vue'
 import LogItem from './components/LogItem.vue'
 import InteractionItem from './components/InteractionItem.vue'
 import InteractionDetailModal from './components/InteractionDetailModal.vue'
+import Settings from './components/Settings.vue'
 
 export default {
   name: 'App',
@@ -138,7 +149,8 @@ export default {
     TaskItem,
     LogItem,
     InteractionItem,
-    InteractionDetailModal
+    InteractionDetailModal,
+    Settings
   },
   data() {
     return {

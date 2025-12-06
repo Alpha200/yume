@@ -7,6 +7,7 @@ from services.memory_manager import memory_manager
 from services.ai_scheduler import ai_scheduler
 from components.logging_manager import logging_manager
 from services.interaction_tracker import interaction_tracker
+from services.settings_manager import settings_manager
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -57,6 +58,18 @@ class InteractionDetailResponse(BaseModel):
     output_data: str
     metadata: Dict[str, Any] | None
     system_instructions: str | None = None
+
+class TrainStationMappingsResponse(BaseModel):
+    mappings: List[Dict[str, str]]
+
+class TrainStationMappingRequest(BaseModel):
+    station_name: str
+    entity_id: str
+
+class TrainStationMappingResponse(BaseModel):
+    id: str
+    station_name: str
+    entity_id: str
 
 
 @router.get("/actions", response_model=List[ActionResponse])
@@ -208,4 +221,63 @@ async def get_interaction_detail(interaction_id: str):
         metadata=interaction.metadata,
         system_instructions=interaction.system_instructions
     )
+
+
+# Settings endpoints
+@router.get("/settings/train-station-mappings", response_model=TrainStationMappingsResponse)
+async def get_train_station_mappings():
+    """Get all train station to Home Assistant entity ID mappings"""
+    mappings = settings_manager.get_train_station_mappings()
+    return TrainStationMappingsResponse(mappings=mappings)
+
+@router.post("/settings/train-station-mappings", status_code=201, response_model=TrainStationMappingResponse)
+async def add_train_station_mapping(request: TrainStationMappingRequest):
+    """Add a new train station mapping"""
+    from fastapi import HTTPException
+    
+    mapping_id = settings_manager.add_train_station_mapping(
+        request.station_name,
+        request.entity_id
+    )
+    
+    if not mapping_id:
+        raise HTTPException(status_code=500, detail="Failed to create mapping")
+    
+    return TrainStationMappingResponse(
+        id=mapping_id,
+        station_name=request.station_name,
+        entity_id=request.entity_id
+    )
+
+@router.put("/settings/train-station-mappings/{mapping_id}", response_model=TrainStationMappingResponse)
+async def update_train_station_mapping(mapping_id: str, request: TrainStationMappingRequest):
+    """Update an existing train station mapping"""
+    from fastapi import HTTPException
+    
+    success = settings_manager.update_train_station_mapping(
+        mapping_id,
+        request.station_name,
+        request.entity_id
+    )
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+    
+    return TrainStationMappingResponse(
+        id=mapping_id,
+        station_name=request.station_name,
+        entity_id=request.entity_id
+    )
+
+@router.delete("/settings/train-station-mappings/{mapping_id}", status_code=204)
+async def delete_train_station_mapping(mapping_id: str):
+    """Delete a train station mapping"""
+    from fastapi import HTTPException, Response
+    
+    success = settings_manager.delete_train_station_mapping(mapping_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+    
+    return Response(status_code=204)
 
