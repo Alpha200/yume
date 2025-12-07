@@ -11,6 +11,7 @@
 - 🤖 **Matrix Chat Integration**: AI-powered responses to messages in Matrix rooms
 - 🏠 **Home Assistant Integration**: Weather, calendar, location and proximity data integration
 - 📍 **Geofence Events**: Location-based triggers with distance context from proximity sensors
+- 🚌 **Public Transport Departures**: Real-time transit information from Home Assistant entities
 - 🧠 **Advanced Memory System**: Persistent storage with preferences, observations, and reminders
 - ⏰ **Intelligent AI Scheduler**: Context-aware scheduling with deferred execution and adaptive re-evaluation
 - 📊 **FastAPI Web Interface & Vue.js Dashboard**: Real-time monitoring and control
@@ -27,7 +28,7 @@ Yume is built with a modular architecture consisting of several key components:
 - **AI Scheduler** (`services/ai_scheduler.py`): Background task scheduling with APScheduler
 - **Context Manager** (`services/context_manager.py`): Aggregates data from multiple sources into unified context
 - **Memory Manager** (`services/memory_manager.py`): Persistent memory storage with support for user preferences, observations, and reminders
-- **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API for weather forecasts, calendar events, geofence tracking, and proximity-based distance context
+- **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API for weather forecasts, calendar events, geofence tracking, proximity-based distance context, and public transport departures
 
 ### AI Agents
 
@@ -53,7 +54,12 @@ The AI Scheduler uses a dual-approach strategy:
 ### Tools Integration
 
 - **Memory Tools** (`tools/memory.py`): Function tools for memory operations including search and CRUD operations
-- **Home Assistant Tools** (`tools/home_assistant.py`): Integration tools for smart home control
+- **Home Assistant Tools** (`tools/home_assistant.py`): Integration tools for smart home control and public transport departures
+
+### Settings Management
+
+- **Transit Station Mappings**: Configure Home Assistant entity IDs for public transport stations via the settings page
+- **MongoDB-backed Storage**: Persistent settings with on-demand database queries
 
 ### Components
 
@@ -171,6 +177,10 @@ The FastAPI interface provides several endpoints for monitoring and control:
 - `GET /api/logs` - Access system logs with filtering capabilities
 - `GET /api/interactions` - Get summary of recent agent interactions for debugging
 - `GET /api/interactions/<id>` - Get detailed information about a specific interaction including input/output and system instructions
+- `GET /settings/train-station-mappings` - Get configured public transport station mappings
+- `POST /settings/train-station-mappings` - Add a new station mapping
+- `PUT /settings/train-station-mappings/{mapping_id}` - Update a station mapping
+- `DELETE /settings/train-station-mappings/{mapping_id}` - Remove a station mapping
 - `POST /api/geofence-event` - Trigger geofence events (enter/leave locations)
 - `POST /webhook` - Webhook endpoint for external integrations
 
