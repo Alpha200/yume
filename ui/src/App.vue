@@ -1,8 +1,9 @@
 <template>
-  <div class="container">
+  <div v-if="isAuthenticated" class="container">
     <div class="header">
       <h1>🌙 Yume Dashboard</h1>
       <p>AI Actions & Memory Management</p>
+      <button @click="logout" class="logout-button">Logout</button>
     </div>
 
     <div v-if="error" class="error">
@@ -126,6 +127,13 @@
 
     <!-- Settings Section -->
     <Settings v-if="activeTab === 'settings'" />
+
+    <!-- Interaction Detail Modal -->
+    <InteractionDetailModal
+      v-if="selectedInteraction"
+      :interaction="selectedInteraction"
+      @close="closeInteractionDetail"
+    />
   </div>
 </template>
 
@@ -154,6 +162,7 @@ export default {
   },
   data() {
     return {
+      isAuthenticated: false,
       activeTab: 'memories',
       actions: [],
       memories: [],
@@ -170,6 +179,57 @@ export default {
     }
   },
   methods: {
+    async login() {
+      try {
+        await apiService.startOAuthFlow()
+      } catch (error) {
+        this.error = 'Failed to initiate login: ' + error.message
+        console.error('Login error:', error)
+      }
+    },
+    async logout() {
+      try {
+        const response = await apiService.logout()
+        apiService.clearAuth()
+        window.location.href = response.logout_url
+      } catch (error) {
+        // Clear local auth anyway
+        apiService.clearAuth()
+        this.isAuthenticated = false
+        console.error('Logout error:', error)
+      }
+    },
+    handleOAuthCallback() {
+      const urlParams = new URLSearchParams(window.location.search)
+      const code = urlParams.get('code')
+      const state = urlParams.get('state')
+      
+      if (code && state) {
+        // Exchange code for tokens (state validation happens there)
+        this.exchangeCodeForTokens(code, state)
+        
+        // Clean URL
+        window.history.replaceState({}, document.title, '/')
+        return true
+      }
+      
+      return false
+    },
+    async exchangeCodeForTokens(code, state) {
+      try {
+        const tokens = await apiService.exchangeCodeForTokens(code, state)
+        apiService.setTokens(tokens.access_token, tokens.refresh_token)
+        this.isAuthenticated = true
+        
+        // Load initial data
+        await this.loadMemories()
+      } catch (error) {
+        this.error = 'Failed to exchange code for tokens: ' + error.message
+        console.error('Token exchange error:', error)
+        // Retry login on failure
+        setTimeout(() => this.login(), 2000)
+      }
+    },
     async loadActions() {
       this.loadingActions = true
       this.error = null
@@ -261,8 +321,19 @@ export default {
     }
   },
   async mounted() {
-    // Load memories by default since that's the default tab
-    await this.loadMemories()
+    // Check if we're returning from OAuth callback
+    const hasCallback = this.handleOAuthCallback()
+    
+    // Check authentication status
+    this.isAuthenticated = apiService.isAuthenticated()
+    
+    if (this.isAuthenticated) {
+      // Load memories by default since that's the default tab
+      await this.loadMemories()
+    } else if (!hasCallback) {
+      // Not authenticated and not processing callback - auto-redirect to login
+      await this.login()
+    }
   }
 }
 </script>
@@ -347,5 +418,24 @@ export default {
   border-radius: 0.5rem;
   margin-bottom: 1rem;
   font-size: 0.875rem;
+}
+
+.logout-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.5rem 1rem;
+  background: #18181b;
+  color: #71717a;
+  border: 1px solid #27272a;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-button:hover {
+  background: #27272a;
+  color: #e4e4e7;
 }
 </style>

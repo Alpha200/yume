@@ -22,9 +22,12 @@ set_tracing_disabled(True)
 
 from aiagents.ai_scheduler import determine_next_run_by_memory
 from controllers.api_controller import APIController
+from controllers.auth_controller import AuthController
 from services.matrix_bot import matrix_chat_bot
 from services.ai_scheduler import ai_scheduler
 from services.migration import migrate_json_to_mongodb
+from services.auth import oidc_client, oidc_config, AuthMiddleware, initialize_oidc
+from components.logging_manager import logging_manager
 
 
 @asynccontextmanager
@@ -32,6 +35,13 @@ async def lifespan(app: Litestar):
     """Manage the lifespan of the Litestar app and Matrix bot"""
     # Run migration on startup
     migrate_json_to_mongodb()
+    
+    # Initialize OIDC by discovering endpoints
+    await initialize_oidc()
+    logging_manager.log(f"OpenID Connect authentication enabled")
+    logging_manager.log(f"OIDC Discovery URL: {oidc_config.well_known_url}")
+    logging_manager.log(f"OIDC Issuer: {oidc_config.issuer}")
+    logging_manager.log(f"OIDC Client ID: {oidc_config.client_id}")
     
     asyncio.create_task(matrix_chat_bot.start())
     ai_scheduler.start()
@@ -42,6 +52,7 @@ async def lifespan(app: Litestar):
 
     await matrix_chat_bot.stop()
     ai_scheduler.stop()
+    await oidc_client.close()
     print("Services stopped")
 
 
@@ -60,8 +71,9 @@ static_files_router = create_static_files_router(
 )
 
 app = Litestar(
-    route_handlers=[APIController, health_check, static_files_router],
+    route_handlers=[APIController, AuthController, health_check, static_files_router],
     lifespan=[lifespan],
+    middleware=[AuthMiddleware],  # Bearer token authentication with Keycloak
 )
 
 if __name__ == '__main__':

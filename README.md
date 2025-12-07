@@ -15,6 +15,7 @@
 - 🧠 **Advanced Memory System**: Persistent storage with preferences, observations, and reminders
 - ⏰ **Intelligent AI Scheduler**: Context-aware scheduling with deferred execution and adaptive re-evaluation
 - 📊 **Litestar Web Interface & Vue.js Dashboard**: Real-time monitoring and control
+- 🔐 **OpenID Connect Authentication**: Secure access to web interface with OpenID connect integration
 - 🚀 **Async Processing**: Background operations for optimal performance
 
 ## Architecture
@@ -138,6 +139,10 @@ Yume tracks all AI agent interactions to enable debugging and optimization:
    
    # User Configuration
    USER_LANGUAGE=en  # Language for AI responses
+   
+   # OpenID Connect Authentication (Required)
+   OIDC_CLIENT_ID=yume  # OAuth2 public client ID (required)
+   OIDC_WELL_KNOWN_URL=https://auth.example.com/realms/myrealm/.well-known/openid-configuration  # OIDC discovery URL (required)
    ```
 
 ## Usage
@@ -158,6 +163,66 @@ The application will start:
 - AI scheduler with automatic memory management
 - Background processing for optimal performance
 
+### Authentication
+
+Yume requires OpenID Connect (OIDC) authentication for securing the web interface:
+
+- **Public OAuth Client**: Uses public client configuration (no client secret) with PKCE for security
+- **Provider Agnostic**: Works with any OIDC-compliant provider (Keycloak, Auth0, Okta, etc.)
+- **Automatic Discovery**: Endpoints are automatically discovered via OIDC well-known configuration
+- **Frontend-Only OAuth Flow**: Entire OAuth flow handled in frontend JavaScript
+- **PKCE Protection**: Uses Proof Key for Code Exchange (SHA-256) to prevent authorization code interception
+- **Bearer Token Authentication**: Access and refresh tokens are stored in browser localStorage
+- **JWT Verification**: All API requests must include `Authorization: Bearer <token>` header
+- **Token Validation**: Tokens are verified against the provider's JWKS (public keys) on each request
+- **Client-Side Token Refresh**: Frontend automatically refreshes tokens before expiration
+- **Mandatory Setup**: Application will not start without proper OIDC configuration
+
+#### Authentication Endpoints
+
+- `GET /auth/config` - Returns OIDC endpoints (authorization, token, logout, jwks) and client ID for frontend
+
+#### Authentication Flow
+
+1. **Automatic Redirect**: Unauthenticated users are automatically redirected to the identity provider (no login page)
+2. **PKCE Generation**: Frontend generates code_verifier and code_challenge (SHA-256)
+3. **OAuth State Generation**: Frontend generates state for CSRF protection
+4. **Authorization Request**: Frontend redirects to provider with client_id, code_challenge, and state
+5. **User Authentication**: User authenticates with the identity provider
+6. **OAuth Callback**: Provider redirects back with authorization code and state
+7. **State Validation**: Frontend validates state matches to prevent CSRF
+8. **Token Exchange**: Frontend exchanges code for tokens with provider using code_verifier (PKCE)
+9. **Token Storage**: Frontend stores access_token and refresh_token in localStorage
+10. **Automatic Token Refresh**: Frontend monitors token expiration and refreshes directly with provider
+11. **API Access**: All API requests include `Authorization: Bearer <access_token>` header
+12. **Token Validation**: Backend validates token on each request using provider's JWKS endpoint
+13. **Logout**: User clicks logout → frontend clears localStorage and redirects to provider logout
+
+#### OIDC Provider Setup
+
+The application works with any OIDC-compliant identity provider. Here's an example setup:
+
+**For Keycloak:**
+
+1. Create a new client (e.g., `yume`)
+2. Set **Client Authentication** to `OFF` (public client)
+3. Set **Valid Redirect URIs** to `http://localhost:8200/*` (or your domain)
+4. Set **Web Origins** to `http://localhost:8200` (for CORS)
+5. Enable **Standard Flow** (Authorization Code Flow)
+6. Enable **Direct Access Grants** (for token refresh)
+7. Save the client configuration
+8. Set `OIDC_CLIENT_ID` to your client ID (e.g., `yume`)
+9. Set `OIDC_WELL_KNOWN_URL` to `https://your-keycloak.com/realms/your-realm/.well-known/openid-configuration`
+
+**For other providers (Auth0, Okta, etc.):**
+- Configure a public OAuth2 client with PKCE enabled
+- Set the redirect URI to your application URL
+- Find the OIDC discovery URL (usually `/.well-known/openid-configuration`)
+3. Set **Valid redirect URIs** to `http://localhost:8200/auth/callback` (adjust for your domain)
+4. Set **Valid post logout redirect URIs** to `http://localhost:8200`
+5. Enable **Standard Flow** (Authorization Code Flow)
+6. Copy the **Client ID** and **Client Secret** to your `.env` file
+
 ### Memory Management
 
 - **Automatic Categorization**: Messages are analyzed and stored as preferences, observations, or reminders
@@ -168,19 +233,21 @@ The application will start:
 
 ### API Endpoints
 
-The Litestar interface provides several endpoints for monitoring and control:
+The Litestar interface provides several endpoints for monitoring and control.
 
-- `GET /health` - Health check endpoint for Docker deployments
+**Note**: All `/api/*` endpoints require authentication. Only `/health` and `/auth/*` endpoints are public.
+
+- `GET /health` - Health check endpoint for Docker deployments (no auth required)
 - `GET /api/memories` - Retrieve all stored memories with full details including reminder scheduling options
 - `GET /api/actions` - Get recent AI actions and responses
 - `GET /api/scheduled-tasks` - View next scheduled tasks including memory reminders and janitor tasks with topics
 - `GET /api/logs` - Access system logs with filtering capabilities
 - `GET /api/interactions` - Get summary of recent agent interactions for debugging
 - `GET /api/interactions/<id>` - Get detailed information about a specific interaction including input/output and system instructions
-- `GET /settings/train-station-mappings` - Get configured public transport station mappings
-- `POST /settings/train-station-mappings` - Add a new station mapping
-- `PUT /settings/train-station-mappings/{mapping_id}` - Update a station mapping
-- `DELETE /settings/train-station-mappings/{mapping_id}` - Remove a station mapping
+- `GET /api/settings/train-station-mappings` - Get configured public transport station mappings
+- `POST /api/settings/train-station-mappings` - Add a new station mapping
+- `PUT /api/settings/train-station-mappings/{mapping_id}` - Update a station mapping
+- `DELETE /api/settings/train-station-mappings/{mapping_id}` - Remove a station mapping
 - `POST /api/geofence-event` - Trigger geofence events (enter/leave locations)
 - `POST /webhook` - Webhook endpoint for external integrations
 
