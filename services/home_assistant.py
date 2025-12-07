@@ -247,14 +247,14 @@ async def get_calendar_events_48h() -> List[CalendarEvent]:
     return events_data
 
 
-async def get_public_transport_departures(entity_id: str) -> List[TrainDeparture]:
+async def get_public_transport_departures(entity_id: str) -> List[PublicTransportDeparture]:
     """Fetch public transport departure information from a Home Assistant entity.
     
     Args:
         entity_id: The Home Assistant entity ID for the transit station sensor
         
     Returns:
-        List of TrainDeparture objects with planned times, estimated times, and delays
+        List of PublicTransportDeparture objects with planned times, estimated times, and delays
     """
     logger.log(f"Fetching public transport departures for entity: {entity_id}")
     
