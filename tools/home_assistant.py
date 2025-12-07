@@ -7,7 +7,7 @@ import asyncio
 logger = logging_manager
 
 @function_tool
-def get_public_transport_departures(station_name: str) -> str:
+async def get_public_transport_departures(station_name: str) -> str:
     """
     Get upcoming public transport departures for a given station name.
     
@@ -31,7 +31,7 @@ def get_public_transport_departures(station_name: str) -> str:
     
     # Fetch departures asynchronously
     try:
-        departures = asyncio.run(fetch_departures(entity_id))
+        departures = await fetch_departures(entity_id)
         
         if not departures:
             return f"No upcoming departures found for {station_name}"
