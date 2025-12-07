@@ -1,4 +1,6 @@
 import os
+import base64
+import hashlib
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import json
@@ -6,9 +8,8 @@ import json
 import httpx
 import jwt
 from litestar import Request
-from litestar.connection import ASGIConnection
 from litestar.middleware import AbstractMiddleware
-from litestar.types import ASGIApp, Scope, Receive, Send
+from litestar.types import Scope, Receive, Send
 from litestar.exceptions import NotAuthorizedException
 
 
@@ -131,11 +132,44 @@ oidc_client = OIDCClient(oidc_config)
 class AuthMiddleware(AbstractMiddleware):
     """
     Middleware that validates JWT Bearer tokens with Keycloak.
+    Supports Basic Auth for specific endpoints (e.g., Home Assistant webhooks).
     Skips authentication for public endpoints.
     """
     
     # Public endpoints that don't require authentication
     PUBLIC_PATHS = {"/health", "/auth/config", "/schema", "/"}
+    
+    # Endpoints that use Basic Auth instead of OIDC
+    BASIC_AUTH_PATHS = {"/webhook/geofence-event"}
+    
+    def __init__(self, app):
+        super().__init__(app)
+        self.basic_auth_username = os.getenv("BASIC_AUTH_USERNAME")
+        self.basic_auth_password_hash = os.getenv("BASIC_AUTH_PASSWORD_HASH")
+    
+    def _verify_basic_auth(self, auth_header: str) -> bool:
+        """Verify Basic Auth credentials against hashed password"""
+        if not self.basic_auth_username or not self.basic_auth_password_hash:
+            return False
+        
+        try:
+            # Extract credentials from Basic Auth header
+            scheme, credentials = auth_header.split(" ", 1)
+            if scheme.lower() != "basic":
+                return False
+            
+            decoded = base64.b64decode(credentials).decode("utf-8")
+            username, password = decoded.split(":", 1)
+            
+            # Verify username matches
+            if username != self.basic_auth_username:
+                return False
+            
+            # Hash the provided password and compare
+            password_hash = hashlib.sha256(password.encode()).hexdigest()
+            return password_hash == self.basic_auth_password_hash
+        except Exception:
+            return False
     
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Process the request and validate authentication"""
@@ -148,6 +182,14 @@ class AuthMiddleware(AbstractMiddleware):
         # Check if path is public or static asset
         if (request.url.path in self.PUBLIC_PATHS or 
             request.url.path.startswith("/assets/")):
+            await self.app(scope, receive, send)
+            return
+        
+        # Check if path requires Basic Auth (e.g., Home Assistant webhooks)
+        if request.url.path in self.BASIC_AUTH_PATHS:
+            auth_header = request.headers.get("Authorization", "")
+            if not self._verify_basic_auth(auth_header):
+                raise NotAuthorizedException("Invalid Basic Auth credentials")
             await self.app(scope, receive, send)
             return
         

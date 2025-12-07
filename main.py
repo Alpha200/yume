@@ -23,6 +23,7 @@ set_tracing_disabled(True)
 from aiagents.ai_scheduler import determine_next_run_by_memory
 from controllers.api_controller import APIController
 from controllers.auth_controller import AuthController
+from controllers.webhook_controller import WebhookController
 from services.matrix_bot import matrix_chat_bot
 from services.ai_scheduler import ai_scheduler
 from services.migration import migrate_json_to_mongodb
@@ -71,7 +72,7 @@ static_files_router = create_static_files_router(
 )
 
 app = Litestar(
-    route_handlers=[APIController, AuthController, health_check, static_files_router],
+    route_handlers=[APIController, AuthController, WebhookController, health_check, static_files_router],
     lifespan=[lifespan],
     middleware=[AuthMiddleware],  # Bearer token authentication with Keycloak
 )

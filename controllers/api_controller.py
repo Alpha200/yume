@@ -5,7 +5,7 @@ from litestar.datastructures import ResponseHeader
 from litestar.dto import DTOData
 from msgspec import Struct
 
-from services.ai_engine import last_taken_actions, handle_geofence_event
+from services.ai_engine import last_taken_actions
 from services.memory_manager import memory_manager
 from services.ai_scheduler import ai_scheduler
 from components.logging_manager import logging_manager
@@ -37,14 +37,6 @@ class ScheduledTaskResponse(Struct):
     description: str
     next_run_time: str | None = None
     topic: str | None = None
-
-class GeofenceEventRequest(Struct):
-    geofence_name: str
-    event_type: str  # "enter" or "leave"
-
-class GeofenceEventResponse(Struct):
-    success: bool
-    message: str | None = None
 
 class InteractionSummaryResponse(Struct):
     id: str
@@ -169,31 +161,6 @@ class APIController(Controller):
             ))
 
         return logs
-
-    @post("/geofence-event")
-    async def trigger_geofence_event(self, data: GeofenceEventRequest) -> GeofenceEventResponse:
-        """Trigger a geofence event (enter/leave location)"""
-        try:
-            # Validate event type
-            if data.event_type not in ["enter", "leave"]:
-                return GeofenceEventResponse(
-                    success=False,
-                    message="Invalid event_type. Must be 'enter' or 'leave'"
-                )
-
-            # Handle the geofence event
-            result = await handle_geofence_event(data.geofence_name, data.event_type)
-
-            return GeofenceEventResponse(
-                success=True,
-                message=result
-            )
-        except Exception as e:
-            logging_manager.log(f"Error handling geofence event: {e}")
-            return GeofenceEventResponse(
-                success=False,
-                message=f"Error processing geofence event: {str(e)}"
-            )
 
     @get("/interactions")
     async def get_interactions(self) -> List[InteractionSummaryResponse]:

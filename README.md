@@ -143,6 +143,11 @@ Yume tracks all AI agent interactions to enable debugging and optimization:
    # OpenID Connect Authentication (Required)
    OIDC_CLIENT_ID=yume  # OAuth2 public client ID (required)
    OIDC_WELL_KNOWN_URL=https://auth.example.com/realms/myrealm/.well-known/openid-configuration  # OIDC discovery URL (required)
+   
+   # Basic Auth for Home Assistant Webhooks (Optional)
+   # Generate hash: echo -n "your_password" | shasum -a 256 | cut -d' ' -f1
+   BASIC_AUTH_USERNAME=homeassistant  # Username for /webhook/geofence-event endpoint
+   BASIC_AUTH_PASSWORD_HASH=5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8  # SHA-256 hash of password
    ```
 
 ## Usage
@@ -248,16 +253,29 @@ The Litestar interface provides several endpoints for monitoring and control.
 - `POST /api/settings/train-station-mappings` - Add a new station mapping
 - `PUT /api/settings/train-station-mappings/{mapping_id}` - Update a station mapping
 - `DELETE /api/settings/train-station-mappings/{mapping_id}` - Remove a station mapping
-- `POST /api/geofence-event` - Trigger geofence events (enter/leave locations)
-- `POST /webhook` - Webhook endpoint for external integrations
+- `POST /webhook/geofence-event` - Trigger geofence events (enter/leave locations) - Uses Basic Auth
 
 #### Geofence Event API
 
-Trigger location-based AI responses by posting to the geofence endpoint:
+Trigger location-based AI responses by posting to the geofence endpoint. This endpoint uses **Basic Auth** instead of OIDC to allow Home Assistant webhooks to trigger events.
+
+**Authentication**: 
+
+1. Generate a SHA-256 hash of your password:
+   ```bash
+   echo -n "your_password" | shasum -a 256 | cut -d' ' -f1
+   ```
+
+2. Configure environment variables:
+   - `BASIC_AUTH_USERNAME=homeassistant`
+   - `BASIC_AUTH_PASSWORD_HASH=<generated_hash>`
+
+3. Use the original password (not the hash) in your requests:
 
 ```bash
 # Example: User enters home location
-curl -X POST http://localhost:8200/api/geofence-event \
+curl -X POST http://localhost:8200/webhook/geofence-event \
+  -u "homeassistant:your_password" \
   -H "Content-Type: application/json" \
   -d '{
     "geofence_name": "Home", 
@@ -265,12 +283,39 @@ curl -X POST http://localhost:8200/api/geofence-event \
   }'
 
 # Example: User leaves work location  
-curl -X POST http://localhost:8200/api/geofence-event \
+curl -X POST http://localhost:8200/webhook/geofence-event \
+  -u "homeassistant:your_password" \
   -H "Content-Type: application/json" \
   -d '{
     "geofence_name": "Office", 
     "event_type": "leave"
   }'
+```
+
+**Home Assistant Automation Example:**
+
+```yaml
+automation:
+  - alias: "Yume Geofence Notification"
+    trigger:
+      - platform: zone
+        entity_id: device_tracker.phone
+        zone: zone.home
+        event: enter
+    action:
+      - service: rest_command.yume_geofence
+        data:
+          geofence_name: "Home"
+          event_type: "enter"
+
+rest_command:
+  yume_geofence:
+    url: "http://your-yume-server:8200/webhook/geofence-event"
+    method: POST
+    headers:
+      Authorization: "Basic {{ 'homeassistant:your_password' | base64_encode }}"
+      Content-Type: "application/json"
+    payload: '{"geofence_name": "{{ geofence_name }}", "event_type": "{{ event_type }}"}'
 ```
 
 The API validates that `event_type` is either "enter" or "leave" and returns a response indicating success or failure along with any AI-generated message.
