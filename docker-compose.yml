@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   mongodb:
-    image: mongo:8-alpine
+    image: mongo:8.2
     container_name: yume-mongodb
     restart: unless-stopped
     environment:

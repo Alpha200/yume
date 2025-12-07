@@ -9,7 +9,7 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = "<4.0,>=3.13"
 dependencies = [
-    "fastapi>=0.123.10, <1.0.0",
+    "litestar[standard]>=2.18.0,<3.0.0",
     "uvicorn[standard]>=0.38.0,<1.0.0",
     "openai-agents (>=0.6.0,<0.7.0)",
     "matrix-nio>=0.25.2",

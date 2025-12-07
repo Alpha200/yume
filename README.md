@@ -14,7 +14,7 @@
 - 🚌 **Public Transport Departures**: Real-time transit information from Home Assistant entities
 - 🧠 **Advanced Memory System**: Persistent storage with preferences, observations, and reminders
 - ⏰ **Intelligent AI Scheduler**: Context-aware scheduling with deferred execution and adaptive re-evaluation
-- 📊 **FastAPI Web Interface & Vue.js Dashboard**: Real-time monitoring and control
+- 📊 **Litestar Web Interface & Vue.js Dashboard**: Real-time monitoring and control
 - 🚀 **Async Processing**: Background operations for optimal performance
 
 ## Architecture
@@ -153,7 +153,7 @@ python main.py
 ```
 
 The application will start:
-- FastAPI server on `http://0.0.0.0:8200`
+- Litestar server on `http://0.0.0.0:8200`
 - Matrix bot connecting to your configured room
 - AI scheduler with automatic memory management
 - Background processing for optimal performance
@@ -168,7 +168,7 @@ The application will start:
 
 ### API Endpoints
 
-The FastAPI interface provides several endpoints for monitoring and control:
+The Litestar interface provides several endpoints for monitoring and control:
 
 - `GET /health` - Health check endpoint for Docker deployments
 - `GET /api/memories` - Retrieve all stored memories with full details including reminder scheduling options
@@ -265,5 +265,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with the OpenAI Agents framework
 - Matrix SDK for Python
-- FastAPI for web interface
+- Litestar for web interface
 - APScheduler for background tasks

@@ -4,8 +4,8 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from agents import set_default_openai_client, set_tracing_disabled
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from litestar import Litestar, get
+from litestar.static_files import create_static_files_router
 from openai import AsyncOpenAI
 
 AI_ENDPOINT_URL = os.getenv("AI_ENDPOINT_URL", None)
@@ -21,15 +21,15 @@ set_default_openai_client(custom_client)
 set_tracing_disabled(True)
 
 from aiagents.ai_scheduler import determine_next_run_by_memory
-from controllers.api_controller import router as api_router
+from controllers.api_controller import APIController
 from services.matrix_bot import matrix_chat_bot
 from services.ai_scheduler import ai_scheduler
 from services.migration import migrate_json_to_mongodb
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    """Manage the lifespan of the FastAPI app and Matrix bot"""
+async def lifespan(app: Litestar):
+    """Manage the lifespan of the Litestar app and Matrix bot"""
     # Run migration on startup
     migrate_json_to_mongodb()
     
@@ -45,19 +45,24 @@ async def lifespan(_: FastAPI):
     print("Services stopped")
 
 
-app = FastAPI(title="Yume", version="0.1.0", lifespan=lifespan)
-
-# Include API routes
-app.include_router(api_router)
-
-# Health check endpoint for Docker
-@app.get("/health")
-async def health_check():
+@get("/health")
+async def health_check() -> dict:
+    """Health check endpoint for Docker"""
     return {"status": "healthy"}
 
-# Mount static files for the built Vue.js frontend
-app.mount("/", StaticFiles(directory="ui/dist", html=True), name="static")
+
+# Create static files router for the Vue.js frontend
+static_files_router = create_static_files_router(
+    path="/",
+    directories=["ui/dist"],
+    html_mode=True,
+    name="static"
+)
+
+app = Litestar(
+    route_handlers=[APIController, health_check, static_files_router],
+    lifespan=[lifespan],
+)
 
 if __name__ == '__main__':
     uvicorn.run(app, host="0.0.0.0", port=8200)
-
