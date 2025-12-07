@@ -13,9 +13,10 @@
 - 📍 **Geofence Events**: Location-based triggers with distance context from proximity sensors
 - 🚌 **Public Transport Departures**: Real-time transit information from Home Assistant entities
 - 🧠 **Advanced Memory System**: Persistent storage with preferences, observations, and reminders
+- 📅 **AI-Powered Day Planner**: Automatic daily planning based on calendar and memories with high-confidence updates
 - ⏰ **Intelligent AI Scheduler**: Context-aware scheduling with deferred execution and adaptive re-evaluation
-- 📊 **Litestar Web Interface & Vue.js Dashboard**: Real-time monitoring and control
-- 🔐 **OpenID Connect Authentication**: Secure access to web interface with OpenID connect integration
+- 📊 **Vue.js Dashboard**: Real-time monitoring of memories, schedules, plans, and interactions
+- 🔐 **OpenID Connect Authentication**: Secure access to web interface
 - 🚀 **Async Processing**: Background operations for optimal performance
 
 ## Architecture
@@ -34,33 +35,23 @@ Yume is built with a modular architecture consisting of several key components:
 ### AI Agents
 
 - **Memory Manager** (`aiagents/memory_manager.py`): Handles memory operations including intelligent cleanup and archival
-- **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling agent that analyzes stored memories, user preferences, calendar events, current user location, conversation history, and recent interactions to determine optimal timing for the next reminder or user engagement. Features include:
-  - Deferred execution with 60-second debounce to consolidate multiple scheduling triggers
-  - Automatic re-evaluation of existing schedules based on current context
-  - Triggered after every user interaction (chat messages, geofence events, memory reminders)
-  - Dual-approach scheduling combining deterministic reminders and AI-powered timing optimization
+- **Day Planner** (`aiagents/day_planner.py`): AI agent that creates daily activity predictions using calendar, memories, and context. Makes high-confidence updates to plans via tools.
+- **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling with deferred execution, automatic re-evaluation, and dual-approach timing optimization (deterministic + AI-powered)
 
 ### Memory System
 
-The memory system supports three types of entries:
+The memory system stores three types of entries:
 - **User Preferences**: Settings and preferences (e.g., "User prefers morning reminders")
 - **User Observations**: Observations with optional dates (e.g., "User's birthday is 2023-12-15")
-- **Reminders**: Time-based, recurring, or location-based reminders with intelligent scheduling
+- **Reminders**: Time-based, recurring, or location-based reminders
 
-Reminders can be created in three ways:
-1. **One-time reminders**: Scheduled for a specific datetime (YYYY-MM-DD HH:MM:SS)
-2. **Recurring reminders**: Set for a specific time (HH:MM) on certain days of the week
-3. **Location-based reminders**: Triggered when entering or leaving a specific geofence location
-
-The AI Scheduler uses a dual-approach strategy:
-1. **Deterministic Scheduling**: Explicitly scheduled reminders are prioritized first
-2. **AI-Powered Scheduling**: Analyzes calendar events, patterns, and preferences for optimal timing
-3. **Conflict Resolution**: Chooses whichever approach results in the earliest suitable interaction time
+Reminders use dual-approach scheduling: deterministic (explicitly scheduled) + AI-powered (pattern-based). The AI Scheduler runs after every interaction with a 60-second debounce.
 
 ### Tools Integration
 
-- **Memory Tools** (`tools/memory.py`): Function tools for memory operations including search and CRUD operations
-- **Home Assistant Tools** (`tools/home_assistant.py`): Integration tools for smart home control and public transport departures
+- **Memory Tools** (`tools/memory.py`): Memory operations (search, CRUD)
+- **Day Planner Tools** (`tools/day_planner.py`): Get and update daily plans
+- **Home Assistant Tools** (`tools/home_assistant.py`): Smart home control and transit information
 
 ### Settings Management
 
@@ -70,24 +61,24 @@ The AI Scheduler uses a dual-approach strategy:
 ### Components
 
 - **Conversation** (`components/conversation.py`): Message history data structures
-- **Calendar & Weather** (`components/calendar.py`, `components/weather.py`): Data models for external services
-- **Logging Manager** (`components/logging_manager.py`): Centralized logging system with recent log tracking
-- **Agent Hooks** (`components/agent_hooks.py`): Custom hooks for AI agent behavior customization
-- **Timezone Utils** (`components/timezone_utils.py`): Timezone-aware datetime handling for user context and consistent time handling across services
+- **Calendar & Weather** (`components/calendar.py`, `components/weather.py`): External service models
+- **Logging Manager** (`components/logging_manager.py`): Centralized logging with history
+- **Agent Hooks** (`components/agent_hooks.py`): Custom hooks for AI behavior
+- **Timezone Utils** (`components/timezone_utils.py`): Timezone-aware datetime handling
 
 ### Interaction Tracking
 
-Yume tracks all AI agent interactions to enable debugging and optimization:
-- **Agent Type**: Records which agent executed the interaction (ai_scheduler, ai_engine, etc.)
-- **Input/Output**: Stores full input data and generated output for each interaction
-- **Metadata**: Captures next_run_time, topic, system instructions, and execution details
-- **Persistent History**: Stored in `data/interactions.json` for analysis
+Yume tracks all AI agent interactions for debugging:
+- **Agent Type**: Records which agent executed the interaction
+- **Input/Output**: Stores full data for each interaction
+- **Metadata**: Captures next_run_time, topic, system instructions
+- **Storage**: Persisted in `data/interactions.json`
 
 ## Performance Optimizations
 
-- **Background Processing**: Memory updates and scheduling run asynchronously for faster response times
-- **Unified AI Agent**: Single agent handles both decision-making and response generation, reducing API calls by 50%
-- **Efficient Memory Access**: Formatted memory retrieval with consistent formatting across the application
+- **Async Background Processing**: Memory updates and scheduling run asynchronously
+- **Unified AI Agent**: Single agent handles both decision-making and response generation
+- **Efficient Memory Access**: Formatted memory retrieval with consistent formatting
 
 ## Installation
 
@@ -190,56 +181,41 @@ Yume requires OpenID Connect (OIDC) authentication for securing the web interfac
 
 #### Authentication Endpoints
 
-- `GET /auth/config` - Returns OIDC endpoints (authorization, token, logout, jwks) and client ID for frontend
+- `GET /auth/config` - Returns OIDC endpoints and client ID for frontend
 
 #### Authentication Flow
 
-1. **Automatic Redirect**: Unauthenticated users are automatically redirected to the identity provider (no login page)
-2. **PKCE Generation**: Frontend generates code_verifier and code_challenge (SHA-256)
-3. **OAuth State Generation**: Frontend generates state for CSRF protection
-4. **Authorization Request**: Frontend redirects to provider with client_id, code_challenge, and state
-5. **User Authentication**: User authenticates with the identity provider
-6. **OAuth Callback**: Provider redirects back with authorization code and state
-7. **State Validation**: Frontend validates state matches to prevent CSRF
-8. **Token Exchange**: Frontend exchanges code for tokens with provider using code_verifier (PKCE)
-9. **Token Storage**: Frontend stores access_token and refresh_token in localStorage
-10. **Automatic Token Refresh**: Frontend monitors token expiration and refreshes directly with provider
-11. **API Access**: All API requests include `Authorization: Bearer <access_token>` header
-12. **Token Validation**: Backend validates token on each request using provider's JWKS endpoint
-13. **Logout**: User clicks logout → frontend clears localStorage and redirects to provider logout
+1. Frontend redirects unauthenticated users to identity provider
+2. Frontend generates PKCE code_challenge and OAuth state
+3. User authenticates with identity provider
+4. Provider redirects back with authorization code
+5. Frontend validates state and exchanges code for tokens (using PKCE)
+6. Frontend stores access_token and refresh_token in localStorage
+7. Frontend includes `Authorization: Bearer <token>` in API requests
+8. Backend validates token against provider's JWKS endpoint
+9. Frontend automatically refreshes expired tokens
+10. Logout clears localStorage and redirects to provider logout
 
 #### OIDC Provider Setup
 
-The application works with any OIDC-compliant identity provider. Here's an example setup:
-
 **For Keycloak:**
 
-1. Create a new client (e.g., `yume`)
-2. Set **Client Authentication** to `OFF` (public client)
-3. Set **Valid Redirect URIs** to `http://localhost:8200/*` (or your domain)
-4. Set **Web Origins** to `http://localhost:8200` (for CORS)
-5. Enable **Standard Flow** (Authorization Code Flow)
-6. Enable **Direct Access Grants** (for token refresh)
-7. Save the client configuration
-8. Set `OIDC_CLIENT_ID` to your client ID (e.g., `yume`)
-9. Set `OIDC_WELL_KNOWN_URL` to `https://your-keycloak.com/realms/your-realm/.well-known/openid-configuration`
+1. Create a new public client (Authentication OFF)
+2. Set **Valid Redirect URIs** to `http://localhost:8200/*`
+3. Set **Web Origins** to `http://localhost:8200`
+4. Enable **Standard Flow** and **Direct Access Grants**
+5. Set `OIDC_CLIENT_ID` to your client ID
+6. Set `OIDC_WELL_KNOWN_URL` to `https://your-keycloak.com/realms/your-realm/.well-known/openid-configuration`
 
-**For other providers (Auth0, Okta, etc.):**
-- Configure a public OAuth2 client with PKCE enabled
-- Set the redirect URI to your application URL
-- Find the OIDC discovery URL (usually `/.well-known/openid-configuration`)
-3. Set **Valid redirect URIs** to `http://localhost:8200/auth/callback` (adjust for your domain)
-4. Set **Valid post logout redirect URIs** to `http://localhost:8200`
-5. Enable **Standard Flow** (Authorization Code Flow)
-6. Copy the **Client ID** and **Client Secret** to your `.env` file
+**For other providers (Auth0, Okta, etc.):** Configure a public OAuth2 client with PKCE, set redirect URI to `http://localhost:8200`, and set `OIDC_WELL_KNOWN_URL` to the provider's discovery endpoint.
 
 ### Memory Management
 
-- **Automatic Categorization**: Messages are analyzed and stored as preferences, observations, or reminders
-- **Intelligent Reminder Scheduling**: Create one-time reminders (specific datetime), recurring reminders (time of day with optional day filter), or location-based reminders (triggered on entering/leaving a geofence)
-- **Adaptive Scheduling**: Re-evaluates existing schedules whenever a new interaction occurs (chat, geofence, or reminder) to adjust timing based on current context
-- **Deferred Execution**: 60-second debounce consolidates multiple triggers into a single evaluation, preventing rapid rescheduling
-- **Automatic Cleanup**: Memory Janitor runs every 12 hours to archive and clean up old memories
+- **Automatic Categorization**: Messages analyzed and stored as preferences, observations, or reminders
+- **Intelligent Reminder Scheduling**: One-time, recurring, or location-based reminders with adaptive scheduling
+- **Adaptive Scheduling**: Re-evaluates when new interactions occur (chat, geofence, or reminder)
+- **Deferred Execution**: 60-second debounce consolidates multiple triggers
+- **Automatic Cleanup**: Memory Janitor runs every 12 hours to archive and clean up old entries
 
 ### API Endpoints
 
@@ -327,16 +303,14 @@ The API validates that `event_type` is either "enter" or "leave" and returns a r
 
 ### Vue.js Dashboard
 
-Access the web dashboard at `http://localhost:8200` to monitor:
+Access at `http://localhost:8200` to monitor:
 
-- **Memory Store**: View all stored memories with type categorization, timestamps, and reminder scheduling details
-- **AI Actions**: Recent actions taken by the AI including messages and events
-- **Scheduled Tasks**: Next scheduled memory reminders and system tasks with topics and execution timing
-- **Executed Reminders**: History of recently executed memory reminder jobs with topics and timestamps
-- **Interaction Details**: Detailed view of agent interactions including input data, output, and system instructions for debugging
-- **System Logs**: Real-time system logs with level filtering (INFO, DEBUG, WARNING, ERROR)
-
-The dashboard automatically refreshes and provides an intuitive interface for understanding Yume's current state, activity, and decision-making process.
+- **Memory Store**: All stored memories with type, timestamps, and reminder details
+- **Day Planner**: Calendar-based daily activity predictions with navigation
+- **AI Actions**: Recent actions taken by the AI
+- **Scheduled Tasks**: Next scheduled memory reminders and system tasks
+- **Interaction Details**: Debugging view of agent interactions with input/output/instructions
+- **System Logs**: Real-time logs with level filtering
 
 ### Docker Deployment
 
