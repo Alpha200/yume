@@ -27,6 +27,8 @@ class AIScheduler:
         self.scheduler = AsyncIOScheduler()
         self.memory_reminder_job_id = "memory_reminder_job"
         self.memory_janitor_job_id = "memory_janitor_job"
+        self.day_planner_today_job_id = "day_planner_today_job"
+        self.day_planner_tomorrow_job_id = "day_planner_tomorrow_job"
         self.deferred_run_job_id = "deferred_ai_run_job"
         # Store the last scheduled NextRun (time + reason) so it can be queried by the API/UI
         self.last_next_run: NextRun | None = None
@@ -41,6 +43,12 @@ class AIScheduler:
 
             # Schedule recurring memory janitor job every 12 hours
             self._schedule_memory_janitor()
+            
+            # Schedule day planner updates
+            self._schedule_day_planner()
+            
+            # Run day planner immediately on startup for today and tomorrow
+            self._run_day_planner_on_startup()
 
     def stop(self):
         """Stop the scheduler"""
@@ -88,6 +96,114 @@ class AIScheduler:
 
         except Exception as e:
             logger.log(f"Error triggering memory janitor: {e}")
+
+    def _schedule_day_planner(self):
+        """Schedule recurring day planner updates"""
+        try:
+            # Remove existing jobs if they exist
+            if self.scheduler.get_job(self.day_planner_today_job_id):
+                self.scheduler.remove_job(self.day_planner_today_job_id)
+            if self.scheduler.get_job(self.day_planner_tomorrow_job_id):
+                self.scheduler.remove_job(self.day_planner_tomorrow_job_id)
+
+            # Schedule today's plan to update every hour
+            self.scheduler.add_job(
+                func=self._update_today_plan,
+                trigger=IntervalTrigger(hours=1),
+                id=self.day_planner_today_job_id,
+                name="Day Planner - Today",
+                replace_existing=True
+            )
+
+            # Schedule tomorrow's plan to update every 8 hours
+            self.scheduler.add_job(
+                func=self._update_tomorrow_plan,
+                trigger=IntervalTrigger(hours=8),
+                id=self.day_planner_tomorrow_job_id,
+                name="Day Planner - Tomorrow",
+                replace_existing=True
+            )
+
+            logger.log("Scheduled day planner: every 1h for today, every 8h for tomorrow")
+
+        except Exception as e:
+            logger.log(f"Error scheduling day planner: {e}")
+
+    async def _update_today_plan(self):
+        """Update the day plan for today"""
+        try:
+            from components.timezone_utils import now_user_tz
+            from aiagents.day_planner import generate_day_plan
+            from aiagents.ai_scheduler import determine_next_run_by_memory
+            from services.memory_manager import memory_manager
+            from services.home_assistant import get_calendar_events_for_day
+
+            today = now_user_tz().date()
+            logger.log(f"Updating day plan for today: {today}")
+
+            # Gather information
+            memories = memory_manager.get_formatted_observations_and_reminders()
+            calendar_events_list = await get_calendar_events_for_day(today)
+            calendar_events = "\n".join([
+                f"- {event.summary} at {event.start.strftime('%H:%M')}"
+                for event in calendar_events_list
+            ])
+
+            # Generate the plan (agent uses tools to save directly)
+            result = await generate_day_plan(today, memories, calendar_events)
+
+            logger.log(f"Updated day plan for today: {len(result.actions_taken)} actions taken")
+            
+            # If the agent took actions (updated the plan), trigger the scheduler
+            if result.actions_taken and len(result.actions_taken) > 0:
+                logger.log("Day plan for today changed, triggering scheduler")
+                try:
+                    await determine_next_run_by_memory()
+                except Exception as e:
+                    logger.log(f"Error triggering scheduler after day plan update: {e}")
+
+        except Exception as e:
+            logger.log(f"Error updating today's day plan: {e}")
+
+    async def _update_tomorrow_plan(self):
+        """Update the day plan for tomorrow"""
+        try:
+            from components.timezone_utils import now_user_tz
+            from aiagents.day_planner import generate_day_plan
+            from services.memory_manager import memory_manager
+            from services.home_assistant import get_calendar_events_for_day
+            import datetime
+
+            tomorrow = now_user_tz().date() + datetime.timedelta(days=1)
+            logger.log(f"Updating day plan for tomorrow: {tomorrow}")
+
+            # Gather information
+            memories = memory_manager.get_formatted_observations_and_reminders()
+            calendar_events_list = await get_calendar_events_for_day(tomorrow)
+            calendar_events = "\n".join([
+                f"- {event.summary} at {event.start.strftime('%H:%M')}"
+                for event in calendar_events_list
+            ])
+
+            # Generate the plan (agent uses tools to save directly)
+            result = await generate_day_plan(tomorrow, memories, calendar_events)
+
+            logger.log(f"Updated day plan for tomorrow: {len(result.actions_taken)} actions taken")
+
+        except Exception as e:
+            logger.log(f"Error updating tomorrow's day plan: {e}")
+
+    def _run_day_planner_on_startup(self):
+        """Run day planner immediately on startup for today and tomorrow"""
+        import asyncio
+        
+        async def run_initial_plans():
+            await self._update_today_plan()
+            await self._update_tomorrow_plan()
+        
+        # Schedule the async function to run immediately
+        asyncio.create_task(run_initial_plans())
+        logger.log("Scheduled initial day plan generation for today and tomorrow")
 
     def schedule_next_run(self, next_run: NextRun):
         """Schedule the next run of the memory reminder"""

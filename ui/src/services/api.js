@@ -336,5 +336,21 @@ export const apiService = {
    */
   async deleteTrainStationMapping(id) {
     await api.delete(`/settings/train-station-mappings/${id}`)
+  },
+
+  /**
+   * Fetch day plan for a specific date
+   */
+  async getDayPlan(date) {
+    const response = await api.get(`/day-plans/${date}`)
+    return response.data
+  },
+
+  /**
+   * Fetch today's day plan
+   */
+  async getTodayPlan() {
+    const response = await api.get('/day-plans/today')
+    return response.data
   }
 }

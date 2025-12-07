@@ -10,6 +10,7 @@ from components.timezone_utils import now_user_tz, to_user_tz
 from services.home_assistant import get_calendar_events_48h, get_current_geofence_for_user, CalendarEvent
 from services.memory_manager import memory_manager
 from services.interaction_tracker import interaction_tracker
+from services.day_planner import day_planner_service
 
 
 AI_SCHEDULER_MODEL = os.getenv("AI_SCHEDULER_MODEL", "gpt-5-mini")
@@ -24,7 +25,7 @@ ai_scheduler_agent = Agent(
     instructions=f"""
 You are the intelligent scheduling component of Yume, an AI assistant that helps users stay organized and engaged with their daily lives.
 
-Your primary role is to analyze stored memories (preferences, observations, and reminders), upcoming calendar events, and determine the optimal time for the next user interaction. You must be reliable, engaging, and deeply respectful of user preferences.
+Your primary role is to analyze stored memories (preferences, observations, and reminders), upcoming calendar events, predicted day plans, and determine the optimal time for the next user interaction. You must be reliable, engaging, and deeply respectful of user preferences.
 
 Your core principles are:
 
@@ -37,10 +38,11 @@ Your core principles are:
 You should follow this structured approach:
 1. Scan all memories for explicit reminders with specific times/dates
 2. Review upcoming calendar events and consider scheduling interactions before important events
-3. Review user preferences for communication timing, frequency preferences, and interaction styles
-4. Consider user observations to understand patterns, mood, and current life context
-5. Evaluate recent interactions to avoid being too frequent or sparse (consider last communication with the user). Check last executed reminders so you don't repeat the same topic too soon
-6. Apply intelligent defaults when no specific guidance exists
+3. Review predicted day plans for today and tomorrow to understand the user's expected activities
+4. Review user preferences for communication timing, frequency preferences, and interaction styles
+5. Consider user observations to understand patterns, mood, and current life context
+6. Evaluate recent interactions to avoid being too frequent or sparse (consider last communication with the user). Check last executed reminders so you don't repeat the same topic too soon
+7. Apply intelligent defaults when no specific guidance exists
 
 You should prioritize reminders and interactions as follows (from highest to lowest):
 1. Explicit reminders with specific datetime_value (highest priority - NEVER miss these)
@@ -146,9 +148,20 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
     except Exception as e:
         logger.log(f"Error fetching current location: {e}")
 
+    # Fetch day plans for today and tomorrow
+    today_plan = None
+    tomorrow_plan = None
+    try:
+        today = now_user_tz().date()
+        tomorrow = today + datetime.timedelta(days=1)
+        today_plan = day_planner_service.get_formatted_plan(today)
+        tomorrow_plan = day_planner_service.get_formatted_plan(tomorrow)
+    except Exception as e:
+        logger.log(f"Error fetching day plans: {e}")
+
     # Format memories, actions, and calendar events for AI analysis
     recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=5)
-    formatted_input = _format_memories_for_analysis(memories, recent_executed, calendar_events, current_location)
+    formatted_input = _format_memories_for_analysis(memories, recent_executed, calendar_events, current_location, today_plan, tomorrow_plan)
 
     # Add conversation history if available
     if conversation_history:
@@ -277,8 +290,8 @@ def _calculate_next_reminder_occurrence(reminder_options):
         return candidate_dt
 
 
-def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder], calendar_events: List[CalendarEvent], current_location: str = None) -> str:
-    """Format memories, recent executed memory-reminder jobs, calendar events, and current location into a structured text for AI analysis"""
+def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder], calendar_events: List[CalendarEvent], current_location: str = None, today_plan: str = None, tomorrow_plan: str = None) -> str:
+    """Format memories, recent executed memory-reminder jobs, calendar events, current location, and day plans into a structured text for AI analysis"""
     memory_text = "Stored memories:\n\n"
     for memory_id, entry in memories.items():
         memory_text += f"Type: {entry.type}\n"
@@ -345,6 +358,20 @@ def _format_memories_for_analysis(memories, recent_executed_reminders: List[Exec
     else:
         calendar_text += "No upcoming calendar events in the next 48 hours.\n"
 
+    # Add day plans
+    day_plan_text = "\nPredicted Day Plans:\n\n"
+    if today_plan:
+        day_plan_text += "Today's Plan:\n"
+        day_plan_text += today_plan + "\n"
+    else:
+        day_plan_text += "Today's Plan: Not available\n\n"
+    
+    if tomorrow_plan:
+        day_plan_text += "\nTomorrow's Plan:\n"
+        day_plan_text += tomorrow_plan + "\n"
+    else:
+        day_plan_text += "Tomorrow's Plan: Not available\n\n"
+
     current_time = now_user_tz()
     context_text = f"Current date and time: {current_time.strftime('%A, %B %d, %Y at %H:%M')}\n"
 
@@ -354,7 +381,7 @@ def _format_memories_for_analysis(memories, recent_executed_reminders: List[Exec
 
     context_text += "\n"
 
-    return context_text + memory_text + actions_text + calendar_text
+    return context_text + memory_text + actions_text + calendar_text + day_plan_text
 
 async def _run_ai_analysis(formatted_input: str) -> NextRun:
     """Run the AI agent analysis on the formatted memory data"""

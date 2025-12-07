@@ -11,6 +11,9 @@ from services.ai_scheduler import ai_scheduler
 from components.logging_manager import logging_manager
 from services.interaction_tracker import interaction_tracker
 from services.settings_manager import settings_manager
+from services.day_planner import day_planner_service
+from services.home_assistant import get_calendar_events_for_day
+import datetime
 
 class ActionResponse(Struct):
     action: str
@@ -63,6 +66,25 @@ class TrainStationMappingResponse(Struct):
     id: str
     station_name: str
     entity_id: str
+
+class DayPlanItemResponse(Struct):
+    id: str
+    title: str
+    source: str
+    confidence: str  # "low", "medium", or "high"
+    tags: List[str]
+    description: str | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    location: str | None = None
+
+class DayPlanResponse(Struct):
+    id: str
+    date: str
+    items: List[DayPlanItemResponse]
+    created_at: str
+    updated_at: str
+    summary: str | None = None
 
 
 class APIController(Controller):
@@ -244,3 +266,47 @@ class APIController(Controller):
             raise NotFoundException(detail="Mapping not found")
         
         return None
+
+    @get("/day-plans/{date:str}")
+    async def get_day_plan(self, date: str) -> DayPlanResponse:
+        """Get the day plan for a specific date (YYYY-MM-DD)"""
+        try:
+            plan_date = datetime.date.fromisoformat(date)
+        except ValueError:
+            raise NotFoundException(detail=f"Invalid date format: {date}")
+        
+        plan = day_planner_service.get_plan_for_date(plan_date)
+        
+        if not plan:
+            raise NotFoundException(detail=f"No plan found for {date}")
+        
+        items = [
+            DayPlanItemResponse(
+                id=item.id,
+                title=item.title,
+                description=item.description,
+                start_time=item.start_time.isoformat() if item.start_time else None,
+                end_time=item.end_time.isoformat() if item.end_time else None,
+                source=item.source,
+                confidence=item.confidence,
+                location=item.location,
+                tags=item.tags
+            )
+            for item in plan.items
+        ]
+        
+        return DayPlanResponse(
+            id=plan.id,
+            date=plan.date.isoformat(),
+            items=items,
+            created_at=plan.created_at.isoformat(),
+            updated_at=plan.updated_at.isoformat(),
+            summary=plan.summary
+        )
+
+    @get("/day-plans/today")
+    async def get_today_plan(self) -> DayPlanResponse:
+        """Get the day plan for today"""
+        from components.timezone_utils import now_user_tz
+        today = now_user_tz().date()
+        return await self.get_day_plan(today.isoformat())

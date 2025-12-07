@@ -7,7 +7,7 @@ import aiohttp
 
 from components.calendar import CalendarEvent
 from components.logging_manager import logging_manager
-from components.timezone_utils import now_user_tz, from_isoformat_user_tz
+from components.timezone_utils import now_user_tz, from_isoformat_user_tz, to_user_tz
 from components.weather import WeatherForecast
 
 logger = logging_manager
@@ -244,6 +244,67 @@ async def get_calendar_events_48h() -> List[CalendarEvent]:
                 logger.log(f"  - {event_info}")
 
     logger.log(f"Retrieved {len(events_data)} calendar events")
+    return events_data
+
+
+async def get_calendar_events_for_day(date: datetime.date) -> List[CalendarEvent]:
+    """Fetch calendar events for a specific day.
+    
+    Args:
+        date: The date to fetch events for
+        
+    Returns:
+        List of calendar events for that day
+    """
+    entity_id = HA_CALENDAR_ENTITY
+    logger.log(f"Fetching calendar events for {date} for entity: {entity_id}")
+
+    # Set start time to beginning of the day
+    start_time = datetime.datetime.combine(date, datetime.time.min)
+    start_time = to_user_tz(start_time)
+    
+    # Set end time to end of the day
+    end_time = datetime.datetime.combine(date, datetime.time.max)
+    end_time = to_user_tz(end_time)
+
+    start_time_iso = start_time.isoformat()
+    end_time_iso = end_time.isoformat()
+
+    calendar_payload = {
+        "entity_id": entity_id,
+        "start_date_time": start_time_iso,
+        "end_date_time": end_time_iso
+    }
+    calendar_result = await ha_request("POST", "/api/services/calendar/get_events?return_response", calendar_payload)
+
+    if calendar_result["status"] != 200:
+        logger.log(f"Failed to fetch calendar events: {calendar_result['status']} - {calendar_result['data']}")
+        return []  # Return empty list on error instead of raising
+
+    events_data = []
+    service_data = calendar_result["data"]
+
+    if "service_response" in service_data and entity_id in service_data["service_response"]:
+        entity_data = service_data["service_response"][entity_id]
+        if "events" in entity_data:
+            events = entity_data["events"]
+
+            for event in events:
+                # Detect if this is an all-day event
+                start_str = event.get("start", "")
+                is_all_day = len(start_str) == 10
+
+                calendar_event = CalendarEvent(
+                    start=start_str,
+                    end=event.get("end"),
+                    summary=event.get("summary"),
+                    description=event.get("description"),
+                    location=event.get("location"),
+                    is_all_day=is_all_day
+                )
+                events_data.append(calendar_event)
+
+    logger.log(f"Retrieved {len(events_data)} calendar events for {date}")
     return events_data
 
 

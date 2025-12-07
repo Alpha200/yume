@@ -9,6 +9,7 @@ from components.timezone_utils import now_user_tz
 from components.weather import WeatherForecast
 from services.matrix_bot import matrix_chat_bot
 from services.home_assistant import get_weather_forecast_24h, get_current_geofence_for_user, get_calendar_events_48h
+from services.day_planner import day_planner_service
 
 logger = logging_manager
 
@@ -136,6 +137,24 @@ def build_context_text(context: AIContext, include_chat_history: bool = True, ma
                 event_text += f" at {event.location}"
             text_parts.append(event_text)
         text_parts.append("")
+
+    # Day plans for today and tomorrow
+    try:
+        today = now_user_tz().date()
+        tomorrow = today + timedelta(days=1)
+        
+        today_plan = day_planner_service.get_formatted_plan(today)
+        tomorrow_plan = day_planner_service.get_formatted_plan(tomorrow)
+        
+        text_parts.append("Day Plan for Today:")
+        text_parts.append(today_plan)
+        text_parts.append("")
+        
+        text_parts.append("Day Plan for Tomorrow:")
+        text_parts.append(tomorrow_plan)
+        text_parts.append("")
+    except Exception as e:
+        logger.log(f"Failed to get day plans: {e}")
 
     # Chat history
     if include_chat_history and context.chat_history:

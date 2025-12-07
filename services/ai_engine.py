@@ -17,6 +17,7 @@ from services.memory_manager import memory_manager
 from services.interaction_tracker import interaction_tracker
 from services.settings_manager import settings_manager
 from tools.home_assistant import get_public_transport_departures
+from tools.day_planner import get_day_plan
 
 logger = logging_manager
 
@@ -26,6 +27,7 @@ AI_ASSISTANT_MODEL = os.getenv("AI_ASSISTANT_MODEL", "gpt-4o-mini")
 class AIEngineResult(BaseModel):
     message_to_user: str | None
     memory_update_task: str | None
+    day_planner_update_task: str | None
     reasoning: str
 
 @dataclass
@@ -97,7 +99,12 @@ You have access to the following tools:
 - Public transport departures tool: Get upcoming departures for a given station name. The following stations are configured for lookup. YOU CAN ONLY USE THESE STATIONS:
 {stations_info}
 
-You may use the public transport departures tool to get upcoming departures for a given station name.
+- Day planner tools: View and manage daily plans that predict what the user will do throughout the day
+  - get_day_plan: View the plan for a specific date (NOTE: Plans for today and tomorrow are already provided in the context below, only use this tool for other dates)
+
+The day planner helps track what the user is likely to do each day based on their habits, calendar, and what they tell you. When the user mentions future plans or activities, provide instructions to update the day plan in the day_planner_update_task field (similar to memory_update_task). This will trigger the day planner agent to intelligently update the plan with the new information.
+
+You may use these tools to help the user stay organized and provide relevant information.
 
 Focus on the relevant memories and context based on the reason you were triggered:
 If you are triggered by a geofence, check for relevant location-based memories. Don't mention the obvious fact that the user entered or left a location; instead, focus on what is relevant based on the user's memories and context.
@@ -136,7 +143,7 @@ def _create_agent() -> Agent:
         instructions=_build_agent_instructions(),
         hooks=CustomAgentHooks(),
         output_type=AIEngineResult,
-        tools=[get_public_transport_departures]
+        tools=[get_public_transport_departures, get_day_plan]
     )
 
 async def _handle_memory_update_background(memory_update_task: str):
@@ -153,6 +160,39 @@ async def _handle_memory_update_background(memory_update_task: str):
         await determine_next_run_by_memory()
     except Exception as e:
         logger.log(f"Error in background memory update: {e}")
+
+async def _handle_day_planner_update_background(day_planner_update_task: str):
+    """Handle day planner update in the background"""
+    try:
+        from aiagents.day_planner import handle_day_plan_update
+        
+        logger.log(f"Processing day planner update task: {day_planner_update_task}")
+        
+        # Use the day planner agent to update the plan (agent uses tools to save directly)
+        result = await handle_day_plan_update(day_planner_update_task)
+        
+        last_taken_actions.append(
+            ActionRecord(
+                action=f"Day planner update task executed: {len(result.actions_taken)} actions taken",
+                timestamp=now_user_tz()
+            )
+        )
+        
+        logger.log(f"Day planner update processed: {len(result.actions_taken)} actions taken")
+        
+        # If the agent took actions, check if it was for today and trigger scheduler
+        if result.actions_taken and len(result.actions_taken) > 0:
+            # Check if any action mentions "today" or current date
+            today_str = now_user_tz().date().isoformat()
+            if "today" in day_planner_update_task.lower() or today_str in day_planner_update_task:
+                logger.log("Day plan for today updated, triggering scheduler")
+                try:
+                    await determine_next_run_by_memory()
+                except Exception as e:
+                    logger.log(f"Error triggering scheduler after day plan update: {e}")
+        
+    except Exception as e:
+        logger.log(f"Error in background day planner update: {e}")
 
 async def _process_ai_event(trigger_description: str, event_context: str = ""):
     """Common logic for processing AI events (chat, geofence, memory reminders)"""
@@ -186,7 +226,7 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
         parsed_result: AIEngineResult = response.final_output_as(AIEngineResult)
 
         # Track the interaction for debugging
-        output_data = f"Message to user: {parsed_result.message_to_user}\n\nMemory update task: {parsed_result.memory_update_task}\n\nReasoning: {parsed_result.reasoning}"
+        output_data = f"Message to user: {parsed_result.message_to_user}\n\nMemory update task: {parsed_result.memory_update_task}\n\nDay planner update task: {parsed_result.day_planner_update_task}\n\nReasoning: {parsed_result.reasoning}"
         interaction_tracker.track_interaction(
             agent_type="ai_engine",
             input_data=input_with_context,
@@ -202,6 +242,10 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
         # Start memory update in background if needed
         if parsed_result.memory_update_task:
             asyncio.create_task(_handle_memory_update_background(parsed_result.memory_update_task))
+        
+        # Start day planner update in background if needed
+        if parsed_result.day_planner_update_task:
+            asyncio.create_task(_handle_day_planner_update_background(parsed_result.day_planner_update_task))
 
         # Use the message directly from the unified agent
         answer = parsed_result.message_to_user

@@ -35,6 +35,13 @@
       </button>
       <button
         class="tab"
+        :class="{ active: activeTab === 'planner' }"
+        @click="switchTab('planner')"
+      >
+        📅 Day Planner
+      </button>
+      <button
+        class="tab"
         :class="{ active: activeTab === 'settings' }"
         @click="switchTab('settings')"
       >
@@ -125,6 +132,9 @@
       </template>
     </Section>
 
+    <!-- Day Planner Section -->
+    <DayPlanner v-if="activeTab === 'planner'" />
+
     <!-- Settings Section -->
     <Settings v-if="activeTab === 'settings'" />
 
@@ -147,6 +157,7 @@ import LogItem from './components/LogItem.vue'
 import InteractionItem from './components/InteractionItem.vue'
 import InteractionDetailModal from './components/InteractionDetailModal.vue'
 import Settings from './components/Settings.vue'
+import DayPlanner from './components/DayPlanner.vue'
 
 export default {
   name: 'App',
@@ -158,7 +169,8 @@ export default {
     LogItem,
     InteractionItem,
     InteractionDetailModal,
-    Settings
+    Settings,
+    DayPlanner
   },
   data() {
     return {

@@ -9,6 +9,19 @@
  */
 export function formatTime(timestamp) {
   const date = new Date(timestamp)
+  
+  // Check if we should format as just time (HH:MM) or relative time
+  // If it's a date object without timezone info, treat as time-only
+  const timeOnlyPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
+  if (timeOnlyPattern.test(timestamp)) {
+    // Return time in HH:MM format for day planner items
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+  
+  // Original relative time logic
   const now = new Date()
   const diffMs = Math.abs(now - date)
   const diffHours = diffMs / (1000 * 60 * 60)
@@ -63,3 +76,34 @@ export function formatAgentType(type) {
   return typeMap[type] || type
 }
 
+/**
+ * Format a date object to a readable date string
+ * @param {string|Date} dateString - The date to format
+ * @returns {string} Formatted date string (e.g., "Saturday, December 7, 2025")
+ */
+export function formatDate(dateString) {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+/**
+ * Format a date/time to a readable string
+ * @param {string|Date} dateString - The date/time to format
+ * @returns {string} Formatted date/time string
+ */
+export function formatDateTime(dateString) {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
