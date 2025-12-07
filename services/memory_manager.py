@@ -16,10 +16,12 @@ logger = logging_manager
 
 @dataclass
 class ReminderOptions:
-    """Options for reminder memory entries"""
+    """Options for reminder memory entries - supports time-based and location-based reminders"""
     datetime_value: Optional[datetime.datetime] = None  # For one-time reminders
     time_value: Optional[str] = None  # Time in HH:MM format for recurring reminders
     days_of_week: Optional[List[str]] = None  # List of weekday names for recurring reminders
+    location: Optional[str] = None  # Location-based trigger (geofence name)
+    trigger_type: Optional[Literal["enter", "leave"]] = None  # Trigger on enter or leave for location-based
 
 
 @dataclass
@@ -114,6 +116,10 @@ class MemoryManager:
                 reminder_data["time_value"] = entry.reminder_options.time_value
             if entry.reminder_options.days_of_week:
                 reminder_data["days_of_week"] = entry.reminder_options.days_of_week
+            if entry.reminder_options.location:
+                reminder_data["location"] = entry.reminder_options.location
+            if entry.reminder_options.trigger_type:
+                reminder_data["trigger_type"] = entry.reminder_options.trigger_type
             
             if reminder_data:
                 doc["reminder_options"] = reminder_data
@@ -156,6 +162,8 @@ class MemoryManager:
                     reminder_options.datetime_value = from_isoformat_user_tz(reminder_data["datetime_value"])
                 reminder_options.time_value = reminder_data.get("time_value")
                 reminder_options.days_of_week = reminder_data.get("days_of_week")
+                reminder_options.location = reminder_data.get("location")
+                reminder_options.trigger_type = reminder_data.get("trigger_type")
             
             return ReminderEntry(
                 id=memory_id,
@@ -362,6 +370,12 @@ class MemoryManager:
                 schedule_info += f"  Days: {', '.join(ro.days_of_week)}\n"
             else:
                 schedule_info += f"  Days: Daily\n"
+        elif ro.location:
+            schedule_info += f"  Type: Location-based\n"
+            schedule_info += f"  Location: {ro.location}\n"
+            if ro.trigger_type:
+                trigger_text = "enter" if ro.trigger_type == "enter" else "leave"
+                schedule_info += f"  Trigger: On {trigger_text}\n"
         return schedule_info
     
     def get_formatted_memories(self) -> str:
@@ -433,6 +447,26 @@ class MemoryManager:
             return "No observations or reminders stored."
         
         return "\n\n".join(memory_list)
+    
+    def get_location_reminders(self, location: str) -> Dict[str, ReminderEntry]:
+        """Get all location-based reminders for a specific location"""
+        reminders = self.get_reminders()
+        location_reminders = {}
+        for memory_id, reminder in reminders.items():
+            if reminder.reminder_options.location and reminder.reminder_options.location.lower() == location.lower():
+                location_reminders[memory_id] = reminder
+        return location_reminders
+    
+    def get_location_reminders_by_trigger(self, location: str, trigger_type: Literal["enter", "leave"]) -> Dict[str, ReminderEntry]:
+        """Get location-based reminders for a specific location and trigger type"""
+        reminders = self.get_reminders()
+        matching_reminders = {}
+        for memory_id, reminder in reminders.items():
+            if (reminder.reminder_options.location and 
+                reminder.reminder_options.location.lower() == location.lower() and
+                reminder.reminder_options.trigger_type == trigger_type):
+                matching_reminders[memory_id] = reminder
+        return matching_reminders
     
     def delete_memory(self, memory_id: str) -> bool:
         """Delete a memory entry by ID from MongoDB. Returns True if deleted, False if not found"""

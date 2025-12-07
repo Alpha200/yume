@@ -45,7 +45,12 @@ Yume is built with a modular architecture consisting of several key components:
 The memory system supports three types of entries:
 - **User Preferences**: Settings and preferences (e.g., "User prefers morning reminders")
 - **User Observations**: Observations with optional dates (e.g., "User's birthday is 2023-12-15")
-- **Reminders**: One-time or recurring reminders with intelligent scheduling
+- **Reminders**: Time-based, recurring, or location-based reminders with intelligent scheduling
+
+Reminders can be created in three ways:
+1. **One-time reminders**: Scheduled for a specific datetime (YYYY-MM-DD HH:MM:SS)
+2. **Recurring reminders**: Set for a specific time (HH:MM) on certain days of the week
+3. **Location-based reminders**: Triggered when entering or leaving a specific geofence location
 
 The AI Scheduler uses a dual-approach strategy:
 1. **Deterministic Scheduling**: Explicitly scheduled reminders are prioritized first
@@ -231,7 +236,7 @@ The application works with any OIDC-compliant identity provider. Here's an examp
 ### Memory Management
 
 - **Automatic Categorization**: Messages are analyzed and stored as preferences, observations, or reminders
-- **Intelligent Reminder Scheduling**: Create one-time reminders (specific datetime) or recurring reminders (time of day with optional day filter)
+- **Intelligent Reminder Scheduling**: Create one-time reminders (specific datetime), recurring reminders (time of day with optional day filter), or location-based reminders (triggered on entering/leaving a geofence)
 - **Adaptive Scheduling**: Re-evaluates existing schedules whenever a new interaction occurs (chat, geofence, or reminder) to adjust timing based on current context
 - **Deferred Execution**: 60-second debounce consolidates multiple triggers into a single evaluation, preventing rapid rescheduling
 - **Automatic Cleanup**: Memory Janitor runs every 12 hours to archive and clean up old memories

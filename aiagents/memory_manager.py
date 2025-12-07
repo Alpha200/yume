@@ -61,9 +61,15 @@ Observations may be temporal and should be removed when they are no longer relev
 - Appointments and scheduled events
 - Recurring activities and habits
 - Time-sensitive actions
-- Examples: "Doctor appointment on October 20th at 2 PM", "Daily exercise reminder at 6 PM", "Weekly grocery shopping"
+- Location-based reminders (triggered when entering or leaving a location)
+- Examples: "Doctor appointment on October 20th at 2 PM", "Daily exercise reminder at 6 PM", "Weekly grocery shopping", "Remind me to buy milk when I leave home", "Check weather when I arrive at work"
 
-Reminders need to have enough context to be actionable. A scheduler will use these to notify the user at appropriate times. Remove non-recurring reminders that have passed (compare with current date/time). Keep recurring reminders unless explicitly completed or no longer relevant.
+Location-based reminders should specify:
+- The location (geofence) name (e.g., "home", "work", "gym")
+- The trigger type: "enter" (when arriving) or "leave" (when departing)
+- Example: location="home", trigger_type="leave" for a reminder that triggers when leaving home
+
+Reminders need to have enough context to be actionable. A scheduler will use these to notify the user at appropriate times. Remove non-recurring reminders that have passed (compare with current date/time). Keep recurring and location-based reminders unless explicitly completed or no longer relevant.
 
 Your core responsibilities include:
 

@@ -2,7 +2,7 @@ from agents import function_tool
 from services.memory_manager import (
     ReminderOptions, memory_manager
 )
-from typing import Optional, List
+from typing import Optional, List, Literal
 import datetime
 from components.timezone_utils import from_isoformat_user_tz, to_user_tz, now_user_tz
 
@@ -47,8 +47,12 @@ def upsert_user_observation(content: str, observation_date: str, memory_id: Opti
         return f"Error parsing observation date '{observation_date}': {e}. Please use format YYYY-MM-DD or YYYY-MM-DD HH:MM:SS"
 
 @function_tool
-def upsert_reminder(content: str, reminder_datetime: Optional[str] = None, reminder_time: Optional[str] = None, days_of_week: Optional[List[str]] = None, memory_id: Optional[str] = None, place: Optional[str] = None) -> str:
-    """Create a new reminder or update an existing one by ID. For one-time reminders use reminder_datetime (YYYY-MM-DD HH:MM:SS). For recurring reminders use reminder_time (HH:MM) and days_of_week (list of weekday names)"""
+def upsert_reminder(content: str, reminder_datetime: Optional[str] = None, reminder_time: Optional[str] = None, days_of_week: Optional[List[str]] = None, location: Optional[str] = None, trigger_type: Optional[Literal["enter", "leave"]] = None, memory_id: Optional[str] = None, place: Optional[str] = None) -> str:
+    """Create a new reminder or update an existing one by ID.
+    
+    For one-time reminders use reminder_datetime (YYYY-MM-DD HH:MM:SS).
+    For recurring time-based reminders use reminder_time (HH:MM) and days_of_week (list of weekday names).
+    For location-based reminders use location (geofence name) and trigger_type ('enter' or 'leave')."""
     try:
         reminder_options = ReminderOptions()
 
@@ -61,9 +65,19 @@ def upsert_reminder(content: str, reminder_datetime: Optional[str] = None, remin
         if days_of_week:
             reminder_options.days_of_week = days_of_week
 
-        # Validate that we have either datetime or time+days
-        if not reminder_options.datetime_value and not (reminder_options.time_value and reminder_options.days_of_week):
-            return "Error: Either provide reminder_datetime for one-time reminders, or both reminder_time and days_of_week for recurring reminders"
+        if location:
+            reminder_options.location = location
+            # Validate trigger_type if location is specified
+            if trigger_type and trigger_type not in ["enter", "leave"]:
+                return "Error: trigger_type must be 'enter' or 'leave'"
+            reminder_options.trigger_type = trigger_type or "enter"  # Default to "enter" if not specified
+
+        # Validate that we have a reminder type
+        has_time_reminder = reminder_options.datetime_value or (reminder_options.time_value and reminder_options.days_of_week)
+        has_location_reminder = reminder_options.location
+        
+        if not has_time_reminder and not has_location_reminder:
+            return "Error: Either provide reminder_datetime for one-time reminders, both reminder_time and days_of_week for recurring reminders, or location and trigger_type for location-based reminders"
 
         result_id = memory_manager.create_reminder(
             content=content,
