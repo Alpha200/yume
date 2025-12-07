@@ -15,6 +15,7 @@ from components.timezone_utils import now_user_tz
 from services.context_manager import build_ai_context, build_context_text
 from services.memory_manager import memory_manager
 from services.interaction_tracker import interaction_tracker
+from services.settings_manager import settings_manager
 from tools.home_assistant import get_public_transport_departures
 
 logger = logging_manager
@@ -35,10 +36,20 @@ class ActionRecord:
 last_taken_actions = deque(maxlen=10)
 
 def _build_agent_instructions() -> str:
-    """Build agent instructions dynamically including user preferences"""
+    """Build agent instructions dynamically including user preferences and configured stations"""
 
     # Get user preferences from memory manager
     preferences = memory_manager.get_formatted_preferences()
+    
+    # Get configured public transport stations
+    transport_mappings = settings_manager.get_train_station_mappings()
+    stations_info = ""
+    if transport_mappings:
+        stations_info = "Available public transport stations for departure lookup:\n"
+        for mapping in transport_mappings:
+            stations_info += f"- {mapping['station_name']}\n"
+    else:
+        stations_info = "No public transport stations configured yet."
 
     instructions = f"""
 Your name is Yume. You are a helpful personal AI assistant. The user will interact with you in a chat via a messaging app.
@@ -81,6 +92,10 @@ You will be provided with:
 6. The current weather at the user's location
 7. Stored memories about the user
 8. The last actions taken by the AI (if any)
+
+You have access to the following tools:
+- Public transport departures tool: Get upcoming departures for a given station name. The following stations are configured for lookup. YOU CAN ONLY USE THESE STATIONS:
+{stations_info}
 
 You may use the public transport departures tool to get upcoming departures for a given station name.
 
