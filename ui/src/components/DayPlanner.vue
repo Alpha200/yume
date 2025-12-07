@@ -127,7 +127,8 @@ export default {
         }
         
         // Neither has time - sort by confidence
-        return b.confidence - a.confidence
+        const order = {'high': 3, 'medium': 2, 'low': 1}
+        return order[b.confidence.toLowerCase()] - order[a.confidence.toLowerCase()]
       })
     },
     scheduledCount() {
@@ -136,7 +137,7 @@ export default {
     },
     confirmedCount() {
       if (!this.plan || !this.plan.items) return 0
-      return this.plan.items.filter(item => item.confidence >= 0.9).length
+      return this.plan.items.filter(item => item.confidence.toLowerCase() === 'high').length
     }
   },
   methods: {

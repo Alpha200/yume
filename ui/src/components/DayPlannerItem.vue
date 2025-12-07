@@ -58,15 +58,11 @@ export default {
       return icons[this.item.source] || '📌'
     },
     confidenceClass() {
-      if (this.item.confidence >= 0.9) return 'high'
-      if (this.item.confidence >= 0.6) return 'medium'
-      return 'low'
+      return this.item.confidence.toLowerCase()
     },
     confidenceLabel() {
-      if (this.item.confidence >= 0.9) return 'Confirmed'
-      if (this.item.confidence >= 0.7) return 'Likely'
-      if (this.item.confidence >= 0.5) return 'Possible'
-      return 'Maybe'
+      const labels = {'high': 'Confirmed', 'medium': 'Likely', 'low': 'Possible'}
+      return labels[this.item.confidence.toLowerCase()] || 'Maybe'
     }
   },
   methods: {
