@@ -1,12 +1,13 @@
 import os
 import datetime
-from typing import List
+from typing import List, Optional
+from dataclasses import dataclass
 
 import aiohttp
 
 from components.calendar import CalendarEvent
 from components.logging_manager import logging_manager
-from components.timezone_utils import now_user_tz
+from components.timezone_utils import now_user_tz, from_isoformat_user_tz
 from components.weather import WeatherForecast
 
 logger = logging_manager
@@ -18,6 +19,23 @@ HA_WEATHER_ENTITY = os.getenv("HA_WEATHER_ENTITY", "weather.forecast_home")
 HA_CALENDAR_ENTITY = os.getenv("HA_CALENDAR_ENTITY", "calendar.personal")
 HA_PROXIMITY_ENTITY = os.getenv("HA_PROXIMITY_ENTITY", "sensor.proximity_home_distance")
 HA_HOME_GEOFENCE = os.getenv("HA_HOME_GEOFENCE", "home")
+
+
+@dataclass
+class PublicTransportDeparture:
+    """Information about a public transport departure"""
+    planned_time: datetime.datetime
+    estimated_time: Optional[datetime.datetime]
+    delay_minutes: Optional[int]  # None if no delay info, 0 if on time, positive if delayed
+    
+    def __str__(self):
+        time_str = self.planned_time.strftime("%H:%M")
+        if self.delay_minutes is not None and self.delay_minutes > 0:
+            return f"{time_str} (delayed by {self.delay_minutes} min)"
+        elif self.delay_minutes == 0:
+            return f"{time_str} (on time)"
+        else:
+            return time_str
 
 
 async def ha_request(method: str, endpoint: str, payload: dict = None) -> dict:
@@ -227,3 +245,63 @@ async def get_calendar_events_48h() -> List[CalendarEvent]:
 
     logger.log(f"Retrieved {len(events_data)} calendar events")
     return events_data
+
+
+async def get_public_transport_departures(entity_id: str) -> List[TrainDeparture]:
+    """Fetch public transport departure information from a Home Assistant entity.
+    
+    Args:
+        entity_id: The Home Assistant entity ID for the transit station sensor
+        
+    Returns:
+        List of TrainDeparture objects with planned times, estimated times, and delays
+    """
+    logger.log(f"Fetching public transport departures for entity: {entity_id}")
+    
+    result = await ha_request("GET", f"/api/states/{entity_id}")
+    
+    if result["status"] != 200:
+        logger.log(f"Failed to fetch transit entity: {result['status']} - {result['data']}")
+        raise Exception(f"Failed to fetch transit entity: {result['status']} - {result['data']}")
+    
+    attributes = result["data"].get("attributes", {})
+    departures = []
+    
+    # Process up to 5 departure times (indexed 0-4)
+    for i in range(5):
+        planned_key = f"planned_departure_time_{i}" if i > 0 else "planned_departure_time"
+        estimated_key = f"estimated_departure_time_{i}" if i > 0 else "estimated_departure_time"
+        
+        planned_str = attributes.get(planned_key)
+        estimated_str = attributes.get(estimated_key)
+        
+        # Skip if no planned time
+        if not planned_str:
+            continue
+        
+        try:
+            planned_time = from_isoformat_user_tz(planned_str)
+            estimated_time = None
+            delay_minutes = None
+            
+            if estimated_str:
+                estimated_time = from_isoformat_user_tz(estimated_str)
+                # Calculate delay in minutes
+                delay = estimated_time - planned_time
+                delay_minutes = int(delay.total_seconds() / 60)
+            
+            departure = PublicTransportDeparture(
+                planned_time=planned_time,
+                estimated_time=estimated_time,
+                delay_minutes=delay_minutes
+            )
+            departures.append(departure)
+            
+            logger.log(f"  - Departure {i}: {departure}")
+            
+        except Exception as e:
+            logger.log(f"Error parsing departure {i}: {e}")
+            continue
+    
+    logger.log(f"Retrieved {len(departures)} public transport departures")
+    return departures

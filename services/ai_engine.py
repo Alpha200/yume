@@ -15,6 +15,7 @@ from components.timezone_utils import now_user_tz
 from services.context_manager import build_ai_context, build_context_text
 from services.memory_manager import memory_manager
 from services.interaction_tracker import interaction_tracker
+from tools.home_assistant import get_public_transport_departures
 
 logger = logging_manager
 
@@ -81,6 +82,8 @@ You will be provided with:
 7. Stored memories about the user
 8. The last actions taken by the AI (if any)
 
+You may use the public transport departures tool to get upcoming departures for a given station name.
+
 Focus on the relevant memories and context based on the reason you were triggered:
 If you are triggered by a geofence, check for relevant location-based memories. Don't mention the obvious fact that the user entered or left a location; instead, focus on what is relevant based on the user's memories and context.
 If you are triggered by a reminder event, check what the reminder is about and respond accordingly.
@@ -118,6 +121,7 @@ def _create_agent() -> Agent:
         instructions=_build_agent_instructions(),
         hooks=CustomAgentHooks(),
         output_type=AIEngineResult,
+        tools=[get_public_transport_departures]
     )
 
 async def _handle_memory_update_background(memory_update_task: str):

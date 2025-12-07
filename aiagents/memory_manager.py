@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
+from components.timezone_utils import now_user_tz
 from tools.memory import get_memory, delete_memory, upsert_user_observation, upsert_user_preference, upsert_reminder
 from services.interaction_tracker import interaction_tracker
 
@@ -26,6 +27,12 @@ memory_manager_agent = Agent(
     ),
     instructions=f"""
 You are the memory management component of Yume, an AI assistant that helps users stay organized and engaged. Your role is to maintain an accurate, organized, and useful memory system about the user.
+
+IMPORTANT: You will be provided with the current date and time. Use this information to make informed decisions about memory management, including:
+- Removing past non-recurring reminders that have already occurred
+- Identifying and cleaning up outdated observations
+- Determining if time-sensitive information is still relevant
+- Ensuring temporal accuracy in all memory entries
 
 There are three types of memories you will manage:
 
@@ -56,26 +63,27 @@ Observations may be temporal and should be removed when they are no longer relev
 - Time-sensitive actions
 - Examples: "Doctor appointment on October 20th at 2 PM", "Daily exercise reminder at 6 PM", "Weekly grocery shopping"
 
-Reminders need to have enough context to be actionable. A scheduler will use these to notify the user at appropriate times. Remove reminders that are completed or no longer relevant.
+Reminders need to have enough context to be actionable. A scheduler will use these to notify the user at appropriate times. Remove non-recurring reminders that have passed (compare with current date/time). Keep recurring reminders unless explicitly completed or no longer relevant.
 
 Your core responsibilities include:
 
 1. Information Processing: Analyze new information to determine the most appropriate memory type and content
 2. Memory Organization: Keep memories current, relevant, and well-categorized
 3. Duplication Prevention: Check existing memories before creating new ones; update existing entries when appropriate
-4. Lifecycle Management: Remove completed tasks, outdated information, and irrelevant entries
+4. Lifecycle Management: Remove completed tasks, outdated information, and irrelevant entries. Use the current date/time to determine if reminders have passed or observations are no longer current.
 5. Quality Assurance: Ensure memories are specific, actionable, and useful for future interactions
 
 You should follow these steps when processing information:
 
-1. Analyze the information to understand what type of memory it represents
-2. Check existing memories using get_memory to avoid duplicates and identify updates needed
-3. Determine actions:
+1. Note the current date and time provided in the input
+2. Analyze the information to understand what type of memory it represents
+3. Check existing memories using get_memory to avoid duplicates and identify updates needed
+4. Determine actions:
    - UPDATE existing memory if information refines or changes existing knowledge
    - CREATE new memory if information is genuinely new and relevant
-   - DELETE memory if task is completed or information is no longer relevant. Delete reminders that are not recurring and have passed or are no longer needed.
-4. Use appropriate upsert function based on memory type
-5. Provide clear reasoning for all actions taken
+   - DELETE memory if task is completed, reminder has passed (non-recurring), or information is no longer relevant
+5. Use appropriate upsert function based on memory type
+6. Provide clear reasoning for all actions taken
 
 You MUST adhere to the following guidelines when managing memories:
 
@@ -107,7 +115,14 @@ Remember: You are maintaining the user's digital memory to enable more personali
 
 async def handle_memory_update(information: str):
     logger.log(f"Processing memory update with information: {information[:100]}...")
-    agent_input = f"Here is some new information to process and update the memory with:\n\n{information}\n\nPlease review the stored memories and take any necessary actions to keep the memory organized. Provide a list of actions taken and a reasoning summary."
+    current_time = now_user_tz()
+    agent_input = f"""Current date and time: {current_time.strftime('%Y-%m-%d %H:%M:%S %Z')}
+
+Here is some new information to process and update the memory with:
+
+{information}
+
+Please review the stored memories and take any necessary actions to keep the memory organized. Consider the current date/time when deciding whether reminders have passed, observations are outdated, or entries need updating. Provide a list of actions taken and a reasoning summary."""
     try:
         response = await Runner.run(memory_manager_agent, agent_input, run_config=RunConfig(tracing_disabled=True))
         result = response.final_output_as(MemoryManagerResult)
@@ -141,7 +156,15 @@ async def handle_memory_update(information: str):
 
 async def run_memory_janitor():
     logger.log("Starting memory janitor cleanup process")
-    task = "Review the stored memories and ensure they are up to date. Remove any outdated or irrelevant entries. Provide a summary of the actions taken."
+    current_time = now_user_tz()
+    task = f"""Current date and time: {current_time.strftime('%Y-%m-%d %H:%M:%S %Z')}
+
+Review the stored memories and ensure they are up to date. Consider the current date/time when:
+- Removing past non-recurring reminders
+- Identifying outdated observations
+- Cleaning up completed or irrelevant entries
+
+Provide a summary of the actions taken."""
     try:
         response = await Runner.run(memory_manager_agent, task)
         response_object = response.final_output_as(MemoryManagerResult)
