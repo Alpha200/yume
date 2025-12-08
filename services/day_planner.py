@@ -100,7 +100,7 @@ class DayPlannerService:
             start_time=from_isoformat_user_tz(data["start_time"]) if data.get("start_time") else None,
             end_time=from_isoformat_user_tz(data["end_time"]) if data.get("end_time") else None,
             source=data["source"],
-            confidence=data.get("confidence", 0.5),
+            confidence=data.get("confidence", "medium"),
             location=data.get("location"),
             tags=data.get("tags", []),
             metadata=data.get("metadata", {})
@@ -308,10 +308,7 @@ class DayPlannerService:
                     output += f"  Time: {time_str}\n"
                 if item.location:
                     output += f"  Location: {item.location}\n"
-                output += f"  Source: {item.source}"
-                if item.confidence < 1.0:
-                    output += f" (confidence: {item.confidence:.0%})"
-                output += "\n"
+                output += f"  Source: {item.source} (confidence: {item.confidence})\n"
                 if item.tags:
                     output += f"  Tags: {', '.join(item.tags)}\n"
                 output += "\n"

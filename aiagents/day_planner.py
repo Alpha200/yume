@@ -219,13 +219,13 @@ Based on the above information, create a comprehensive day plan with predicted a
         output_data = f"Actions taken: {', '.join(result.actions_taken) if result.actions_taken else 'None'}\\n\\nReasoning: {result.reasoning_summary}"
         interaction_tracker.track_interaction(
             agent_type="day_planner",
-            input_data=agent_input[:500] + "...",
+            input_data=agent_input,
             output_data=output_data,
             metadata={
                 "date": date.isoformat(),
                 "action_count": len(result.actions_taken),
             },
-            system_instructions=day_planner_agent.instructions[:500] + "..."
+            system_instructions=day_planner_agent.instructions
         )
 
         logger.log(f"Day plan generated with {len(result.actions_taken)} actions taken")
