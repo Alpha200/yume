@@ -204,6 +204,7 @@ class APIController(Controller):
 
 
     # Day plan endpoints
+    @get("/day-plans/{date:str}")
     async def get_day_plan(self, date: str) -> DayPlanResponse:
         """Get the day plan for a specific date (YYYY-MM-DD)"""
         try:
