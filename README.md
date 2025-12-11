@@ -11,7 +11,7 @@
 - 🤖 **Matrix Chat Integration**: AI-powered responses to messages in Matrix rooms
 - 🏠 **Home Assistant Integration**: Weather, calendar, location and proximity data integration
 - 📍 **Geofence Events**: Location-based triggers with distance context from proximity sensors
-- 🚌 **Public Transport Departures**: Real-time transit information from Home Assistant entities
+- 🚌 **Public Transport Departures**: Real-time transit information via EFA (Elektronisches Fahrplanauskun ftssystem) API with dynamic station lookup and line/direction filtering
 - 🧠 **Advanced Memory System**: Persistent storage with preferences, observations, and reminders
 - 📅 **AI-Powered Day Planner**: Automatic daily planning based on calendar and memories with high-confidence updates
 - ⏰ **Intelligent AI Scheduler**: Context-aware scheduling with deferred execution and adaptive re-evaluation
@@ -30,13 +30,15 @@ Yume is built with a modular architecture consisting of several key components:
 - **AI Scheduler** (`services/ai_scheduler.py`): Background task scheduling with APScheduler
 - **Context Manager** (`services/context_manager.py`): Aggregates data from multiple sources into unified context
 - **Memory Manager** (`services/memory_manager.py`): Persistent memory storage with support for user preferences, observations, and reminders
-- **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API for weather forecasts, calendar events, geofence tracking, proximity-based distance context, and public transport departures
+- **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API for weather forecasts, calendar events, geofence tracking, and proximity-based distance context
+- **EFA Service** (`services/efa.py`): Public transport integration with EFA API for querying departures with line and direction filtering
 
 ### AI Agents
 
 - **Memory Manager** (`aiagents/memory_manager.py`): Handles memory operations including intelligent cleanup and archival
 - **Day Planner** (`aiagents/day_planner.py`): AI agent that creates daily activity predictions using calendar, memories, and context. Makes high-confidence updates to plans via tools.
 - **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling with deferred execution, automatic re-evaluation, and dual-approach timing optimization (deterministic + AI-powered)
+- **EFA Agent** (`aiagents/efa_agent.py`): Specialized agent for querying public transport departures. Parses natural language queries to extract station names, line numbers, and destination directions. Used by the main AI engine as a tool.
 
 ### Memory System
 
@@ -51,11 +53,11 @@ Reminders use dual-approach scheduling: deterministic (explicitly scheduled) + A
 
 - **Memory Tools** (`tools/memory.py`): Memory operations (search, CRUD)
 - **Day Planner Tools** (`tools/day_planner.py`): Get and update daily plans
-- **Home Assistant Tools** (`tools/home_assistant.py`): Smart home control and transit information
+- **Home Assistant Tools** (`tools/home_assistant.py`): Smart home control and sensor data
+- **EFA Tools** (`tools/efa.py`): Public transport departure queries with optional line and direction filtering
 
 ### Settings Management
 
-- **Transit Station Mappings**: Configure Home Assistant entity IDs for public transport stations via the settings page
 - **MongoDB-backed Storage**: Persistent settings with on-demand database queries
 
 ### Components
@@ -132,6 +134,11 @@ Yume tracks all AI agent interactions for debugging:
    AI_SCHEDULER_MODEL=gpt-5-mini  # Model for scheduling agent (defaults to AI_MODEL)
    AI_MEMORY_MODEL=gpt-5-mini  # Model for memory manager agent (defaults to AI_MODEL)
    AI_ENDPOINT_URL=  # Optional: Custom OpenAI API endpoint URL (leave empty for default)
+   
+   # Public Transport Configuration
+   EFA_API_URL=https://efa.vrr.de/standard  # EFA API endpoint (defaults to VRR standard endpoint)
+   EFA_CLIENT_ID=CLIENTID  # EFA client identifier (defaults to CLIENTID)
+   EFA_CLIENT_NAME=yume  # EFA client name (defaults to yume)
    
    # User Configuration
    USER_LANGUAGE=en  # Language for AI responses
@@ -230,10 +237,6 @@ The Litestar interface provides several endpoints for monitoring and control.
 - `GET /api/logs` - Access system logs with filtering capabilities
 - `GET /api/interactions` - Get summary of recent agent interactions for debugging
 - `GET /api/interactions/<id>` - Get detailed information about a specific interaction including input/output and system instructions
-- `GET /api/settings/train-station-mappings` - Get configured public transport station mappings
-- `POST /api/settings/train-station-mappings` - Add a new station mapping
-- `PUT /api/settings/train-station-mappings/{mapping_id}` - Update a station mapping
-- `DELETE /api/settings/train-station-mappings/{mapping_id}` - Remove a station mapping
 - `POST /webhook/geofence-event` - Trigger geofence events (enter/leave locations) - Uses Basic Auth
 
 #### Geofence Event API

@@ -8,6 +8,7 @@ from agents import Agent, Runner, RunConfig, ModelSettings
 from pydantic import BaseModel
 
 from aiagents.ai_scheduler import determine_next_run_by_memory
+from aiagents.efa_agent import efa_agent
 from aiagents.memory_manager import handle_memory_update
 from components.agent_hooks import CustomAgentHooks
 from components.logging_manager import logging_manager
@@ -16,7 +17,6 @@ from services.context_manager import build_ai_context, build_context_text
 from services.memory_manager import memory_manager
 from services.interaction_tracker import interaction_tracker
 from services.settings_manager import settings_manager
-from tools.home_assistant import get_public_transport_departures
 from tools.day_planner import get_day_plan
 
 logger = logging_manager
@@ -38,20 +38,10 @@ class ActionRecord:
 last_taken_actions = deque(maxlen=10)
 
 def _build_agent_instructions() -> str:
-    """Build agent instructions dynamically including user preferences and configured stations"""
+    """Build agent instructions dynamically including user preferences"""
 
     # Get user preferences from memory manager
     preferences = memory_manager.get_formatted_preferences()
-    
-    # Get configured public transport stations
-    transport_mappings = settings_manager.get_train_station_mappings()
-    stations_info = ""
-    if transport_mappings:
-        stations_info = "Available public transport stations for departure lookup:\n"
-        for mapping in transport_mappings:
-            stations_info += f"- {mapping['station_name']}\n"
-    else:
-        stations_info = "No public transport stations configured yet."
 
     instructions = f"""
 Your name is Yume. You are a helpful personal AI assistant. The user will interact with you in a chat via a messaging app.
@@ -96,8 +86,11 @@ You will be provided with:
 8. The last actions taken by the AI (if any)
 
 You have access to the following tools:
-- Public transport departures tool: Get upcoming departures for a given station name. The following stations are configured for lookup. YOU CAN ONLY USE THESE STATIONS:
-{stations_info}
+- Public transport departures tool: Query public transport departure times for any station. You can query for:
+  - All departures from a station (e.g., "Essen Hbf")
+  - Departures for a specific line (e.g., "U47 to Essen Hbf")
+  - Departures to a specific direction/destination (e.g., "departures from Essen Hbf to Berlin Hbf")
+  - Combination of line and direction (e.g., "RB33 from Essen Hbf to Dortmund Hbf")
 
 - Day planner tools: View and manage daily plans that predict what the user will do throughout the day
   - get_day_plan: View the plan for a specific date (NOTE: Plans for today and tomorrow are already provided in the context below, only use this tool for other dates)
@@ -143,7 +136,7 @@ def _create_agent() -> Agent:
         instructions=_build_agent_instructions(),
         hooks=CustomAgentHooks(),
         output_type=AIEngineResult,
-        tools=[get_public_transport_departures, get_day_plan]
+        tools=[efa_agent.as_tool(tool_name="get_public_transport_departures", tool_description="Query public transport departure information for stations"), get_day_plan]
     )
 
 async def _handle_memory_update_background(memory_update_task: str):

@@ -55,18 +55,6 @@ class InteractionDetailResponse(Struct):
     metadata: Dict[str, Any] | None = None
     system_instructions: str | None = None
 
-class TrainStationMappingsResponse(Struct):
-    mappings: List[Dict[str, str]]
-
-class TrainStationMappingRequest(Struct):
-    station_name: str
-    entity_id: str
-
-class TrainStationMappingResponse(Struct):
-    id: str
-    station_name: str
-    entity_id: str
-
 class DayPlanItemResponse(Struct):
     id: str
     title: str
@@ -215,59 +203,7 @@ class APIController(Controller):
         )
 
 
-    # Settings endpoints
-    @get("/settings/train-station-mappings")
-    async def get_train_station_mappings(self) -> TrainStationMappingsResponse:
-        """Get all train station to Home Assistant entity ID mappings"""
-        mappings = settings_manager.get_train_station_mappings()
-        return TrainStationMappingsResponse(mappings=mappings)
-
-    @post("/settings/train-station-mappings", status_code=201)
-    async def add_train_station_mapping(self, data: TrainStationMappingRequest) -> TrainStationMappingResponse:
-        """Add a new train station mapping"""
-        mapping_id = settings_manager.add_train_station_mapping(
-            data.station_name,
-            data.entity_id
-        )
-        
-        if not mapping_id:
-            raise NotFoundException(detail="Failed to create mapping")
-        
-        return TrainStationMappingResponse(
-            id=mapping_id,
-            station_name=data.station_name,
-            entity_id=data.entity_id
-        )
-
-    @put("/settings/train-station-mappings/{mapping_id:str}")
-    async def update_train_station_mapping(self, mapping_id: str, data: TrainStationMappingRequest) -> TrainStationMappingResponse:
-        """Update an existing train station mapping"""
-        success = settings_manager.update_train_station_mapping(
-            mapping_id,
-            data.station_name,
-            data.entity_id
-        )
-        
-        if not success:
-            raise NotFoundException(detail="Mapping not found")
-        
-        return TrainStationMappingResponse(
-            id=mapping_id,
-            station_name=data.station_name,
-            entity_id=data.entity_id
-        )
-
-    @delete("/settings/train-station-mappings/{mapping_id:str}", status_code=204)
-    async def delete_train_station_mapping(self, mapping_id: str) -> None:
-        """Delete a train station mapping"""
-        success = settings_manager.delete_train_station_mapping(mapping_id)
-        
-        if not success:
-            raise NotFoundException(detail="Mapping not found")
-        
-        return None
-
-    @get("/day-plans/{date:str}")
+    # Day plan endpoints
     async def get_day_plan(self, date: str) -> DayPlanResponse:
         """Get the day plan for a specific date (YYYY-MM-DD)"""
         try:

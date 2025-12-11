@@ -9,7 +9,7 @@ from components.logging_manager import logging_manager
 logger = logging_manager
 
 # EFA API configuration
-EFA_API_URL = os.getenv("EFA_API_URL", "http://api.example.com")
+EFA_API_URL = os.getenv("EFA_API_URL", "https://efa.vrr.de/standard")
 EFA_CLIENT_ID = os.getenv("EFA_CLIENT_ID", "CLIENTID")
 EFA_CLIENT_NAME = os.getenv("EFA_CLIENT_NAME", "yume")
 
