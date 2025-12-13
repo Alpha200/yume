@@ -202,14 +202,6 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
 
         input_with_context += build_context_text(context)
 
-        input_with_context += "\nThese are the last actions taken by the AI:\n"
-
-        if len(last_taken_actions) > 0:
-            for action in last_taken_actions:
-                input_with_context += f"- {action.action} at {action.timestamp.isoformat()}\n"
-        else:
-            input_with_context += "No previous actions taken.\n"
-
         input_with_context += "\nStored memories (observations and reminders):\n"
         input_with_context += memory_manager.get_formatted_observations_and_reminders()
 
