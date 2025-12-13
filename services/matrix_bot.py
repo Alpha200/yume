@@ -1,9 +1,8 @@
 import logging
 from nio import AsyncClient, MatrixRoom, RoomMessageText, LoginResponse, SyncResponse
 from datetime import datetime
-from collections import deque
 import os
-from components.conversation import ConversationEntry
+from services.chat_message_manager import chat_message_manager
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +32,6 @@ class MatrixChatBot:
         # Store the start time to filter out old messages
         self.start_time = datetime.now()
 
-        # Store conversation history (last 20 messages)
-        self.conversation_history = deque(maxlen=20)
-
     async def message_callback(self, room: MatrixRoom, event: RoomMessageText):
         """Handle incoming messages asynchronously"""
         await self._handle_message(room, event)
@@ -57,12 +53,13 @@ class MatrixChatBot:
 
             # Only respond if message is not from us
             if event.sender == self.client.user_id:
-                # Add our own message to conversation history immediately
-                self.conversation_history.append(ConversationEntry(
+                # Save our own message to MongoDB
+                chat_message_manager.save_message(
+                    message_id=event.event_id,
                     sender=event.sender,
                     message=event.body,
                     timestamp=msg_timestamp
-                ))
+                )
                 return
 
             try:
@@ -72,12 +69,13 @@ class MatrixChatBot:
                 logger.error(f"Error processing message: {e}")
                 return  # Do nothing on error
 
-            # Add user message to history AFTER AI processing so it's not included in AI context
-            self.conversation_history.append(ConversationEntry(
+            # Save user message to MongoDB AFTER AI processing so it's not included in AI context
+            chat_message_manager.save_message(
+                message_id=event.event_id,
                 sender=event.sender,
                 message=event.body,
                 timestamp=msg_timestamp
-            ))
+            )
 
         except Exception as e:
             logger.error(f"Unhandled error in _handle_message: {e}")
@@ -97,7 +95,7 @@ class MatrixChatBot:
     async def send_message(self, message: str):
         """Send a message to the configured Matrix room"""
         try:
-            await self.client.room_send(
+            response = await self.client.room_send(
                 room_id=self.room_id,
                 message_type="m.room.message",
                 content={
@@ -105,6 +103,15 @@ class MatrixChatBot:
                     "body": message
                 }
             )
+
+            # Save the message to MongoDB with the event ID from the response
+            if hasattr(response, 'event_id'):
+                chat_message_manager.save_message(
+                    message_id=response.event_id,
+                    sender=self.client.user_id,
+                    message=message,
+                    timestamp=datetime.now().isoformat()
+                )
 
             # Don't add message to history here - it will be added when the message
             # comes back from the Matrix server in the _handle_message callback
@@ -116,41 +123,6 @@ class MatrixChatBot:
             logger.error(f"Failed to send message: {e}")
             # Don't re-raise the exception to prevent crashing the calling function
             return
-
-    def get_conversation_context(self, max_messages: int = 10, include_timestamps: bool = False) -> str | None:
-        """Build conversation context from recent messages
-
-        Args:
-            max_messages: Maximum number of recent messages to include
-            include_timestamps: Whether to include timestamps in the format [YYYY-MM-DD HH:MM]
-
-        Returns:
-            Conversation context string or None if no history available
-        """
-        if not self.conversation_history:
-            return None
-
-        # Build conversation context (last N messages)
-        recent_messages = list(self.conversation_history)[-max_messages:] if len(self.conversation_history) > max_messages else list(self.conversation_history)
-        context_lines = ["Recent conversation history:"]
-
-        for msg in recent_messages:
-            sender_name = msg.sender.split(":")[0].replace("@", "")
-
-            # Determine if sender is system or use real username
-            if self.system_username and sender_name == self.system_username:
-                role = "system"
-            else:
-                role = sender_name
-
-            if include_timestamps:
-                # Parse timestamp and format as date
-                msg_time = datetime.fromisoformat(msg.timestamp).strftime("%Y-%m-%d %H:%M")
-                context_lines.append(f"[{msg_time}] {role}: {msg.message}")
-            else:
-                context_lines.append(f"{role}: {msg.message}")
-
-        return "\n".join(context_lines)
 
     async def login_callback(self, response: LoginResponse):
         if isinstance(response, LoginResponse):

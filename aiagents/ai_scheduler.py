@@ -110,12 +110,12 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
 
     # Get latest actions from AI engine
     from services.ai_scheduler import ai_scheduler as services_ai_scheduler
-    from services.matrix_bot import matrix_chat_bot
+    from services.chat_message_manager import chat_message_manager
 
     # Collect conversation history at execution time for freshest data
     if not conversation_history:
         try:
-            recent_messages = list(matrix_chat_bot.conversation_history)[-10:] if len(matrix_chat_bot.conversation_history) > 10 else list(matrix_chat_bot.conversation_history)
+            recent_messages = chat_message_manager.get_recent_messages(limit=10)
             if recent_messages:
                 context_lines = []
                 for msg in recent_messages:

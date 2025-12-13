@@ -7,7 +7,7 @@ from components.calendar import CalendarEvent
 from components.conversation import ConversationEntry
 from components.timezone_utils import now_user_tz
 from components.weather import WeatherForecast
-from services.matrix_bot import matrix_chat_bot
+from services.chat_message_manager import chat_message_manager
 from services.home_assistant import get_weather_forecast_24h, get_current_geofence_for_user, get_calendar_events_48h
 from services.day_planner import day_planner_service
 
@@ -51,9 +51,9 @@ async def build_ai_context(max_chat_messages: int = 10) -> AIContext:
         logger.error(f"Failed to get calendar events: {e}")
 
     try:
-        # Get recent messages from the bot's conversation history
-        recent_messages = list(matrix_chat_bot.conversation_history)[-max_chat_messages:] if len(matrix_chat_bot.conversation_history) > max_chat_messages else list(matrix_chat_bot.conversation_history)
-        chat_history = recent_messages
+        # Get recent messages from MongoDB chat history
+        recent_messages = chat_message_manager.get_recent_messages(limit=max_chat_messages)
+        chat_history = [ConversationEntry(sender=msg.sender, message=msg.message, timestamp=msg.timestamp) for msg in recent_messages]
         logger.debug(f"Retrieved {len(chat_history)} chat history entries")
     except Exception as e:
         logger.error(f"Failed to get chat history: {e}")

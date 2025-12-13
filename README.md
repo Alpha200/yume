@@ -25,14 +25,15 @@ Yume is built with a modular architecture consisting of several key components:
 
 ### Core Services
 
-- **AI Engine** (`services/ai_engine.py`): Unified AI agent that handles both decision-making and response generation using the OpenAI Agents framework
+- **AI Engine** (`services/ai_engine.py`): Unified AI agent for decision-making and response generation
 - **Matrix Bot** (`services/matrix_bot.py`): Matrix protocol client for chat integration
 - **AI Scheduler** (`services/ai_scheduler.py`): Background task scheduling with APScheduler
-- **Context Manager** (`services/context_manager.py`): Aggregates data from multiple sources into unified context
-- **Memory Manager** (`services/memory_manager.py`): Persistent memory storage with support for user preferences, observations, and reminders
-- **Memory Summarizer** (`services/memory_summarizer.py`): MongoDB-backed service that automatically summarizes memories after each update for optimized context input to the AI engine
-- **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API for weather forecasts, calendar events, geofence tracking, and proximity-based distance context
-- **EFA Service** (`services/efa.py`): Public transport integration with EFA API for querying departures with line and direction filtering
+- **Context Manager** (`services/context_manager.py`): Aggregates data from multiple sources
+- **Memory Manager** (`services/memory_manager.py`): Persistent storage for user preferences, observations, and reminders
+- **Memory Summarizer** (`services/memory_summarizer.py`): Auto-summarizes memories for optimized AI context
+- **Chat Message Manager** (`services/chat_message_manager.py`): MongoDB-backed persistence for conversation history with duplicate prevention
+- **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API
+- **EFA Service** (`services/efa.py`): Public transport integration with EFA API
 
 ### AI Agents
 
