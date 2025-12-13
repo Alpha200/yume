@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Optional
 
@@ -5,10 +6,9 @@ from agents import Agent, ModelSettings, Runner, RunConfig
 from pydantic import BaseModel
 
 from components.agent_hooks import CustomAgentHooks
-from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 AI_MEMORY_SUMMARIZER_MODEL = os.getenv("AI_MEMORY_SUMMARIZER_MODEL", "gpt-5-mini")
 
@@ -75,7 +75,7 @@ async def summarize_memories(
         MemorySummaryResult with summarized preferences, observations, and reminders,
         or None if an error occurs
     """
-    logger.log("Starting memory summarization process")
+    logger.info("Starting memory summarization process")
     
     current_time = now_user_tz()
     agent_input = f"""Current date and time: {current_time.strftime('%Y-%m-%d %H:%M:%S %Z')}
@@ -94,8 +94,8 @@ Create three summarized versions that can be directly used in AI agent context. 
         response = await Runner.run(memory_summarizer_agent, agent_input, run_config=RunConfig(tracing_disabled=True))
         result = response.final_output_as(MemorySummaryResult)
         
-        logger.log("Memory summarization completed successfully")
+        logger.info("Memory summarization completed successfully")
         return result
     except Exception as e:
-        logger.log(f"Error during memory summarization: {e}")
+        logger.error(f"Error during memory summarization: {e}")
         raise

@@ -1,8 +1,10 @@
+import logging
 from litestar import Controller, post
 from msgspec import Struct
 
 from services.ai_engine import handle_geofence_event
-from components.logging_manager import logging_manager
+
+logger = logging.getLogger(__name__)
 
 
 class GeofenceEventRequest(Struct):

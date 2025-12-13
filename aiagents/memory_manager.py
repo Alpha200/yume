@@ -1,18 +1,17 @@
 import asyncio
+import logging
 import os
 from typing import List
 
 from agents import Agent, ModelSettings, Runner, RunConfig
-from openai.types import Reasoning
 from pydantic import BaseModel
 
 from components.agent_hooks import CustomAgentHooks
-from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz
 from tools.memory import get_memory, delete_memory, upsert_user_observation, upsert_user_preference, upsert_reminder
 from services.interaction_tracker import interaction_tracker
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 AI_MEMORY_MODEL = os.getenv("AI_MEMORY_MODEL", "gpt-5-mini")
 
@@ -121,7 +120,7 @@ Remember: You are maintaining the user's digital memory to enable more personali
 )
 
 async def handle_memory_update(information: str):
-    logger.log(f"Processing memory update with information: {information[:100]}...")
+    logger.info(f"Processing memory update with information: {information[:100]}...")
     current_time = now_user_tz()
     agent_input = f"""Current date and time: {current_time.strftime('%Y-%m-%d %H:%M:%S %Z')}
 
@@ -149,20 +148,20 @@ Please review the stored memories and take any necessary actions to keep the mem
 
         # Log each action in detail
         if result.actions_taken:
-            logger.log(f"Memory update completed with {len(result.actions_taken)} actions:")
+            logger.debug(f"Memory update completed with {len(result.actions_taken)} actions:")
             for action in result.actions_taken:
-                logger.log(f"  - {action}")
+                logger.debug(f"  - {action}")
         else:
-            logger.log("Memory update completed with no actions taken")
+            logger.debug("Memory update completed with no actions taken")
 
-        logger.log(f"Reasoning: {result.reasoning_summary}")
+        logger.debug(f"Reasoning: {result.reasoning_summary}")
         
         # Trigger memory summarization in the background
         asyncio.create_task(_update_memory_summaries())
         
         return result
     except Exception as e:
-        logger.log(f"Error during memory update: {e}")
+        logger.error(f"Error during memory update: {e}")
         raise
 
 
@@ -178,12 +177,12 @@ async def _update_memory_summaries():
         
         # Update summaries
         await update_memory_summaries(formatted_preferences, formatted_observations_and_reminders)
-        logger.log("Memory summaries updated successfully in background")
+        logger.debug("Memory summaries updated successfully in background")
     except Exception as e:
-        logger.log(f"Error updating memory summaries in background: {e}")
+        logger.error(f"Error updating memory summaries in background: {e}")
 
 async def run_memory_janitor():
-    logger.log("Starting memory janitor cleanup process")
+    logger.info("Starting memory janitor cleanup process")
     current_time = now_user_tz()
     task = f"""Current date and time: {current_time.strftime('%Y-%m-%d %H:%M:%S %Z')}
 
@@ -212,13 +211,13 @@ Provide a summary of the actions taken."""
 
         # Log each action in detail
         if response_object.actions_taken:
-            logger.log(f"Memory janitor completed with {len(response_object.actions_taken)} actions:")
+            logger.debug(f"Memory janitor completed with {len(response_object.actions_taken)} actions:")
             for action in response_object.actions_taken:
-                logger.log(f"  - {action}")
+                logger.debug(f"  - {action}")
         else:
-            logger.log("Memory janitor completed with no actions taken")
+            logger.debug("Memory janitor completed with no actions taken")
 
-        logger.log(f"Reasoning: {response_object.reasoning_summary}")
+        logger.debug(f"Reasoning: {response_object.reasoning_summary}")
         
         # Trigger memory summarization in the background if changes were made
         if response_object.actions_taken:
@@ -226,5 +225,5 @@ Provide a summary of the actions taken."""
         
         return response_object
     except Exception as e:
-        logger.log(f"Error during memory janitor process: {e}")
+        logger.error(f"Error during memory janitor process: {e}")
         raise

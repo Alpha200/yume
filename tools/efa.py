@@ -3,11 +3,11 @@ Tools for EFA (Elektronisches Fahrplanauskun ftssystem) public transport queries
 Provides functions to query departure times and information for public transport stations.
 """
 
+import logging
 from agents import function_tool
 from services.efa import get_departures_json
-from components.logging_manager import logging_manager
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 
 @function_tool
@@ -83,5 +83,5 @@ async def get_station_departures(
         return formatted
         
     except Exception as e:
-        logger.log(f"[TOOL] ERROR - Exception fetching departures: {type(e).__name__}: {e}")
+        logger.error(f"Exception fetching departures: {type(e).__name__}: {e}")
         return f"Error fetching departures for {station_name}: {str(e)}"

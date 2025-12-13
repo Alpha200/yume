@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 import os
 from collections import deque
 from dataclasses import dataclass
@@ -11,16 +12,14 @@ from aiagents.ai_scheduler import determine_next_run_by_memory
 from aiagents.efa_agent import efa_agent
 from aiagents.memory_manager import handle_memory_update
 from components.agent_hooks import CustomAgentHooks
-from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz
 from services.context_manager import build_ai_context, build_context_text
 from services.memory_manager import memory_manager
 from services.interaction_tracker import interaction_tracker
-from services.settings_manager import settings_manager
 from services.memory_summarizer import memory_summarizer_service
 from tools.day_planner import get_day_plan
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 USER_LANGUAGE = os.getenv("USER_LANGUAGE", "en")
 AI_ASSISTANT_MODEL = os.getenv("AI_ASSISTANT_MODEL", "gpt-4o-mini")
@@ -43,8 +42,8 @@ def _build_agent_instructions() -> str:
 
     # Try to get summarized preferences first, fall back to full preferences if not available
     summary = memory_summarizer_service.get_summary()
-    if summary and summary.get("summarized_preferences"):
-        preferences = summary["summarized_preferences"]
+    if summary and summary.summarized_preferences:
+        preferences = summary.summarized_preferences
     else:
         # Fallback to full preferences if summaries not yet generated
         preferences = memory_manager.get_formatted_preferences()
@@ -158,14 +157,14 @@ async def _handle_memory_update_background(memory_update_task: str):
 
         await determine_next_run_by_memory()
     except Exception as e:
-        logger.log(f"Error in background memory update: {e}")
+        logger.error(f"Error in background memory update: {e}")
 
 async def _handle_day_planner_update_background(day_planner_update_task: str):
     """Handle day planner update in the background"""
     try:
         from aiagents.day_planner import handle_day_plan_update
         
-        logger.log(f"Processing day planner update task: {day_planner_update_task}")
+        logger.debug(f"Processing day planner update task: {day_planner_update_task}")
         
         # Use the day planner agent to update the plan (agent uses tools to save directly)
         result = await handle_day_plan_update(day_planner_update_task)
@@ -177,21 +176,21 @@ async def _handle_day_planner_update_background(day_planner_update_task: str):
             )
         )
         
-        logger.log(f"Day planner update processed: {len(result.actions_taken)} actions taken")
+        logger.debug(f"Day planner update processed: {len(result.actions_taken)} actions taken")
         
         # If the agent took actions, check if it was for today and trigger scheduler
         if result.actions_taken and len(result.actions_taken) > 0:
             # Check if any action mentions "today" or current date
             today_str = now_user_tz().date().isoformat()
             if "today" in day_planner_update_task.lower() or today_str in day_planner_update_task:
-                logger.log("Day plan for today updated, triggering scheduler")
+                logger.info("Day plan for today updated, triggering scheduler")
                 try:
                     await determine_next_run_by_memory()
                 except Exception as e:
-                    logger.log(f"Error triggering scheduler after day plan update: {e}")
+                    logger.error(f"Error triggering scheduler after day plan update: {e}")
         
     except Exception as e:
-        logger.log(f"Error in background day planner update: {e}")
+        logger.error(f"Error in background day planner update: {e}")
 
 async def _process_ai_event(trigger_description: str, event_context: str = ""):
     """Common logic for processing AI events (chat, geofence, memory reminders)"""
@@ -210,11 +209,11 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
 
         # Use summarized memories if available, otherwise fall back to full memory
         summary = memory_summarizer_service.get_summary()
-        if summary and (summary.get("summarized_observations") or summary.get("summarized_reminders")):
+        if summary:
             input_with_context += "\nUser Observations:\n"
-            input_with_context += summary.get("summarized_observations", "No observations stored.")
+            input_with_context += summary.summarized_observations or "No observations stored."
             input_with_context += "\n\nUser Reminders:\n"
-            input_with_context += summary.get("summarized_reminders", "No reminders stored.")
+            input_with_context += summary.summarized_reminders or "No reminders stored."
         else:
             # Fallback to full memory if summaries not yet generated
             input_with_context += "\nStored memories (observations and reminders):\n"
@@ -251,21 +250,21 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
         answer = parsed_result.message_to_user
 
         if answer is not None and answer != "":
-            logger.log(f"AI engine sending message to user: {answer}")
+            logger.info(f"AI engine sending message to user: {answer}")
 
             # Send message via Matrix bot for all event types
             try:
                 from services.matrix_bot import matrix_chat_bot
                 await matrix_chat_bot.send_message(answer)
             except Exception as e:
-                logger.log(f"Error sending message via Matrix: {e}")
+                logger.error(f"Error sending message via Matrix: {e}")
                 # Don't re-raise - just log and continue
 
-        logger.log(f"AI engine processed event successfully. Reasoning: {parsed_result.reasoning}")
+        logger.debug(f"AI engine processed event successfully. Reasoning: {parsed_result.reasoning}")
         return answer, parsed_result
 
     except Exception as e:
-        logger.log(f"Error processing event in AI engine: {e}")
+        logger.error(f"Error processing event in AI engine: {e}")
         return None, None
 
 async def handle_chat_message(message: str):
@@ -282,7 +281,7 @@ async def handle_chat_message(message: str):
         try:
             await determine_next_run_by_memory()
         except Exception as e:
-            logger.log(f"Error triggering scheduler after chat: {e}")
+            logger.error(f"Error triggering scheduler after chat: {e}")
 
     return result
 
@@ -308,7 +307,7 @@ async def handle_geofence_event(geofence_name: str, event_type: str):
         try:
             await determine_next_run_by_memory()
         except Exception as e:
-            logger.log(f"Error triggering scheduler after geofence event: {e}")
+            logger.error(f"Error triggering scheduler after geofence event: {e}")
 
     return result
 
@@ -334,7 +333,7 @@ async def handle_memory_reminder(event_details: str):
         try:
             await determine_next_run_by_memory()
         except Exception as e:
-            logger.log(f"Error scheduling next memory reminder: {e}")
+            logger.error(f"Error scheduling next memory reminder: {e}")
 
     return result
 
@@ -343,7 +342,7 @@ async def handle_memory_janitor_result(janitor_result):
     from aiagents.memory_manager import MemoryManagerResult
 
     if not isinstance(janitor_result, MemoryManagerResult):
-        logger.log("Invalid janitor result type")
+        logger.warning("Invalid janitor result type")
         return None
 
     # Create a natural summary of what was done

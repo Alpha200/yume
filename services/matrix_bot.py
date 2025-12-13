@@ -1,11 +1,11 @@
+import logging
 from nio import AsyncClient, MatrixRoom, RoomMessageText, LoginResponse, SyncResponse
 from datetime import datetime
 from collections import deque
 import os
 from components.conversation import ConversationEntry
-from components.logging_manager import logging_manager
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 class MatrixChatBot:
     def __init__(self):
@@ -26,7 +26,7 @@ class MatrixChatBot:
         if not self.room_id:
             raise ValueError("MATRIX_ROOM_ID environment variable is required")
 
-        logger.log(f"Initializing MatrixChatBot with homeserver: {self.homeserver}, user: {self.username}, room: {self.room_id}")
+        logger.debug(f"Initializing MatrixChatBot with homeserver: {self.homeserver}, user: {self.username}, room: {self.room_id}")
 
         self.client = AsyncClient(self.homeserver, self.username)
 
@@ -50,7 +50,7 @@ class MatrixChatBot:
             if event.server_timestamp < self.start_time.timestamp() * 1000:
                 return
 
-            logger.log(f"Received message from {event.sender} in {room.room_id}: {event.body}")
+            logger.debug(f"Received message from {event.sender} in {room.room_id}: {event.body}")
 
             # Convert server timestamp (milliseconds) to ISO format
             msg_timestamp = datetime.fromtimestamp(event.server_timestamp / 1000).isoformat()
@@ -69,7 +69,7 @@ class MatrixChatBot:
                 from services.ai_engine import handle_chat_message
                 await handle_chat_message(message=event.body)
             except Exception as e:
-                logger.log(f"Error processing message: {e}")
+                logger.error(f"Error processing message: {e}")
                 return  # Do nothing on error
 
             # Add user message to history AFTER AI processing so it's not included in AI context
@@ -80,7 +80,7 @@ class MatrixChatBot:
             ))
 
         except Exception as e:
-            logger.log(f"Unhandled error in _handle_message: {e}")
+            logger.error(f"Unhandled error in _handle_message: {e}")
             # Send a simple error message to the room
             try:
                 await self.client.room_send(
@@ -92,7 +92,7 @@ class MatrixChatBot:
                     }
                 )
             except Exception as send_error:
-                logger.log(f"Failed to send error message: {send_error}")
+                logger.error(f"Failed to send error message: {send_error}")
 
     async def send_message(self, message: str):
         """Send a message to the configured Matrix room"""
@@ -110,10 +110,10 @@ class MatrixChatBot:
             # comes back from the Matrix server in the _handle_message callback
             # This prevents duplicate messages in the conversation history
 
-            logger.log(f"Sent message to {self.room_id}: {message}")
+            logger.info(f"Sent message to {self.room_id}: {message}")
 
         except Exception as e:
-            logger.log(f"Failed to send message: {e}")
+            logger.error(f"Failed to send message: {e}")
             # Don't re-raise the exception to prevent crashing the calling function
             return
 
@@ -154,24 +154,24 @@ class MatrixChatBot:
 
     async def login_callback(self, response: LoginResponse):
         if isinstance(response, LoginResponse):
-            logger.log(f"Logged in as {response.user_id}")
+            logger.info(f"Logged in as {response.user_id}")
         else:
-            logger.log(f"Login failed: {response}")
+            logger.error(f"Login failed: {response}")
 
     async def sync_callback(self, response: SyncResponse) -> None:
-        logger.log(f"Sync completed")
+        logger.debug(f"Sync completed")
 
     async def start(self):
         # Login
         response = await self.client.login(self.password)
         if not isinstance(response, LoginResponse):
-            logger.log(f"Failed to login: {response}")
+            logger.error(f"Failed to login: {response}")
             return
 
         # Add callbacks
         self.client.add_event_callback(self.message_callback, RoomMessageText)
 
-        logger.log("Starting Matrix bot...")
+        logger.info("Starting Matrix bot...")
 
         # Start syncing
         await self.client.sync_forever(timeout=30000)

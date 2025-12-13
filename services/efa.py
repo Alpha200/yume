@@ -1,12 +1,11 @@
+import logging
 import os
 import aiohttp
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from dataclasses import dataclass
 
-from components.logging_manager import logging_manager
-
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 # EFA API configuration
 EFA_API_URL = os.getenv("EFA_API_URL", "https://efa.vrr.de/standard")
@@ -43,7 +42,7 @@ class PublicTransportDeparture:
 async def efa_request(endpoint: str, params: dict = None) -> dict:
     """Make a request to the EFA API."""
     if not EFA_API_URL or EFA_API_URL == "http://api.example.com":
-        logger.log("EFA_API_URL environment variable is required")
+        logger.warning("EFA_API_URL environment variable is required")
         raise ValueError("EFA_API_URL environment variable is required")
 
     url = f"{EFA_API_URL}{endpoint}"
@@ -64,10 +63,10 @@ async def efa_request(endpoint: str, params: dict = None) -> dict:
                     return {"status": response.status, "data": data}
                 else:
                     error_text = await response.text()
-                    logger.log(f"EFA API error {response.status}: {error_text}")
+                    logger.error(f"EFA API error {response.status}: {error_text}")
                     return {"status": response.status, "data": error_text}
     except Exception as e:
-        logger.log(f"Error making EFA request to {url}: {e}")
+        logger.error(f"Error making EFA request to {url}: {e}")
         return {"status": 500, "data": str(e)}
 
 
@@ -81,7 +80,7 @@ async def get_station_id(station_name: str) -> Optional[str]:
     Returns:
         Station ID or None if not found
     """
-    logger.log(f"Searching for station: {station_name}")
+    logger.debug(f"Searching for station: {station_name}")
     
     result = await efa_request(
         "/XML_STOPFINDER_REQUEST",
@@ -106,19 +105,19 @@ async def get_station_id(station_name: str) -> Optional[str]:
                 stops.sort(key=lambda x: x.get("matchQuality", 0), reverse=True)
                 best_stop = stops[0]
                 station_id = best_stop.get("id")
-                logger.log(f"Found station ID for '{station_name}': {station_id}")
+                logger.debug(f"Found station ID for '{station_name}': {station_id}")
                 return station_id
             else:
                 # If no stops found, try any location
                 locations.sort(key=lambda x: x.get("matchQuality", 0), reverse=True)
                 station_id = locations[0].get("id")
-                logger.log(f"Found location ID for '{station_name}': {station_id}")
+                logger.debug(f"Found location ID for '{station_name}': {station_id}")
                 return station_id
         else:
-            logger.log(f"Station '{station_name}' not found")
+            logger.debug(f"Station '{station_name}' not found")
             return None
     else:
-        logger.log(f"Failed to search station: {result['status']}")
+        logger.error(f"Failed to search station: {result['status']}")
         return None
 
 
@@ -132,7 +131,7 @@ async def get_serving_lines(station_id: str) -> List[Dict[str, Any]]:
     Returns:
         List of line dictionaries with id, name, number, and destination
     """
-    logger.log(f"Fetching serving lines for station: {station_id}")
+    logger.debug(f"Fetching serving lines for station: {station_id}")
     
     result = await efa_request(
         "/XML_SERVINGLINES_REQUEST",
@@ -154,10 +153,10 @@ async def get_serving_lines(station_id: str) -> List[Dict[str, Any]]:
     if result["status"] == 200:
         data = result["data"]
         lines = data.get("lines", [])
-        logger.log(f"Found {len(lines)} serving lines")
+        logger.debug(f"Found {len(lines)} serving lines")
         return lines
     else:
-        logger.log(f"Failed to fetch serving lines: {result['status']}")
+        logger.error(f"Failed to fetch serving lines: {result['status']}")
         return []
 
 
@@ -196,10 +195,10 @@ async def find_line_id(station_id: str, line_query: str) -> Optional[str]:
                 matched_field = f"disassembled name '{disassembled}'"
             else:
                 matched_field = "line info"
-            logger.log(f"Found line ID for '{line_query}' (matched {matched_field}): {line_id}")
+            logger.debug(f"Found line ID for '{line_query}' (matched {matched_field}): {line_id}")
             return line_id
     
-    logger.log(f"Line matching '{line_query}' not found at station {station_id}")
+    logger.debug(f"Line matching '{line_query}' not found at station {station_id}")
     return None
 
 
@@ -273,21 +272,21 @@ async def get_departures(
     if not station_id and station_name:
         station_id = await get_station_id(station_name)
         if not station_id:
-            logger.log(f"Could not find station: {station_name}")
+            logger.debug(f"Could not find station: {station_name}")
             return []
     
     if not station_id:
-        logger.log("No station ID provided and could not resolve station name")
+        logger.warning("No station ID provided and could not resolve station name")
         return []
     
-    logger.log(f"Fetching departures for station ID: {station_id}")
+    logger.debug(f"Fetching departures for station ID: {station_id}")
     
     # Get line ID if line_query is specified
     line_id = None
     if line_query:
         line_id = await find_line_id(station_id, line_query)
         if not line_id:
-            logger.log(f"Could not find line matching '{line_query}' at station {station_id}")
+            logger.debug(f"Could not find line matching '{line_query}' at station {station_id}")
             return []
     
     params = {
@@ -386,13 +385,13 @@ async def get_departures(
                 )
                 departures.append(departure)
             except Exception as e:
-                logger.log(f"Error parsing departure: {e}")
+                logger.error(f"Error parsing departure: {e}")
                 continue
         
-        logger.log(f"Found {len(departures)} departures")
+        logger.debug(f"Found {len(departures)} departures")
         return departures
     else:
-        logger.log(f"Failed to fetch departures: {result['status']}")
+        logger.error(f"Failed to fetch departures: {result['status']}")
         return []
 
 

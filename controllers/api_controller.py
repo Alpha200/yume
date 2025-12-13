@@ -1,19 +1,17 @@
+import logging
 from typing import List, Dict, Any
-from litestar import Controller, get, post, put, delete
+from litestar import Controller, get
 from litestar.exceptions import NotFoundException
-from litestar.datastructures import ResponseHeader
-from litestar.dto import DTOData
 from msgspec import Struct
 
 from services.ai_engine import last_taken_actions
 from services.memory_manager import memory_manager
 from services.ai_scheduler import ai_scheduler
-from components.logging_manager import logging_manager
 from services.interaction_tracker import interaction_tracker
-from services.settings_manager import settings_manager
 from services.day_planner import day_planner_service
-from services.home_assistant import get_calendar_events_for_day
 import datetime
+
+logger = logging.getLogger(__name__)
 
 class ActionResponse(Struct):
     action: str
@@ -28,11 +26,6 @@ class MemoryResponse(Struct):
     place: str | None = None
     observation_date: str | None = None
     reminder_options: Dict[str, Any] | None = None
-
-class LogResponse(Struct):
-    message: str
-    timestamp: str
-    level: str
 
 class ScheduledTaskResponse(Struct):
     id: str
@@ -157,21 +150,6 @@ class APIController(Controller):
 
         return tasks
 
-    @get("/logs")
-    async def get_logs(self) -> List[LogResponse]:
-        """Get recent log entries from the logging manager"""
-        logs = []
-        recent_logs = logging_manager.get_recent_logs()
-
-        for log_entry in reversed(recent_logs):  # Show newest first
-            logs.append(LogResponse(
-                message=log_entry.message,
-                timestamp=log_entry.timestamp.isoformat(),
-                level=log_entry.level
-            ))
-
-        return logs
-
     @get("/interactions")
     async def get_interactions(self) -> List[InteractionSummaryResponse]:
         """Get all agent interactions (summary view)"""
@@ -241,9 +219,3 @@ class APIController(Controller):
             summary=plan.summary
         )
 
-    @get("/day-plans/today")
-    async def get_today_plan(self) -> DayPlanResponse:
-        """Get the day plan for today"""
-        from components.timezone_utils import now_user_tz
-        today = now_user_tz().date()
-        return await self.get_day_plan(today.isoformat())

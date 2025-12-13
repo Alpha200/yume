@@ -1,14 +1,13 @@
+import logging
 """
 Migration utility to migrate memories from JSON file to MongoDB
 """
 import json
 import os
-from pathlib import Path
 
-from components.logging_manager import logging_manager
 from services.memory_manager import MemoryManager
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 
 def migrate_json_to_mongodb(json_file_path: str = "./data/memories.json",
@@ -24,7 +23,7 @@ def migrate_json_to_mongodb(json_file_path: str = "./data/memories.json",
         True if migration successful, False otherwise
     """
     if not os.path.exists(json_file_path):
-        logger.log(f"JSON memories file not found: {json_file_path}")
+        logger.debug(f"JSON memories file not found: {json_file_path}")
         return False
     
     try:
@@ -34,7 +33,7 @@ def migrate_json_to_mongodb(json_file_path: str = "./data/memories.json",
         # Check if MongoDB already has data
         existing_count = mongo_manager.collection.count_documents({})
         if existing_count > 0:
-            logger.log(f"MongoDB already contains {existing_count} memories. Skipping migration.")
+            logger.info(f"MongoDB already contains {existing_count} memories. Skipping migration.")
             return True
         
         # Load JSON data
@@ -44,7 +43,7 @@ def migrate_json_to_mongodb(json_file_path: str = "./data/memories.json",
         memories_data = data.get("memories", {})
         
         if not memories_data:
-            logger.log("No memories found in JSON file to migrate")
+            logger.debug("No memories found in JSON file to migrate")
             return True
         
         # Migrate each memory entry
@@ -70,19 +69,19 @@ def migrate_json_to_mongodb(json_file_path: str = "./data/memories.json",
                 mongo_manager.collection.insert_one(doc)
                 migrated_count += 1
             except Exception as e:
-                logger.log(f"Error migrating memory {memory_id}: {e}")
+                logger.error(f"Error migrating memory {memory_id}: {e}")
         
-        logger.log(f"Successfully migrated {migrated_count} memories from JSON to MongoDB")
+        logger.info(f"Successfully migrated {migrated_count} memories from JSON to MongoDB")
         
         # Delete the JSON file after successful migration
         try:
             os.remove(json_file_path)
-            logger.log(f"Deleted JSON memories file: {json_file_path}")
+            logger.info(f"Deleted JSON memories file: {json_file_path}")
         except Exception as e:
-            logger.log(f"Warning: Could not delete JSON file: {e}")
+            logger.warning(f"Warning: Could not delete JSON file: {e}")
         
         return True
     
     except Exception as e:
-        logger.log(f"Migration failed: {e}")
+        logger.error(f"Migration failed: {e}")
         return False

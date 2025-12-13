@@ -28,7 +28,9 @@ from services.matrix_bot import matrix_chat_bot
 from services.ai_scheduler import ai_scheduler
 from services.migration import migrate_json_to_mongodb
 from services.auth import oidc_client, oidc_config, AuthMiddleware, initialize_oidc
-from components.logging_manager import logging_manager
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -39,10 +41,10 @@ async def lifespan(app: Litestar):
     
     # Initialize OIDC by discovering endpoints
     await initialize_oidc()
-    logging_manager.log(f"OpenID Connect authentication enabled")
-    logging_manager.log(f"OIDC Discovery URL: {oidc_config.well_known_url}")
-    logging_manager.log(f"OIDC Issuer: {oidc_config.issuer}")
-    logging_manager.log(f"OIDC Client ID: {oidc_config.client_id}")
+    logger.info(f"OpenID Connect authentication enabled")
+    logger.info(f"OIDC Discovery URL: {oidc_config.well_known_url}")
+    logger.info(f"OIDC Issuer: {oidc_config.issuer}")
+    logger.info(f"OIDC Client ID: {oidc_config.client_id}")
     
     asyncio.create_task(matrix_chat_bot.start())
     ai_scheduler.start()

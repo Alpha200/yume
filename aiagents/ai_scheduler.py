@@ -1,3 +1,4 @@
+import logging
 import datetime
 import os
 from typing import List
@@ -5,7 +6,6 @@ from typing import List
 from agents import Agent, ModelSettings, Runner, RunConfig
 
 from components.agent_hooks import CustomAgentHooks
-from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz, to_user_tz
 from services.home_assistant import get_calendar_events_48h, get_current_geofence_for_user, CalendarEvent
 from services.memory_manager import memory_manager
@@ -14,7 +14,7 @@ from services.day_planner import day_planner_service
 
 
 AI_SCHEDULER_MODEL = os.getenv("AI_SCHEDULER_MODEL", "gpt-5-mini")
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 # Import after to avoid circular dependency
 from services.ai_scheduler import NextRun, ExecutedReminder, ai_scheduler
@@ -123,7 +123,7 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
                     context_lines.append(f"{sender_name}: {msg.message}")
                 conversation_history = "\n".join(context_lines)
         except Exception as e:
-            logger.log(f"Error collecting conversation history: {e}")
+            logger.error(f"Error collecting conversation history: {e}")
 
     # Collect current scheduled run at execution time for freshest data
     if not current_scheduled_run:
@@ -132,13 +132,13 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
             if scheduled:
                 current_scheduled_run = f"Time: {scheduled.next_run_time}\nReason: {scheduled.reason}\nTopic: {scheduled.topic}"
         except Exception as e:
-            logger.log(f"Error collecting current scheduled run: {e}")
+            logger.error(f"Error collecting current scheduled run: {e}")
 
     # Fetch calendar events for context
     try:
         calendar_events = await get_calendar_events_48h()
     except Exception as e:
-        logger.log(f"Error fetching calendar events: {e}")
+        logger.error(f"Error fetching calendar events: {e}")
         calendar_events = []
 
     # Fetch current user location for context
@@ -146,7 +146,7 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
     try:
         current_location = await get_current_geofence_for_user()
     except Exception as e:
-        logger.log(f"Error fetching current location: {e}")
+        logger.error(f"Error fetching current location: {e}")
 
     # Fetch day plans for today and tomorrow
     today_plan = None
@@ -157,7 +157,7 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
         today_plan = day_planner_service.get_formatted_plan(today)
         tomorrow_plan = day_planner_service.get_formatted_plan(tomorrow)
     except Exception as e:
-        logger.log(f"Error fetching day plans: {e}")
+        logger.error(f"Error fetching day plans: {e}")
 
     # Format memories, actions, and calendar events for AI analysis
     recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=5)
@@ -194,8 +194,8 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
             # Pick the one that is sooner (smaller positive delta)
             if delta_det < delta_ai:
                 chosen = deterministic
-                logger.log(f"Choosing deterministic reminder: {deterministic.reason} at {deterministic.next_run_time}")
-                logger.log(f"AI-suggested reminder was: {validated_ai.reason} at {validated_ai.next_run_time}")
+                logger.debug(f"Choosing deterministic reminder: {deterministic.reason} at {deterministic.next_run_time}")
+                logger.debug(f"AI-suggested reminder was: {validated_ai.reason} at {validated_ai.next_run_time}")
             else:
                 chosen = NextRun(next_run_time=validated_ai.next_run_time, reason=validated_ai.reason, topic=validated_ai.topic)
 
@@ -203,7 +203,7 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
         ai_scheduler.schedule_next_run(chosen)
 
     except Exception as e:
-        logger.log(f"Error during AI analysis: {e}")
+        logger.error(f"Error during AI analysis: {e}")
         ai_scheduler.schedule_next_run(
             _create_fallback_schedule("Agent error occurred - scheduling fallback reminder", hours=1)
         )

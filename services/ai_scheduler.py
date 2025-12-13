@@ -1,3 +1,4 @@
+import logging
 import datetime
 from typing import Optional, Deque, List, Callable
 from collections import deque
@@ -8,10 +9,9 @@ from apscheduler.triggers.interval import IntervalTrigger
 from pydantic import BaseModel
 
 from aiagents.memory_manager import run_memory_janitor
-from components.logging_manager import logging_manager
 from components.timezone_utils import to_user_tz
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 class NextRun(BaseModel):
     next_run_time: datetime.datetime
@@ -39,7 +39,7 @@ class AIScheduler:
         """Start the scheduler"""
         if not self.scheduler.running:
             self.scheduler.start()
-            logger.log("AI Scheduler started")
+            logger.info("AI Scheduler started")
 
             # Schedule recurring memory janitor job every 12 hours
             self._schedule_memory_janitor()
@@ -54,7 +54,7 @@ class AIScheduler:
         """Stop the scheduler"""
         if self.scheduler.running:
             self.scheduler.shutdown()
-            logger.log("AI Scheduler stopped")
+            logger.info("AI Scheduler stopped")
 
     def _schedule_memory_janitor(self):
         """Schedule the recurring memory janitor job to run every 12 hours"""
@@ -62,7 +62,7 @@ class AIScheduler:
             # Remove existing job if it exists
             if self.scheduler.get_job(self.memory_janitor_job_id):
                 self.scheduler.remove_job(self.memory_janitor_job_id)
-                logger.log("Removed existing memory janitor job")
+                logger.debug("Removed existing memory janitor job")
 
             # Add recurring job every 12 hours
             self.scheduler.add_job(
@@ -73,17 +73,17 @@ class AIScheduler:
                 replace_existing=True
             )
 
-            logger.log("Scheduled memory janitor to run every 12 hours")
+            logger.info("Scheduled memory janitor to run every 12 hours")
 
         except Exception as e:
-            logger.log(f"Error scheduling memory janitor: {e}")
+            logger.error(f"Error scheduling memory janitor: {e}")
 
     async def _trigger_memory_janitor(self):
         """Trigger the memory janitor and communicate results to user via AI engine"""
         try:
-            logger.log("Triggering memory janitor")
+            logger.debug("Triggering memory janitor")
             result = await run_memory_janitor()
-            logger.log(f"Memory janitor completed: {result}")
+            logger.info(f"Memory janitor completed: {result}")
 
             # If the janitor took any actions, notify the user via AI engine
             if result and result.actions_taken and len(result.actions_taken) > 0:
@@ -92,10 +92,10 @@ class AIScheduler:
                     from services.ai_engine import handle_memory_janitor_result
                     await handle_memory_janitor_result(result)
                 except Exception as e:
-                    logger.log(f"Error communicating janitor results to user: {e}")
+                    logger.error(f"Error communicating janitor results to user: {e}")
 
         except Exception as e:
-            logger.log(f"Error triggering memory janitor: {e}")
+            logger.error(f"Error triggering memory janitor: {e}")
 
     def _schedule_day_planner(self):
         """Schedule recurring day planner updates"""
@@ -124,10 +124,10 @@ class AIScheduler:
                 replace_existing=True
             )
 
-            logger.log("Scheduled day planner: every 1h for today, every 8h for tomorrow")
+            logger.info("Scheduled day planner: every 1h for today, every 8h for tomorrow")
 
         except Exception as e:
-            logger.log(f"Error scheduling day planner: {e}")
+            logger.error(f"Error scheduling day planner: {e}")
 
     async def _update_today_plan(self):
         """Update the day plan for today"""
@@ -139,7 +139,7 @@ class AIScheduler:
             from services.home_assistant import get_calendar_events_for_day
 
             today = now_user_tz().date()
-            logger.log(f"Updating day plan for today: {today}")
+            logger.debug(f"Updating day plan for today: {today}")
 
             # Gather information
             memories = memory_manager.get_formatted_observations_and_reminders()
@@ -152,18 +152,18 @@ class AIScheduler:
             # Generate the plan (agent uses tools to save directly)
             result = await generate_day_plan(today, memories, calendar_events)
 
-            logger.log(f"Updated day plan for today: {len(result.actions_taken)} actions taken")
+            logger.info(f"Updated day plan for today: {len(result.actions_taken)} actions taken")
             
             # If the agent took actions (updated the plan), trigger the scheduler
             if result.actions_taken and len(result.actions_taken) > 0:
-                logger.log("Day plan for today changed, triggering scheduler")
+                logger.debug("Day plan for today changed, triggering scheduler")
                 try:
                     await determine_next_run_by_memory()
                 except Exception as e:
-                    logger.log(f"Error triggering scheduler after day plan update: {e}")
+                    logger.error(f"Error triggering scheduler after day plan update: {e}")
 
         except Exception as e:
-            logger.log(f"Error updating today's day plan: {e}")
+            logger.error(f"Error updating today's day plan: {e}")
 
     async def _update_tomorrow_plan(self):
         """Update the day plan for tomorrow"""
@@ -175,7 +175,7 @@ class AIScheduler:
             import datetime
 
             tomorrow = now_user_tz().date() + datetime.timedelta(days=1)
-            logger.log(f"Updating day plan for tomorrow: {tomorrow}")
+            logger.debug(f"Updating day plan for tomorrow: {tomorrow}")
 
             # Gather information
             memories = memory_manager.get_formatted_observations_and_reminders()
@@ -188,10 +188,10 @@ class AIScheduler:
             # Generate the plan (agent uses tools to save directly)
             result = await generate_day_plan(tomorrow, memories, calendar_events)
 
-            logger.log(f"Updated day plan for tomorrow: {len(result.actions_taken)} actions taken")
+            logger.info(f"Updated day plan for tomorrow: {len(result.actions_taken)} actions taken")
 
         except Exception as e:
-            logger.log(f"Error updating tomorrow's day plan: {e}")
+            logger.error(f"Error updating tomorrow's day plan: {e}")
 
     def _run_day_planner_on_startup(self):
         """Run day planner immediately on startup for today and tomorrow"""
@@ -203,7 +203,7 @@ class AIScheduler:
         
         # Schedule the async function to run immediately
         asyncio.create_task(run_initial_plans())
-        logger.log("Scheduled initial day plan generation for today and tomorrow")
+        logger.info("Scheduled initial day plan generation for today and tomorrow")
 
     def schedule_next_run(self, next_run: NextRun):
         """Schedule the next run of the memory reminder"""
@@ -217,7 +217,7 @@ class AIScheduler:
             # Remove existing job if it exists
             if self.scheduler.get_job(self.memory_reminder_job_id):
                 self.scheduler.remove_job(self.memory_reminder_job_id)
-                logger.log(f"Removed existing memory reminder job")
+                logger.debug(f"Removed existing memory reminder job")
 
             # Add new job with the run reason
             job_kwargs = {"run_reason": run_reason, "topic": topic}
@@ -231,10 +231,10 @@ class AIScheduler:
                 kwargs=job_kwargs
             )
 
-            logger.log(f"Scheduled memory reminder for {date_time} with reason: {run_reason} and topic: {topic}")
+            logger.info(f"Scheduled memory reminder for {date_time} with reason: {run_reason} and topic: {topic}")
 
         except Exception as e:
-            logger.log(f"Error scheduling memory reminder: {e}")
+            logger.error(f"Error scheduling memory reminder: {e}")
 
     async def _trigger_memory_reminder(self, run_reason: str, topic: str):
         """Trigger the memory reminder in the AI engine"""
@@ -246,7 +246,7 @@ class AIScheduler:
                 topic=topic,
             )
             self.executed_memory_reminders.append(entry)
-            logger.log(f"Memory reminder triggered with reason '{run_reason}' for topic {topic}")
+            logger.info(f"Memory reminder triggered with reason '{run_reason}' for topic {topic}")
 
             ai_input = topic if topic is not None else run_reason
             result = await handle_memory_reminder(ai_input)
@@ -254,20 +254,20 @@ class AIScheduler:
             return result
 
         except Exception as e:
-            logger.log(f"Error triggering memory reminder: {e}")
+            logger.error(f"Error triggering memory reminder: {e}")
 
     def cancel_memory_reminder(self):
         """Cancel the scheduled memory reminder"""
         try:
             if self.scheduler.get_job(self.memory_reminder_job_id):
                 self.scheduler.remove_job(self.memory_reminder_job_id)
-                logger.log("Memory reminder cancelled")
+                logger.debug("Memory reminder cancelled")
                 return True
             else:
-                logger.log("No memory reminder to cancel")
+                logger.debug("No memory reminder to cancel")
                 return False
         except Exception as e:
-            logger.log(f"Error cancelling memory reminder: {e}")
+            logger.error(f"Error cancelling memory reminder: {e}")
             return False
 
     def cancel_memory_janitor(self):
@@ -275,13 +275,13 @@ class AIScheduler:
         try:
             if self.scheduler.get_job(self.memory_janitor_job_id):
                 self.scheduler.remove_job(self.memory_janitor_job_id)
-                logger.log("Memory janitor cancelled")
+                logger.debug("Memory janitor cancelled")
                 return True
             else:
-                logger.log("No memory janitor to cancel")
+                logger.debug("No memory janitor to cancel")
                 return False
         except Exception as e:
-            logger.log(f"Error cancelling memory janitor: {e}")
+            logger.error(f"Error cancelling memory janitor: {e}")
             return False
 
     def get_next_memory_reminder(self) -> Optional[NextRun]:
@@ -311,7 +311,7 @@ class AIScheduler:
             # Fallback to any previously stored NextRun
             return self.last_next_run
         except Exception as e:
-            logger.log(f"Error getting next memory reminder: {e}")
+            logger.error(f"Error getting next memory reminder: {e}")
             return None
 
     def get_recent_executed_reminders(self, limit: int | None = None) -> List[ExecutedReminder]:
@@ -322,7 +322,7 @@ class AIScheduler:
                 return items[-limit:]
             return items
         except Exception as e:
-            logger.log(f"Error getting recent executed reminders: {e}")
+            logger.error(f"Error getting recent executed reminders: {e}")
             return []
 
     def schedule_deferred_run(self, callback: Callable):
@@ -339,7 +339,7 @@ class AIScheduler:
             # Remove existing deferred job if it exists
             if self.scheduler.get_job(self.deferred_run_job_id):
                 self.scheduler.remove_job(self.deferred_run_job_id)
-                logger.log("Cancelled previous deferred AI run, scheduling new one")
+                logger.debug("Cancelled previous deferred AI run, scheduling new one")
 
             # Schedule the job to run 60 seconds from now
             run_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=60)
@@ -353,18 +353,18 @@ class AIScheduler:
                 kwargs={"callback": callback}
             )
 
-            logger.log(f"Scheduled deferred AI scheduler run in 60 seconds (at {run_time})")
+            logger.info(f"Scheduled deferred AI scheduler run in 60 seconds (at {run_time})")
 
         except Exception as e:
-            logger.log(f"Error scheduling deferred run: {e}")
+            logger.error(f"Error scheduling deferred run: {e}")
 
     async def _execute_deferred_run(self, callback: Callable):
         """Execute the deferred run callback"""
         try:
-            logger.log("Executing deferred AI run")
+            logger.debug("Executing deferred AI run")
             await callback()
         except Exception as e:
-            logger.log(f"Error executing deferred run: {e}")
+            logger.error(f"Error executing deferred run: {e}")
 
 
 ai_scheduler = AIScheduler()

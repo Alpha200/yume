@@ -28,13 +28,6 @@
       </button>
       <button
         class="tab"
-        :class="{ active: activeTab === 'logs' }"
-        @click="switchTab('logs')"
-      >
-        📋 System Logs
-      </button>
-      <button
-        class="tab"
         :class="{ active: activeTab === 'planner' }"
         @click="switchTab('planner')"
       >
@@ -117,21 +110,6 @@
       @close="closeInteractionDetail"
     />
 
-    <!-- System Logs Section -->
-    <Section
-      v-if="activeTab === 'logs'"
-      title="📋 System Logs"
-      :items="logs"
-      :loading="loadingLogs"
-      loadingMessage="Loading logs..."
-      emptyMessage="No logs available"
-      @refresh="loadLogs"
-    >
-      <template #default="{ items }">
-        <LogItem v-for="log in items" :key="log.timestamp" :log="log" />
-      </template>
-    </Section>
-
     <!-- Day Planner Section -->
     <DayPlanner v-if="activeTab === 'planner'" />
 
@@ -153,7 +131,6 @@ import Section from './components/Section.vue'
 import MemoryItem from './components/MemoryItem.vue'
 import ActionItem from './components/ActionItem.vue'
 import TaskItem from './components/TaskItem.vue'
-import LogItem from './components/LogItem.vue'
 import InteractionItem from './components/InteractionItem.vue'
 import InteractionDetailModal from './components/InteractionDetailModal.vue'
 import Settings from './components/Settings.vue'
@@ -166,7 +143,6 @@ export default {
     MemoryItem,
     ActionItem,
     TaskItem,
-    LogItem,
     InteractionItem,
     InteractionDetailModal,
     Settings,
@@ -178,13 +154,11 @@ export default {
       activeTab: 'memories',
       actions: [],
       memories: [],
-      logs: [],
       scheduledTasks: [],
       interactions: [],
       selectedInteraction: null,
       loadingActions: false,
       loadingMemories: false,
-      loadingLogs: false,
       loadingScheduledTasks: false,
       loadingInteractions: false,
       error: null
@@ -264,18 +238,6 @@ export default {
         console.error('Error loading memories:', error)
       } finally {
         this.loadingMemories = false
-      }
-    },
-    async loadLogs() {
-      this.loadingLogs = true
-      this.error = null
-      try {
-        this.logs = await apiService.getLogs()
-      } catch (error) {
-        this.error = 'Failed to load logs: ' + error.message
-        console.error('Error loading logs:', error)
-      } finally {
-        this.loadingLogs = false
       }
     },
     async loadScheduledTasks() {

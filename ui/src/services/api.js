@@ -266,14 +266,6 @@ export const apiService = {
   },
 
   /**
-   * Fetch all logs
-   */
-  async getLogs() {
-    const response = await api.get('/logs')
-    return response.data // Already sorted newest first from API
-  },
-
-  /**
    * Fetch all scheduled tasks
    */
   async getScheduledTasks() {
@@ -306,14 +298,6 @@ export const apiService = {
    */
   async getDayPlan(date) {
     const response = await api.get(`/day-plans/${date}`)
-    return response.data
-  },
-
-  /**
-   * Fetch today's day plan
-   */
-  async getTodayPlan() {
-    const response = await api.get('/day-plans/today')
     return response.data
   }
 }

@@ -1,17 +1,17 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import List
 
 from components.calendar import CalendarEvent
 from components.conversation import ConversationEntry
-from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz
 from components.weather import WeatherForecast
 from services.matrix_bot import matrix_chat_bot
 from services.home_assistant import get_weather_forecast_24h, get_current_geofence_for_user, get_calendar_events_48h
 from services.day_planner import day_planner_service
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AIContext:
@@ -23,7 +23,7 @@ class AIContext:
 
 async def build_ai_context(max_chat_messages: int = 10) -> AIContext:
     """Build AIContext by collecting data from matrix_bot and home_assistant services"""
-    logger.log("Building AIContext from external services")
+    logger.info("Building AIContext from external services")
 
     # Initialize empty lists/defaults
     forecast = []
@@ -34,29 +34,29 @@ async def build_ai_context(max_chat_messages: int = 10) -> AIContext:
     # Get weather forecast from home assistant
     try:
         forecast = await get_weather_forecast_24h()
-        logger.log(f"Retrieved {len(forecast)} weather forecast entries")
+        logger.debug(f"Retrieved {len(forecast)} weather forecast entries")
     except Exception as e:
-        logger.log(f"Failed to get weather forecast: {e}")
+        logger.error(f"Failed to get weather forecast: {e}")
 
     try:
         user_location = await get_current_geofence_for_user()
-        logger.log(f"User location: {user_location}")
+        logger.debug(f"User location: {user_location}")
     except Exception as e:
-        logger.log(f"Failed to get user location: {e}")
+        logger.error(f"Failed to get user location: {e}")
 
     try:
         calendar_entries = await get_calendar_events_48h()
-        logger.log(f"Retrieved {len(calendar_entries)} calendar events")
+        logger.debug(f"Retrieved {len(calendar_entries)} calendar events")
     except Exception as e:
-        logger.log(f"Failed to get calendar events: {e}")
+        logger.error(f"Failed to get calendar events: {e}")
 
     try:
         # Get recent messages from the bot's conversation history
         recent_messages = list(matrix_chat_bot.conversation_history)[-max_chat_messages:] if len(matrix_chat_bot.conversation_history) > max_chat_messages else list(matrix_chat_bot.conversation_history)
         chat_history = recent_messages
-        logger.log(f"Retrieved {len(chat_history)} chat history entries")
+        logger.debug(f"Retrieved {len(chat_history)} chat history entries")
     except Exception as e:
-        logger.log(f"Failed to get chat history: {e}")
+        logger.error(f"Failed to get chat history: {e}")
 
     # Create and store the AIContext
     current_context = AIContext(
@@ -66,7 +66,7 @@ async def build_ai_context(max_chat_messages: int = 10) -> AIContext:
         chat_history=chat_history
     )
 
-    logger.log("AIContext built successfully")
+    logger.info("AIContext built successfully")
     return current_context
 
 def build_context_text(context: AIContext, include_chat_history: bool = True, max_chat_messages: int = 10) -> str:
@@ -154,7 +154,7 @@ def build_context_text(context: AIContext, include_chat_history: bool = True, ma
         text_parts.append(tomorrow_plan)
         text_parts.append("")
     except Exception as e:
-        logger.log(f"Failed to get day plans: {e}")
+        logger.error(f"Failed to get day plans: {e}")
 
     # Chat history
     if include_chat_history and context.chat_history:

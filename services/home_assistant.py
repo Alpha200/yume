@@ -1,3 +1,4 @@
+import logging
 import os
 import datetime
 from typing import List, Optional
@@ -6,11 +7,10 @@ from dataclasses import dataclass
 import aiohttp
 
 from components.calendar import CalendarEvent
-from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz, from_isoformat_user_tz, to_user_tz
 from components.weather import WeatherForecast
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 HA_URL = os.getenv("HA_URL", "http://localhost:8123")
 HA_TOKEN = os.getenv("HA_TOKEN")
@@ -24,7 +24,7 @@ HA_HOME_GEOFENCE = os.getenv("HA_HOME_GEOFENCE", "home")
 async def ha_request(method: str, endpoint: str, payload: dict = None) -> dict:
     """Generalized async request to Home Assistant API."""
     if not HA_TOKEN:
-        logger.log("HA_TOKEN environment variable is required")
+        logger.warning("HA_TOKEN environment variable is required")
         raise ValueError("HA_TOKEN environment variable is required")
 
     url = f"{HA_URL}{endpoint}"
@@ -44,10 +44,10 @@ async def ha_request(method: str, endpoint: str, payload: dict = None) -> dict:
                     data = await response.json(content_type=None)
                     return {"status": response.status, "data": data}
             else:
-                logger.log(f"Method {method} not allowed")
+                logger.warning(f"Method {method} not allowed")
                 return {"status": 405, "data": f"Method {method} not allowed"}
         except Exception as e:
-            logger.log(f"Error making request to {endpoint}: {e}")
+            logger.error(f"Error making request to {endpoint}: {e}")
             return {"status": 500, "data": str(e)}
 
 async def get_proximity_distance() -> str:
@@ -57,7 +57,7 @@ async def get_proximity_distance() -> str:
     or an empty string if the entity is not available.
     """
     entity_id = HA_PROXIMITY_ENTITY
-    logger.log(f"Fetching proximity distance for entity: {entity_id}")
+    logger.debug(f"Fetching proximity distance for entity: {entity_id}")
 
     result = await ha_request("GET", f"/api/states/{entity_id}")
     if result["status"] == 200:
@@ -66,16 +66,16 @@ async def get_proximity_distance() -> str:
 
         # The state of a proximity entity is the distance value
         if state is not None and state != "unknown":
-            logger.log(f"Proximity distance: {state}")
+            logger.debug(f"Proximity distance: {state}")
             return str(state)
         else:
-            logger.log("Proximity state is unknown")
+            logger.debug("Proximity state is unknown")
             return ""
     elif result["status"] == 404:
-        logger.log(f"Proximity entity '{entity_id}' not found in Home Assistant")
+        logger.debug(f"Proximity entity '{entity_id}' not found in Home Assistant")
         return ""
     else:
-        logger.log(f"Failed to fetch proximity: {result['status']} - {result['data']}")
+        logger.error(f"Failed to fetch proximity: {result['status']} - {result['data']}")
         return ""
 
 
@@ -85,7 +85,7 @@ async def get_current_geofence_for_user() -> str:
     If not in the home geofence, appends the proximity distance to provide context.
     """
     entity_id = HA_DEVICE_TRACKER_ENTITY
-    logger.log(f"Fetching geofence for entity: {entity_id}")
+    logger.debug(f"Fetching geofence for entity: {entity_id}")
 
     result = await ha_request("GET", f"/api/states/{entity_id}")
     if result["status"] == 200:
@@ -96,25 +96,25 @@ async def get_current_geofence_for_user() -> str:
                 proximity_distance = await get_proximity_distance()
                 if proximity_distance:
                     geofence_with_distance = f"{geofence} ({proximity_distance} away)"
-                    logger.log(f"Current geofence: {geofence_with_distance}")
+                    logger.debug(f"Current geofence: {geofence_with_distance}")
                     return geofence_with_distance
 
-            logger.log(f"Current geofence: {geofence}")
+            logger.debug(f"Current geofence: {geofence}")
             return geofence
         else:
-            logger.log("No geofence state found, user is on the way")
+            logger.debug("No geofence state found, user is on the way")
             # Fetch proximity distance when on the way
             proximity_distance = await get_proximity_distance()
             if proximity_distance:
                 on_the_way_with_distance = f"on the way ({proximity_distance} away)"
-                logger.log(f"Current status: {on_the_way_with_distance}")
+                logger.debug(f"Current status: {on_the_way_with_distance}")
                 return on_the_way_with_distance
             return "on the way"
     elif result["status"] == 404:
-        logger.log(f"Entity '{entity_id}' not found in Home Assistant")
+        logger.debug(f"Entity '{entity_id}' not found in Home Assistant")
         return f"Entity '{entity_id}' not found in Home Assistant."
     else:
-        logger.log(f"Failed to fetch geofence: {result['status']} - {result['data']}")
+        logger.error(f"Failed to fetch geofence: {result['status']} - {result['data']}")
         return f"Failed to fetch geofence: {result['status']} - {result['data']}"
 
 
@@ -128,7 +128,7 @@ async def get_weather_forecast_24h() -> List[WeatherForecast]:
     - wind_speed: wind speed in km/h
     """
     entity_id = HA_WEATHER_ENTITY
-    logger.log(f"Fetching 24h weather forecast for entity: {entity_id}")
+    logger.debug(f"Fetching 24h weather forecast for entity: {entity_id}")
 
     # Get forecast data using the weather.get_forecasts service with return_response parameter
     forecast_payload = {
@@ -138,7 +138,7 @@ async def get_weather_forecast_24h() -> List[WeatherForecast]:
     forecast_result = await ha_request("POST", "/api/services/weather/get_forecasts?return_response", forecast_payload)
 
     if forecast_result["status"] != 200:
-        logger.log(f"Failed to fetch weather forecast: {forecast_result['status']} - {forecast_result['data']}")
+        logger.error(f"Failed to fetch weather forecast: {forecast_result['status']} - {forecast_result['data']}")
         raise Exception(f"Failed to fetch weather forecast: {forecast_result['status']} - {forecast_result['data']}")
 
     forecast_data = []
@@ -160,9 +160,9 @@ async def get_weather_forecast_24h() -> List[WeatherForecast]:
                 forecast_data.append(weather_forecast)
 
                 # Log each forecast entry in detail
-                logger.log(f"  - {weather_forecast.datetime}: {weather_forecast.condition}, {weather_forecast.temperature}°C, wind {weather_forecast.wind_speed} km/h")
+                logger.debug(f"  - {weather_forecast.datetime}: {weather_forecast.condition}, {weather_forecast.temperature}°C, wind {weather_forecast.wind_speed} km/h")
 
-    logger.log(f"Retrieved {len(forecast_data)} weather forecast entries")
+    logger.info(f"Retrieved {len(forecast_data)} weather forecast entries")
     return forecast_data
 
 
@@ -178,7 +178,7 @@ async def get_calendar_events_48h() -> List[CalendarEvent]:
     - location: Event location (if available)
     """
     entity_id = HA_CALENDAR_ENTITY
-    logger.log(f"Fetching 48h calendar events for entity: {entity_id}")
+    logger.debug(f"Fetching 48h calendar events for entity: {entity_id}")
 
     now = now_user_tz()
     end_time = now + datetime.timedelta(hours=48)
@@ -194,8 +194,8 @@ async def get_calendar_events_48h() -> List[CalendarEvent]:
     calendar_result = await ha_request("POST", "/api/services/calendar/get_events?return_response", calendar_payload)
 
     if calendar_result["status"] != 200:
-        logger.log(f"Failed to fetch calendar events: {calendar_result['status']} - {calendar_result['data']}")
-        raise Exception(f"Failed to fetch calendar events: {calendar_result['status']} - {calendar_result['data']}")
+        logger.error(f"Failed to fetch calendar events: {calendar_result['status']} - {calendar_result['data']}")
+        return []  # Return empty list on error instead of raising
 
     events_data = []
     service_data = calendar_result["data"]
@@ -224,9 +224,9 @@ async def get_calendar_events_48h() -> List[CalendarEvent]:
                 event_info = f"Event: {calendar_event.summary} ({calendar_event.start} - {calendar_event.end})"
                 if calendar_event.location:
                     event_info += f" at {calendar_event.location}"
-                logger.log(f"  - {event_info}")
+                logger.debug(f"  - {event_info}")
 
-    logger.log(f"Retrieved {len(events_data)} calendar events")
+    logger.info(f"Retrieved {len(events_data)} calendar events")
     return events_data
 
 
@@ -240,7 +240,7 @@ async def get_calendar_events_for_day(date: datetime.date) -> List[CalendarEvent
         List of calendar events for that day
     """
     entity_id = HA_CALENDAR_ENTITY
-    logger.log(f"Fetching calendar events for {date} for entity: {entity_id}")
+    logger.debug(f"Fetching calendar events for {date} for entity: {entity_id}")
 
     # Set start time to beginning of the day
     start_time = datetime.datetime.combine(date, datetime.time.min)
@@ -261,7 +261,7 @@ async def get_calendar_events_for_day(date: datetime.date) -> List[CalendarEvent
     calendar_result = await ha_request("POST", "/api/services/calendar/get_events?return_response", calendar_payload)
 
     if calendar_result["status"] != 200:
-        logger.log(f"Failed to fetch calendar events: {calendar_result['status']} - {calendar_result['data']}")
+        logger.error(f"Failed to fetch calendar events: {calendar_result['status']} - {calendar_result['data']}")
         return []  # Return empty list on error instead of raising
 
     events_data = []
@@ -287,5 +287,5 @@ async def get_calendar_events_for_day(date: datetime.date) -> List[CalendarEvent
                 )
                 events_data.append(calendar_event)
 
-    logger.log(f"Retrieved {len(events_data)} calendar events for {date}")
+    logger.info(f"Retrieved {len(events_data)} calendar events for {date}")
     return events_data

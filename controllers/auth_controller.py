@@ -1,8 +1,11 @@
+import logging
 from msgspec import Struct
 
 from litestar import Controller, get
 
-from services.auth import oidc_config
+from services.auth import oidc_config, initialize_oidc
+
+logger = logging.getLogger(__name__)
 
 
 class AuthConfigResponse(Struct):
@@ -24,14 +27,12 @@ class AuthController(Controller):
         """Return OIDC endpoints and client ID for frontend to handle OAuth flow"""
         # Ensure endpoints are discovered
         if not oidc_config.authorization_endpoint:
-            from services.auth import initialize_oidc
-            from components.logging_manager import logging_manager
             try:
-                logging_manager.log("OIDC endpoints not initialized, discovering now...")
+                logger.info("OIDC endpoints not initialized, discovering now...")
                 await initialize_oidc()
-                logging_manager.log(f"OIDC discovery completed. Authorization endpoint: {oidc_config.authorization_endpoint}")
+                logger.info(f"OIDC discovery completed. Authorization endpoint: {oidc_config.authorization_endpoint}")
             except Exception as e:
-                logging_manager.log(f"Failed to discover OIDC endpoints: {str(e)}", level="ERROR")
+                logger.error(f"Failed to discover OIDC endpoints: {str(e)}")
                 raise
         
         return AuthConfigResponse(

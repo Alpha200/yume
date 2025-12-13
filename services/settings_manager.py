@@ -1,14 +1,13 @@
 """
 Settings Manager - Manages application settings stored in MongoDB
 """
+import logging
 import os
 
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
-from components.logging_manager import logging_manager
-
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 
 class SettingsManager:
@@ -38,9 +37,9 @@ class SettingsManager:
             # Verify connection
             self.client.admin.command('ping')
             self.db = self.client[self.db_name]
-            logger.log("Settings Manager connected to MongoDB successfully")
+            logger.info("Settings Manager connected to MongoDB successfully")
         except ServerSelectionTimeoutError:
-            logger.log(f"Settings Manager failed to connect to MongoDB at {self.mongo_uri}")
+            logger.error(f"Settings Manager failed to connect to MongoDB at {self.mongo_uri}")
             raise
 
     def close(self):

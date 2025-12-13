@@ -3,14 +3,14 @@ EFA (Elektronisches Fahrplanauskun ftssystem) Agent
 Handles public transport queries and provides departure information for stations.
 """
 
+import logging
 import os
 from agents import Agent, Runner, RunConfig, ModelSettings
 
 from components.agent_hooks import CustomAgentHooks
-from components.logging_manager import logging_manager
 from tools.efa import get_station_departures
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 USER_LANGUAGE = os.getenv("USER_LANGUAGE", "en")
 AI_MODEL = os.getenv("AI_ASSISTANT_MODEL", "gpt-4o-mini")
@@ -60,7 +60,7 @@ async def query_departures(query: str) -> str:
         Departure information as a string
     """
     try:
-        logger.log(f"[EFA_AGENT] Processing departure query: {query[:80]}...")
+        logger.debug(f"Processing departure query: {query[:80]}...")
         
         result = await Runner.run(efa_agent, query, run_config=RunConfig(tracing_disabled=True))
         
@@ -68,5 +68,5 @@ async def query_departures(query: str) -> str:
         return departure_info
         
     except Exception as e:
-        logger.log(f"[EFA_AGENT] Error processing query: {e}")
+        logger.error(f"Error processing query: {e}")
         return f"Error processing your query: {str(e)}"

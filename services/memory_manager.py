@@ -1,3 +1,4 @@
+import logging
 import datetime
 import os
 import uuid
@@ -9,9 +10,8 @@ from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
 from components.timezone_utils import now_user_tz, to_user_tz, from_isoformat_user_tz
-from components.logging_manager import logging_manager
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -90,9 +90,9 @@ class MemoryManager:
             self.client.admin.command('ping')
             self.db = self.client[self.db_name]
             self.collection = self.db[self.collection_name]
-            logger.log("Connected to MongoDB successfully")
+            logger.info("Connected to MongoDB successfully")
         except ServerSelectionTimeoutError:
-            logger.log(f"Failed to connect to MongoDB at {self.mongo_uri}")
+            logger.error(f"Failed to connect to MongoDB at {self.mongo_uri}")
             raise
     
     def _entry_to_document(self, entry: MemoryEntry) -> dict:
@@ -189,7 +189,7 @@ class MemoryManager:
             doc = self._entry_to_document(entry)
             self.collection.replace_one({"_id": entry.id}, doc, upsert=True)
         except Exception as e:
-            logger.log(f"Error saving memory to MongoDB: {e}")
+            logger.error(f"Error saving memory to MongoDB: {e}")
             raise
     
     def create_user_preference(
@@ -298,7 +298,7 @@ class MemoryManager:
                 memories[entry.id] = entry
             return memories
         except Exception as e:
-            logger.log(f"Error fetching memories from MongoDB: {e}")
+            logger.error(f"Error fetching memories from MongoDB: {e}")
             return {}
     
     def get_user_preferences(self) -> Dict[str, UserPreferenceEntry]:
@@ -312,7 +312,7 @@ class MemoryManager:
                     preferences[entry.id] = entry
             return preferences
         except Exception as e:
-            logger.log(f"Error fetching preferences from MongoDB: {e}")
+            logger.error(f"Error fetching preferences from MongoDB: {e}")
             return {}
     
     def get_user_observations(self) -> Dict[str, UserObservationEntry]:
@@ -326,7 +326,7 @@ class MemoryManager:
                     observations[entry.id] = entry
             return observations
         except Exception as e:
-            logger.log(f"Error fetching observations from MongoDB: {e}")
+            logger.error(f"Error fetching observations from MongoDB: {e}")
             return {}
     
     def get_reminders(self) -> Dict[str, ReminderEntry]:
@@ -340,7 +340,7 @@ class MemoryManager:
                     reminders[entry.id] = entry
             return reminders
         except Exception as e:
-            logger.log(f"Error fetching reminders from MongoDB: {e}")
+            logger.error(f"Error fetching reminders from MongoDB: {e}")
             return {}
     
     def get_memories_by_type(self, memory_type: Literal["user_preference", "user_observation", "reminder"]) -> Dict[str, MemoryEntry]:
@@ -353,7 +353,7 @@ class MemoryManager:
                 memories[entry.id] = entry
             return memories
         except Exception as e:
-            logger.log(f"Error fetching memories by type from MongoDB: {e}")
+            logger.error(f"Error fetching memories by type from MongoDB: {e}")
             return {}
     
     def _format_reminder_schedule(self, reminder_entry: ReminderEntry) -> str:
@@ -476,7 +476,7 @@ class MemoryManager:
                 return True
             return False
         except Exception as e:
-            logger.log(f"Error deleting memory from MongoDB: {e}")
+            logger.error(f"Error deleting memory from MongoDB: {e}")
             raise
     
     def close(self):

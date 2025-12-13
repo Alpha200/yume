@@ -1,3 +1,4 @@
+import logging
 import os
 import datetime
 from typing import List
@@ -6,12 +7,11 @@ from agents import Agent, ModelSettings, Runner, RunConfig, AgentOutputSchema
 from pydantic import BaseModel
 
 from components.agent_hooks import CustomAgentHooks
-from components.logging_manager import logging_manager
 from components.timezone_utils import now_user_tz
 from services.interaction_tracker import interaction_tracker
 from tools.day_planner import get_day_plan, update_day_plan
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 AI_PLANNER_MODEL = os.getenv("AI_PLANNER_MODEL", "gpt-5-mini")
 
@@ -136,7 +136,7 @@ async def handle_day_plan_update(update_task: str):
     Returns:
         DayPlannerResult with actions taken and reasoning
     """
-    logger.log(f"Processing day plan update task")
+    logger.info(f"Processing day plan update task")
     
     current_time = now_user_tz()
     
@@ -165,11 +165,11 @@ Please analyze the task and determine if any day plan updates are needed. Rememb
             system_instructions=day_planner_agent.instructions[:500] + "..."
         )
 
-        logger.log(f"Day plan update processed: {len(result.actions_taken)} actions taken")
+        logger.info(f"Day plan update processed: {len(result.actions_taken)} actions taken")
         return result
         
     except Exception as e:
-        logger.log(f"Error processing day plan update: {e}")
+        logger.error(f"Error processing day plan update: {e}")
         raise
 
 
@@ -192,7 +192,7 @@ async def generate_day_plan(
     Returns:
         DayPlannerResult with actions taken and reasoning
     """
-    logger.log(f"Generating day plan for {date}")
+    logger.info(f"Generating day plan for {date}")
     
     current_time = now_user_tz()
     
@@ -228,9 +228,9 @@ Based on the above information, create a comprehensive day plan with predicted a
             system_instructions=day_planner_agent.instructions
         )
 
-        logger.log(f"Day plan generated with {len(result.actions_taken)} actions taken")
+        logger.info(f"Day plan generated with {len(result.actions_taken)} actions taken")
         return result
         
     except Exception as e:
-        logger.log(f"Error generating day plan: {e}")
+        logger.error(f"Error generating day plan: {e}")
         raise

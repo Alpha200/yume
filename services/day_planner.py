@@ -1,3 +1,4 @@
+import logging
 import datetime
 import os
 import uuid
@@ -8,9 +9,8 @@ from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
 from components.timezone_utils import now_user_tz, from_isoformat_user_tz
-from components.logging_manager import logging_manager
 
-logger = logging_manager
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -71,9 +71,9 @@ class DayPlannerService:
             self.client.admin.command('ping')
             self.db = self.client[self.db_name]
             self.collection = self.db[self.collection_name]
-            logger.log("Day planner connected to MongoDB successfully")
+            logger.info("Day planner connected to MongoDB successfully")
         except ServerSelectionTimeoutError:
-            logger.log(f"Day planner failed to connect to MongoDB at {self.mongo_uri}")
+            logger.error(f"Day planner failed to connect to MongoDB at {self.mongo_uri}")
             raise
     
     def _item_to_dict(self, item: DayPlanItem) -> dict:
@@ -136,7 +136,7 @@ class DayPlannerService:
                 return self._document_to_plan(doc)
             return None
         except Exception as e:
-            logger.log(f"Error fetching day plan for {date}: {e}")
+            logger.error(f"Error fetching day plan for {date}: {e}")
             return None
     
     def get_plan_for_today(self) -> Optional[DayPlan]:
@@ -149,9 +149,9 @@ class DayPlannerService:
         try:
             doc = self._plan_to_document(plan)
             self.collection.replace_one({"_id": plan.id}, doc, upsert=True)
-            logger.log(f"Saved day plan for {plan.date}")
+            logger.info(f"Saved day plan for {plan.date}")
         except Exception as e:
-            logger.log(f"Error saving day plan: {e}")
+            logger.error(f"Error saving day plan: {e}")
             raise
     
     def create_or_update_plan(
@@ -263,7 +263,7 @@ class DayPlannerService:
             
             return [self._document_to_plan(doc) for doc in docs]
         except Exception as e:
-            logger.log(f"Error fetching day plans for range {start_date} to {end_date}: {e}")
+            logger.error(f"Error fetching day plans for range {start_date} to {end_date}: {e}")
             return []
     
     def delete_plan(self, date: datetime.date) -> bool:
@@ -272,7 +272,7 @@ class DayPlannerService:
             result = self.collection.delete_one({"date": date.isoformat()})
             return result.deleted_count > 0
         except Exception as e:
-            logger.log(f"Error deleting day plan for {date}: {e}")
+            logger.error(f"Error deleting day plan for {date}: {e}")
             return False
     
     def get_formatted_plan(self, date: datetime.date) -> str:
@@ -360,7 +360,7 @@ class DayPlannerService:
             summary=agent_result.summary
         )
         
-        logger.log(f"Updated day plan for {date} from agent result with {len(items)} activities (changed: {changed})")
+        logger.info(f"Updated day plan for {date} from agent result with {len(items)} activities (changed: {changed})")
         return plan_id, changed
     
     def _plan_has_changed(
