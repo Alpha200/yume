@@ -7,7 +7,7 @@ from agents import Agent, ModelSettings, Runner, RunConfig
 
 from components.agent_hooks import CustomAgentHooks
 from components.timezone_utils import now_user_tz, to_user_tz
-from services.home_assistant import get_calendar_events_48h, get_current_geofence_for_user, CalendarEvent
+from services.home_assistant import get_current_geofence_for_user
 from services.memory_manager import memory_manager
 from services.interaction_tracker import interaction_tracker
 from services.day_planner import day_planner_service
@@ -140,13 +140,6 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
         except Exception as e:
             logger.error(f"Error collecting current scheduled run: {e}")
 
-    # Fetch calendar events for context
-    try:
-        calendar_events = await get_calendar_events_48h()
-    except Exception as e:
-        logger.error(f"Error fetching calendar events: {e}")
-        calendar_events = []
-
     # Fetch current user location for context
     current_location = None
     try:
@@ -165,9 +158,9 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
     except Exception as e:
         logger.error(f"Error fetching day plans: {e}")
 
-    # Format memories, actions, and calendar events for AI analysis
+    # Format memories, actions, and day plans for AI analysis
     recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=5)
-    formatted_input = _format_memories_for_analysis(memories, recent_executed, calendar_events, current_location, today_plan, tomorrow_plan)
+    formatted_input = _format_memories_for_analysis(memories, recent_executed, current_location, today_plan, tomorrow_plan)
 
     # Add conversation history if available
     if conversation_history:
@@ -296,8 +289,8 @@ def _calculate_next_reminder_occurrence(reminder_options):
         return candidate_dt
 
 
-def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder], calendar_events: List[CalendarEvent], current_location: str = None, today_plan: str = None, tomorrow_plan: str = None) -> str:
-    """Format memories, recent executed memory-reminder jobs, calendar events, current location, and day plans into a structured text for AI analysis"""
+def _format_memories_for_analysis(memories, recent_executed_reminders: List[ExecutedReminder], current_location: str = None, today_plan: str = None, tomorrow_plan: str = None) -> str:
+    """Format memories, recent executed memory-reminder jobs, current location, and day plans into a structured text for AI analysis"""
     memory_text = "Stored memories:\n\n"
     for memory_id, entry in memories.items():
         memory_text += f"Type: {entry.type}\n"

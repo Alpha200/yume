@@ -140,14 +140,20 @@ class AIScheduler:
             date_label = "today" if days_offset == 0 else f"+{days_offset}d"
             logger.debug(f"Checking calendar changes for {date_label} ({check_start_date} to {check_end_date})")
             
-            # Check if calendar has changed before running the expensive agent
-            has_changes = await day_planner_service.check_calendar_changes(check_start_date, check_end_date)
+            # If no plan exists yet, always run the planner to create the initial plan
+            existing_plan = day_planner_service.get_plan_for_date(target_date)
+            if not existing_plan:
+                logger.info(f"No existing plan for {target_date}, will generate new plan")
+                has_changes = True
+            else:
+                # Check if calendar has changed before running the expensive agent
+                has_changes = await day_planner_service.check_calendar_changes(check_start_date, check_end_date)
             
             if not has_changes:
                 logger.debug(f"No calendar changes for {target_date}, skipping day planner agent run")
                 return
             
-            logger.debug(f"Calendar changes detected for {target_date}, updating day plan")
+            logger.info(f"Calendar changes detected for {target_date}, updating day plan")
 
             # Gather information
             memories = memory_manager.get_formatted_observations_and_reminders()

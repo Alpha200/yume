@@ -113,6 +113,10 @@ class DayPlannerService:
             
             # Check each day in the date range for changes
             for check_date in (start_date + datetime.timedelta(days=i) for i in range((end_date - start_date).days + 1)):
+                # Get existing plan
+                existing_plan = self.get_plan_for_date(check_date)
+                existing_hashes = existing_plan.calendar_event_hashes or {} if existing_plan else {}
+                
                 # Get calendar events for this specific day
                 calendar_events = await get_calendar_events_for_day(check_date)
                 
@@ -125,10 +129,6 @@ class DayPlannerService:
                     except Exception as e:
                         logger.debug(f"Error processing event: {e}")
                         continue
-                
-                # Get existing hashes from stored day plan
-                existing_plan = self.get_plan_for_date(check_date)
-                existing_hashes = existing_plan.calendar_event_hashes or {} if existing_plan else {}
                 
                 # Check if hashes differ
                 if existing_hashes != current_hashes:
@@ -434,13 +434,8 @@ class DayPlannerService:
         # Fetch current calendar events for the date to store hashes
         calendar_events = []
         try:
-            from services.home_assistant import get_calendar_events_48h
-            all_events = await get_calendar_events_48h()
-            # Filter events for this specific date
-            calendar_events = [
-                event for event in all_events
-                if event.start and datetime.date.fromisoformat(event.start.split("T")[0]) == date
-            ]
+            from services.home_assistant import get_calendar_events_for_day
+            calendar_events = await get_calendar_events_for_day(date)
         except Exception as e:
             logger.debug(f"Could not fetch calendar events for {date}: {e}")
         

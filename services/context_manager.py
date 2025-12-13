@@ -8,7 +8,7 @@ from components.conversation import ConversationEntry
 from components.timezone_utils import now_user_tz
 from components.weather import WeatherForecast
 from services.chat_message_manager import chat_message_manager
-from services.home_assistant import get_weather_forecast_24h, get_current_geofence_for_user, get_calendar_events_48h
+from services.home_assistant import get_weather_forecast_24h, get_current_geofence_for_user
 from services.day_planner import day_planner_service
 
 logger = logging.getLogger(__name__)
@@ -44,11 +44,6 @@ async def build_ai_context(max_chat_messages: int = 10) -> AIContext:
     except Exception as e:
         logger.error(f"Failed to get user location: {e}")
 
-    try:
-        calendar_entries = await get_calendar_events_48h()
-        logger.debug(f"Retrieved {len(calendar_entries)} calendar events")
-    except Exception as e:
-        logger.error(f"Failed to get calendar events: {e}")
 
     try:
         # Get recent messages from MongoDB chat history
