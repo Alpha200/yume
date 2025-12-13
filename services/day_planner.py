@@ -2,6 +2,8 @@ import logging
 import datetime
 import os
 import uuid
+import hashlib
+import json
 from typing import Dict, List, Optional, Literal
 from dataclasses import dataclass
 
@@ -37,6 +39,7 @@ class DayPlan:
     created_at: datetime.datetime
     updated_at: datetime.datetime
     summary: Optional[str]  # AI-generated summary of the day
+    calendar_event_hashes: Dict[str, str] = None  # Hashes of calendar entries for change detection
 
 
 class DayPlannerService:
@@ -75,6 +78,70 @@ class DayPlannerService:
         except ServerSelectionTimeoutError:
             logger.error(f"Day planner failed to connect to MongoDB at {self.mongo_uri}")
             raise
+
+    @staticmethod
+    def _hash_calendar_entry(event) -> str:
+        """Calculate SHA256 hash of calendar event properties for change detection"""
+        try:
+            # Create a normalized representation of the event with all properties
+            event_dict = {
+                "summary": str(event.summary or ""),
+                "start": str(event.start or ""),
+                "end": str(event.end or ""),
+                "location": str(event.location or ""),
+                "description": str(event.description or ""),
+            }
+            event_json = json.dumps(event_dict, sort_keys=True)
+            return hashlib.sha256(event_json.encode()).hexdigest()
+        except Exception as e:
+            logger.error(f"Error hashing calendar event: {e}")
+            return ""
+
+    async def check_calendar_changes(self, start_date: datetime.date, end_date: datetime.date) -> bool:
+        """
+        Check if calendar entries have changed for the given date range.
+        
+        Args:
+            start_date: Start date to check
+            end_date: End date to check
+            
+        Returns:
+            True if calendar has changed, False otherwise
+        """
+        try:
+            from services.home_assistant import get_calendar_events_for_day
+            
+            # Check each day in the date range for changes
+            for check_date in (start_date + datetime.timedelta(days=i) for i in range((end_date - start_date).days + 1)):
+                # Get calendar events for this specific day
+                calendar_events = await get_calendar_events_for_day(check_date)
+                
+                # Build current hashes for events on this day
+                current_hashes = {}
+                for event in calendar_events:
+                    try:
+                        event_key = f"{event.summary}_{event.start}_{event.end}"
+                        current_hashes[event_key] = self._hash_calendar_entry(event)
+                    except Exception as e:
+                        logger.debug(f"Error processing event: {e}")
+                        continue
+                
+                # Get existing hashes from stored day plan
+                existing_plan = self.get_plan_for_date(check_date)
+                existing_hashes = existing_plan.calendar_event_hashes or {} if existing_plan else {}
+                
+                # Check if hashes differ
+                if existing_hashes != current_hashes:
+                    logger.info(f"Calendar changes detected for {check_date}")
+                    return True
+            
+            logger.debug(f"No calendar changes detected between {start_date} and {end_date}")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error checking calendar changes: {e}")
+            # On error, assume changes to be safe
+            return True
     
     def _item_to_dict(self, item: DayPlanItem) -> dict:
         """Convert DayPlanItem to dictionary for MongoDB"""
@@ -114,7 +181,8 @@ class DayPlannerService:
             "items": [self._item_to_dict(item) for item in plan.items],
             "created_at": plan.created_at.isoformat(),
             "updated_at": plan.updated_at.isoformat(),
-            "summary": plan.summary
+            "summary": plan.summary,
+            "calendar_event_hashes": plan.calendar_event_hashes or {}
         }
     
     def _document_to_plan(self, doc: dict) -> DayPlan:
@@ -125,7 +193,8 @@ class DayPlannerService:
             items=[self._dict_to_item(item_data) for item_data in doc.get("items", [])],
             created_at=from_isoformat_user_tz(doc["created_at"]),
             updated_at=from_isoformat_user_tz(doc["updated_at"]),
-            summary=doc.get("summary")
+            summary=doc.get("summary"),
+            calendar_event_hashes=doc.get("calendar_event_hashes", {})
         )
     
     def get_plan_for_date(self, date: datetime.date) -> Optional[DayPlan]:
@@ -159,7 +228,8 @@ class DayPlannerService:
         date: datetime.date,
         items: List[DayPlanItem],
         summary: Optional[str] = None,
-        plan_id: Optional[str] = None
+        plan_id: Optional[str] = None,
+        calendar_events: Optional[List[dict]] = None
     ) -> str:
         """Create a new plan or update an existing one for a specific date"""
         
@@ -173,13 +243,21 @@ class DayPlannerService:
             plan_id = plan_id or str(uuid.uuid4())
             created_at = now_user_tz()
         
+        # Generate calendar event hashes if events provided
+        calendar_event_hashes = {}
+        if calendar_events:
+            for event in calendar_events:
+                event_id = event.get("id", event.get("summary", "unknown"))
+                calendar_event_hashes[event_id] = self._hash_calendar_entry(event)
+        
         plan = DayPlan(
             id=plan_id,
             date=date,
             items=items,
             created_at=created_at,
             updated_at=now_user_tz(),
-            summary=summary
+            summary=summary,
+            calendar_event_hashes=calendar_event_hashes if calendar_event_hashes else None
         )
         
         self.save_plan(plan)
@@ -353,11 +431,25 @@ class DayPlannerService:
         # Determine if plan changed
         changed = self._plan_has_changed(existing_plan, items, agent_result.summary)
         
-        # Save the updated plan
+        # Fetch current calendar events for the date to store hashes
+        calendar_events = []
+        try:
+            from services.home_assistant import get_calendar_events_48h
+            all_events = await get_calendar_events_48h()
+            # Filter events for this specific date
+            calendar_events = [
+                event for event in all_events
+                if event.start and datetime.date.fromisoformat(event.start.split("T")[0]) == date
+            ]
+        except Exception as e:
+            logger.debug(f"Could not fetch calendar events for {date}: {e}")
+        
+        # Save the updated plan with calendar events for hashing
         plan_id = self.create_or_update_plan(
             date=date,
             items=items,
-            summary=agent_result.summary
+            summary=agent_result.summary,
+            calendar_events=calendar_events
         )
         
         logger.info(f"Updated day plan for {date} from agent result with {len(items)} activities (changed: {changed})")

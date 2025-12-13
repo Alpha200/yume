@@ -27,8 +27,7 @@ class AIScheduler:
         self.scheduler = AsyncIOScheduler()
         self.memory_reminder_job_id = "memory_reminder_job"
         self.memory_janitor_job_id = "memory_janitor_job"
-        self.day_planner_today_job_id = "day_planner_today_job"
-        self.day_planner_tomorrow_job_id = "day_planner_tomorrow_job"
+        self.day_planner_job_id = "day_planner_job"
         self.deferred_run_job_id = "deferred_ai_run_job"
         # Store the last scheduled NextRun (time + reason) so it can be queried by the API/UI
         self.last_next_run: NextRun | None = None
@@ -100,110 +99,102 @@ class AIScheduler:
     def _schedule_day_planner(self):
         """Schedule recurring day planner updates"""
         try:
-            # Remove existing jobs if they exist
-            if self.scheduler.get_job(self.day_planner_today_job_id):
-                self.scheduler.remove_job(self.day_planner_today_job_id)
-            if self.scheduler.get_job(self.day_planner_tomorrow_job_id):
-                self.scheduler.remove_job(self.day_planner_tomorrow_job_id)
-
-            # Schedule today's plan to update every hour
+            # Schedule unified day planner job to run every 15 minutes
+            # This checks today and the next two days
             self.scheduler.add_job(
-                func=self._update_today_plan,
-                trigger=IntervalTrigger(hours=1),
-                id=self.day_planner_today_job_id,
-                name="Day Planner - Today",
+                func=self._update_all_day_plans,
+                trigger=IntervalTrigger(minutes=15),
+                id=self.day_planner_job_id,
+                name="Day Planner - All Days",
                 replace_existing=True
             )
 
-            # Schedule tomorrow's plan to update every 8 hours
-            self.scheduler.add_job(
-                func=self._update_tomorrow_plan,
-                trigger=IntervalTrigger(hours=8),
-                id=self.day_planner_tomorrow_job_id,
-                name="Day Planner - Tomorrow",
-                replace_existing=True
-            )
-
-            logger.info("Scheduled day planner: every 1h for today, every 8h for tomorrow")
+            logger.info("Scheduled day planner: every 15min for today, tomorrow, and day after tomorrow")
 
         except Exception as e:
             logger.error(f"Error scheduling day planner: {e}")
 
-    async def _update_today_plan(self):
-        """Update the day plan for today"""
+    async def _update_day_plan(self, days_offset: int = 0, check_range_days: int = 1, trigger_scheduler: bool = False):
+        """
+        Generic method to update the day plan for a specified date.
+        
+        Args:
+            days_offset: Number of days from today (0 = today, 1 = tomorrow)
+            check_range_days: Number of days to check for calendar changes (1 = just this day, 2 = this day and next)
+            trigger_scheduler: Whether to trigger the scheduler if the plan changes (only for today's plan)
+        """
         try:
             from components.timezone_utils import now_user_tz
             from aiagents.day_planner import generate_day_plan
             from aiagents.ai_scheduler import determine_next_run_by_memory
             from services.memory_manager import memory_manager
             from services.home_assistant import get_calendar_events_for_day
+            from services.day_planner import day_planner_service
+            import datetime
 
             today = now_user_tz().date()
-            logger.debug(f"Updating day plan for today: {today}")
+            target_date = today + datetime.timedelta(days=days_offset)
+            check_start_date = target_date
+            check_end_date = target_date + datetime.timedelta(days=check_range_days - 1)
+            
+            date_label = "today" if days_offset == 0 else f"+{days_offset}d"
+            logger.debug(f"Checking calendar changes for {date_label} ({check_start_date} to {check_end_date})")
+            
+            # Check if calendar has changed before running the expensive agent
+            has_changes = await day_planner_service.check_calendar_changes(check_start_date, check_end_date)
+            
+            if not has_changes:
+                logger.debug(f"No calendar changes for {target_date}, skipping day planner agent run")
+                return
+            
+            logger.debug(f"Calendar changes detected for {target_date}, updating day plan")
 
             # Gather information
             memories = memory_manager.get_formatted_observations_and_reminders()
-            calendar_events_list = await get_calendar_events_for_day(today)
+            calendar_events_list = await get_calendar_events_for_day(target_date)
             calendar_events = "\n".join([
                 f"- {event.summary} at {event.start.strftime('%H:%M')}"
                 for event in calendar_events_list
             ])
 
             # Generate the plan (agent uses tools to save directly)
-            result = await generate_day_plan(today, memories, calendar_events)
+            result = await generate_day_plan(target_date, memories, calendar_events)
 
-            logger.info(f"Updated day plan for today: {len(result.actions_taken)} actions taken")
+            logger.info(f"Updated day plan for {target_date}: {len(result.actions_taken)} actions taken")
             
-            # If the agent took actions (updated the plan), trigger the scheduler
-            if result.actions_taken and len(result.actions_taken) > 0:
-                logger.debug("Day plan for today changed, triggering scheduler")
+            # If the agent took actions (updated the plan), trigger the scheduler (only for today)
+            if trigger_scheduler and result.actions_taken and len(result.actions_taken) > 0:
+                logger.debug(f"Day plan for {target_date} changed, triggering scheduler")
                 try:
                     await determine_next_run_by_memory()
                 except Exception as e:
                     logger.error(f"Error triggering scheduler after day plan update: {e}")
 
         except Exception as e:
-            logger.error(f"Error updating today's day plan: {e}")
-
-    async def _update_tomorrow_plan(self):
-        """Update the day plan for tomorrow"""
-        try:
-            from components.timezone_utils import now_user_tz
-            from aiagents.day_planner import generate_day_plan
-            from services.memory_manager import memory_manager
-            from services.home_assistant import get_calendar_events_for_day
-            import datetime
-
-            tomorrow = now_user_tz().date() + datetime.timedelta(days=1)
-            logger.debug(f"Updating day plan for tomorrow: {tomorrow}")
-
-            # Gather information
-            memories = memory_manager.get_formatted_observations_and_reminders()
-            calendar_events_list = await get_calendar_events_for_day(tomorrow)
-            calendar_events = "\n".join([
-                f"- {event.summary} at {event.start.strftime('%H:%M')}"
-                for event in calendar_events_list
-            ])
-
-            # Generate the plan (agent uses tools to save directly)
-            result = await generate_day_plan(tomorrow, memories, calendar_events)
-
-            logger.info(f"Updated day plan for tomorrow: {len(result.actions_taken)} actions taken")
-
-        except Exception as e:
-            logger.error(f"Error updating tomorrow's day plan: {e}")
+            logger.error(f"Error updating day plan (offset={days_offset}): {e}")
 
     def _run_day_planner_on_startup(self):
-        """Run day planner immediately on startup for today and tomorrow"""
+        """Run day planner immediately on startup for today, tomorrow, and day after tomorrow"""
         import asyncio
         
-        async def run_initial_plans():
-            await self._update_today_plan()
-            await self._update_tomorrow_plan()
-        
         # Schedule the async function to run immediately
-        asyncio.create_task(run_initial_plans())
-        logger.info("Scheduled initial day plan generation for today and tomorrow")
+        asyncio.create_task(self._update_all_day_plans())
+        logger.info("Scheduled initial day plan generation for today, tomorrow, and day after tomorrow")
+
+    async def _update_all_day_plans(self):
+        """
+        Update day plans for today, tomorrow, and day after tomorrow.
+        Runs as a single unified job every 15 minutes.
+        """
+        try:
+            # Update today's plan with scheduler trigger
+            await self._update_day_plan(days_offset=0, check_range_days=1, trigger_scheduler=True)
+            # Update tomorrow's plan (checks tomorrow and day after)
+            await self._update_day_plan(days_offset=1, check_range_days=2, trigger_scheduler=False)
+            # Update day after tomorrow's plan
+            await self._update_day_plan(days_offset=2, check_range_days=1, trigger_scheduler=False)
+        except Exception as e:
+            logger.error(f"Error in unified day planner update: {e}")
 
     def schedule_next_run(self, next_run: NextRun):
         """Schedule the next run of the memory reminder"""

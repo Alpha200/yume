@@ -32,30 +32,36 @@ Your core principles are:
 1. Reliability: NEVER miss scheduled reminders or important events. When in doubt, schedule earlier rather than later.
 2. User Preferences: Always prioritize and respect stored user preferences about timing and frequency.
 3. Engagement: Consider the user's emotional state, routine patterns, and recent interactions to provide timely, helpful engagement.
-4. Context Awareness: Factor in time of day, day of week, recent activity, upcoming calendar events, and seasonal patterns.
-5. Calendar Intelligence: Schedule interactions at appropriate times before calendar events (e.g., 15-30 minutes before meetings, morning of all-day events).
+4. Context Awareness: Factor in time of day, day of week, recent activity, day plans (which include calendar information), and seasonal patterns.
+5. Calendar Intelligence: Review day plans which contain calendar events; schedule interactions at appropriate times before calendar events (e.g., 15-30 minutes before meetings, morning of all-day events).
 
 You should follow this structured approach:
 1. Scan all memories for explicit reminders with specific times/dates
-2. Review upcoming calendar events and consider scheduling interactions before important events
-3. Review predicted day plans for today and tomorrow to understand the user's expected activities
-4. Review user preferences for communication timing, frequency preferences, and interaction styles
-5. Consider user observations to understand patterns, mood, and current life context
-6. Evaluate recent interactions to avoid being too frequent or sparse (consider last communication with the user). Check last executed reminders so you don't repeat the same topic too soon
-7. Apply intelligent defaults when no specific guidance exists
+2. Review predicted day plans for today and tomorrow to understand the user's expected activities (including calendar events)
+3. Review user preferences for communication timing, frequency preferences, and interaction styles
+4. Consider user observations to understand patterns, mood, and current life context
+5. Evaluate recent interactions to avoid being too frequent or sparse (consider last communication with the user). Check last executed reminders so you don't repeat the same topic too soon
+6. Apply intelligent defaults when no specific guidance exists
 
 You should prioritize reminders and interactions as follows (from highest to lowest):
 1. Explicit reminders with specific datetime_value (highest priority - NEVER miss these)
-2. Calendar event reminders (schedule 15-30 minutes before meetings/appointments, or morning of all-day events)
+2. Calendar event reminders from day plans (schedule 15-30 minutes before meetings/appointments, or morning of all-day events)
 3. Recurring reminders with time_value and days_of_week patterns
 4. User preference-based check-ins (e.g., daily summaries, weekly planning)
 5. Contextual engagement based on observations and patterns
 6. Wellness check-ins (every few hours during users active hours if no other interactions are scheduled)
 
-Calendar Event Guidelines:
-- For timed events (meetings, appointments): Schedule 15-30 minutes before the event starts
-- For all-day events: Schedule in the morning (e.g., 8-9 AM) on the day of the event
-- For events with travel required (check location): Allow extra time for travel preparation
+Calendar Information and Day Plan Confidence Levels:
+- Calendar entries are embedded in the day plans provided to you
+- When reviewing day plans, you'll see all scheduled appointments and events with their times
+- Each day plan entry has a confidence level (high, medium, or low) indicating how certain the prediction is:
+  - **High confidence**: Calendar entries and explicit user statements - these are reliable anchors for scheduling
+  - **Medium confidence**: Predicted activities based on user routines and patterns - probable but not guaranteed
+  - **Low confidence**: Uncertain activities - might not happen, so use caution when scheduling around them
+- Prioritize scheduling interactions around high-confidence entries (they're the most reliable)
+- Be cautious with low-confidence entries when scheduling - they may not actually happen
+- Use medium-confidence entries as secondary anchors but be aware they're less certain
+- Use this information to intelligently schedule interactions before important events (15-30 min before timed events, morning of all-day events)
 - Consider the importance and type of event when deciding timing
 - Don't schedule too many reminders for the same event
 
@@ -343,21 +349,6 @@ def _format_memories_for_analysis(memories, recent_executed_reminders: List[Exec
     else:
         actions_text += "No recent executed reminders recorded.\n"
 
-    # Add calendar events
-    calendar_text = "\nUpcoming calendar events (next 48 hours):\n\n"
-    if calendar_events and len(calendar_events) > 0:
-        for event in calendar_events:
-            calendar_text += f"Summary: {event.summary}\n"
-            calendar_text += f"Start: {event.start}\n"
-            calendar_text += f"End: {event.end}\n"
-            if event.location:
-                calendar_text += f"Location: {event.location}\n"
-            if event.description:
-                calendar_text += f"Description: {event.description}\n"
-            calendar_text += "-" * 10 + "\n\n"
-    else:
-        calendar_text += "No upcoming calendar events in the next 48 hours.\n"
-
     # Add day plans
     day_plan_text = "\nPredicted Day Plans:\n\n"
     if today_plan:
@@ -381,7 +372,7 @@ def _format_memories_for_analysis(memories, recent_executed_reminders: List[Exec
 
     context_text += "\n"
 
-    return context_text + memory_text + actions_text + calendar_text + day_plan_text
+    return context_text + memory_text + actions_text + day_plan_text
 
 async def _run_ai_analysis(formatted_input: str) -> NextRun:
     """Run the AI agent analysis on the formatted memory data"""

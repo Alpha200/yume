@@ -94,50 +94,6 @@ def build_context_text(context: AIContext, include_chat_history: bool = True, ma
             text_parts.append(f"{weather_time}: {weather.condition}, {weather.temperature}°C, wind speed: {weather.wind_speed} km/h")
         text_parts.append("")
 
-    # Calendar events
-    if context.calendar_entries:
-        text_parts.append("Upcoming calendar events (next 48 hours):")
-        now = now_user_tz()
-        today = now.date()
-        tomorrow = (now + timedelta(days=1)).date()
-
-        for event in context.calendar_entries:
-            event_text = f"  {event.summary}"
-            if event.start and event.end:
-                # Handle all-day events differently from timed events
-                if event.is_all_day:
-                    try:
-                        start_date = datetime.fromisoformat(event.start).date()
-                        if start_date == today:
-                            event_text += f" (all day today)"
-                        elif start_date == tomorrow:
-                            event_text += f" (all day tomorrow)"
-                        else:
-                            event_text += f" (all day on {start_date.strftime('%m/%d')})"
-                    except:
-                        event_text += f" (all day)"
-                else:
-                    # Parse datetime strings and format them for timed events
-                    try:
-                        start_dt = datetime.fromisoformat(event.start.replace('Z', '+00:00'))
-                        end_dt = datetime.fromisoformat(event.end.replace('Z', '+00:00'))
-                        start_date = start_dt.date()
-
-                        if start_date == today:
-                            day_str = "today"
-                        elif start_date == tomorrow:
-                            day_str = "tomorrow"
-                        else:
-                            day_str = start_dt.strftime('%m/%d')
-
-                        event_text += f" ({day_str} {start_dt.strftime('%H:%M')} - {end_dt.strftime('%H:%M')})"
-                    except:
-                        event_text += f" ({event.start} - {event.end})"
-            if event.location:
-                event_text += f" at {event.location}"
-            text_parts.append(event_text)
-        text_parts.append("")
-
     # Day plans for today and tomorrow
     try:
         today = now_user_tz().date()

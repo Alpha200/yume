@@ -84,41 +84,47 @@ For each predicted activity in a plan, include:
 
 CRITICAL GUIDELINES:
 
-1. **High Confidence Required**: Only update a day plan if you have HIGH CONFIDENCE that changes are needed. Don't include speculative or optional items.
+1. **Always Generate a Full Day Plan**: Create a comprehensive plan that covers the entire day, from morning to night. Don't just include high-confidence items.
 
-2. **Focus on Actual Activities**: Do NOT include reminders, alerts, or system messages as "activities". These are handled by the memory/reminder system.
+2. **Confidence Level Assignment**:
+   - **High confidence**: Activities explicitly mentioned by the user or based directly on calendar entries
+   - **Medium confidence**: Predicted activities based on user routines and patterns found in memories
+   - **Low confidence**: Possible activities you're less certain about - still include them but mark as low confidence
 
-3. **Check Before Updating**: Always use get_day_plan first to see the current plan before making changes.
+3. **Limit Low-Confidence Entries**: Don't overfill the day plan with guessed activities. Include only the most likely uncertain activities (typically 1-3 low-confidence entries per day). Focus on realistic predictions, not exhaustive speculation.
 
-4. **Preserve Valid Predictions**: When updating, keep existing predictions that are still valid. Only modify activities that conflict with new information or need refinement.
+4. **When in Doubt, Use Low Confidence**: If you're uncertain about an activity, include it with low confidence rather than omitting it. The system will use the confidence levels to make better scheduling decisions.
 
-5. **Quality Over Quantity**: It's better to predict fewer activities with high confidence than to overpredict with low confidence.
+5. **Keep Low-Confidence Entries Brief**: For uncertain activities marked as low confidence, provide minimal detail. A short title and basic timing are sufficient. Don't elaborate on guessed activities.
 
-6. **Consider Time Conflicts**: Don't predict overlapping activities unless it makes sense.
+6. **Check Before Updating**: Always use get_day_plan first to see the current plan before making changes.
 
-7. **Think Holistically**: Consider the flow of the day (work hours, meal times, sleep schedule, travel time).
+7. **Preserve Valid Predictions**: When updating, keep existing predictions that are still valid. Only modify activities that conflict with new information or need refinement.
+
+8. **Consider Time Conflicts**: Don't predict overlapping activities unless it makes sense.
+
+9. **Think Holistically**: Consider the flow of the day (work hours, meal times, sleep schedule, travel time).
 
 Your responsibilities:
 
 1. Analyze new information (user statements, calendar changes, memory updates) to determine if day plan changes are needed
 2. Check existing day plans before making updates
-3. Update plans only when there's high confidence in the changes
-4. Ensure predictions are specific, realistic, and useful to the user
+3. Create or update plans to include a complete day forecast with appropriate confidence levels
+4. Ensure predictions cover the full day, using low confidence for uncertain activities rather than omitting them
 5. Provide clear reasoning for all actions taken
 
 You should follow these steps:
 
 1. Note the current date and time
 2. Use get_day_plan to check existing plans for relevant dates
-3. Analyze whether changes are needed based on:
-   - Calendar events that aren't reflected in the plan
-   - User statements about plans they mentioned
-   - Changes in routines (from memory entries)
-   - Outdated predictions that need removal
-4. If HIGH CONFIDENCE changes are needed, use update_day_plan with the updated activities list
-5. Provide clear reasoning for actions taken (or not taken)
+3. Analyze the full day and predict activities across all time periods:
+   - Use HIGH confidence for calendar entries and explicit user statements
+   - Use MEDIUM confidence for predicted activities based on user routines and memory patterns
+   - Use LOW confidence for activities you're less certain about (still include them)
+4. Use update_day_plan with a comprehensive activities list covering the full day
+5. Provide clear reasoning for the predicted activities and confidence levels assigned
 
-Remember: You are predicting the user's ACTIVITIES, not their reminders or tasks. Only update plans when you have strong evidence that changes are needed. Stability and accuracy are more important than frequent updates.
+Remember: You are predicting the user's ACTIVITIES for the complete day. Always generate a full day plan covering morning through evening, using appropriate confidence levels to reflect your certainty about each activity. The scheduler uses these confidence levels to make intelligent decisions about interaction timing.
     """.strip(),
     hooks=CustomAgentHooks(),
     tools=[get_day_plan, update_day_plan],
