@@ -7,9 +7,8 @@ No authentication required, but tests real API calls.
 Run with: python -m pytest tests/test_efa_vrr.py -v -s
 """
 
-import asyncio
 import pytest
-import os
+from datetime import datetime
 
 import services.efa as efa_module
 from services.efa import (
@@ -21,7 +20,9 @@ from services.efa import (
     efa_request,
     _parse_departure_time,
     _calculate_delay,
-    PublicTransportDeparture
+    PublicTransportDeparture,
+    get_journeys,
+    get_journeys_json
 )
 
 
@@ -254,6 +255,63 @@ class TestUtilityFunctions:
         assert result["realtime"] is True
         
         print("\n✅ Departure serialization works correctly")
+
+
+class TestJourneyParsing:
+    """Test parsing of full journeys"""
+
+    async def _resolve_trip_ids(self):
+        origin_id = await get_station_id("Dortmund Reinoldikirche")
+        destination_id = await get_station_id("Dortmund Stadtkrone Ost")
+        assert origin_id, "Origin station ID not found"
+        assert destination_id, "Destination station ID not found"
+        return origin_id, destination_id
+
+    @pytest.mark.asyncio
+    async def test_get_journeys_parses_steps(self, vrr_env):
+        origin_id, destination_id = await self._resolve_trip_ids()
+
+        journeys = await get_journeys(
+            origin=origin_id,
+            destination=destination_id,
+            origin_type="stop",
+            destination_type="stop",
+            limit=1,
+            when=datetime.utcnow()
+        )
+
+        if not journeys:
+            pytest.skip("VRR returned no journeys for Dortmund Voßkuhle -> Stadtkrone Ost")
+
+        journey = journeys[0]
+        assert journey.length_minutes > 0
+        assert journey.steps, "Journey should contain at least one step"
+        first_step = journey.steps[0]
+        assert first_step.mode, "Journey step should provide transport mode"
+        assert first_step.duration_minutes > 0
+
+    @pytest.mark.asyncio
+    async def test_get_journeys_json_shape(self, vrr_env):
+        origin_id, destination_id = await self._resolve_trip_ids()
+
+        result = await get_journeys_json(
+            origin=origin_id,
+            destination=destination_id,
+            origin_type="stop",
+            destination_type="stop",
+            limit=1,
+            when=datetime.utcnow()
+        )
+
+        if result["count"] == 0:
+            pytest.skip("VRR returned no journeys for JSON request")
+
+        assert result["status"] == "success"
+        assert isinstance(result["journeys"], list)
+        first_journey = result["journeys"][0]
+        assert first_journey["length_minutes"] > 0
+        assert first_journey["steps"], "Journey JSON should include steps"
+        assert first_journey["steps"][0]["mode"]
 
 
 class TestLineFiltering:

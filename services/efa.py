@@ -39,6 +39,54 @@ class PublicTransportDeparture:
         }
 
 
+@dataclass
+class JourneyStep:
+    """Single leg of a journey, including walking segments."""
+    mode: str
+    line: Optional[str]
+    origin: str
+    destination: str
+    departure_planned: Optional[str]
+    departure_estimated: Optional[str]
+    arrival_planned: Optional[str]
+    arrival_estimated: Optional[str]
+    platform_origin: Optional[str]
+    platform_destination: Optional[str]
+    departure_delay_minutes: Optional[int]
+    arrival_delay_minutes: Optional[int]
+    duration_minutes: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "mode": self.mode,
+            "line": self.line,
+            "origin": self.origin,
+            "destination": self.destination,
+            "departure_planned": self.departure_planned,
+            "departure_estimated": self.departure_estimated,
+            "arrival_planned": self.arrival_planned,
+            "arrival_estimated": self.arrival_estimated,
+            "platform_origin": self.platform_origin,
+            "platform_destination": self.platform_destination,
+            "departure_delay_minutes": self.departure_delay_minutes,
+            "arrival_delay_minutes": self.arrival_delay_minutes,
+            "duration_minutes": self.duration_minutes
+        }
+
+
+@dataclass
+class JourneyPlan:
+    """Aggregated journey containing multiple steps."""
+    length_minutes: int
+    steps: List[JourneyStep]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "length_minutes": self.length_minutes,
+            "steps": [step.to_dict() for step in self.steps]
+        }
+
+
 async def efa_request(endpoint: str, params: dict = None) -> dict:
     """Make a request to the EFA API."""
     if not EFA_API_URL or EFA_API_URL == "http://api.example.com":
@@ -246,6 +294,40 @@ def _calculate_delay(planned_time: Optional[str], estimated_time: Optional[str])
         return None
 
 
+def _seconds_to_minutes(seconds: Optional[int]) -> int:
+    """Convert seconds to rounded minutes, ensuring short legs do not become zero."""
+    if seconds is None:
+        return 0
+    if seconds <= 0:
+        return 0
+    minutes = seconds / 60
+    if minutes < 1:
+        return 1
+    return int(round(minutes))
+
+
+def _extract_platform(location: Dict[str, Any]) -> Optional[str]:
+    """Safely extract platform information from a leg location node."""
+    if not location:
+        return None
+    properties = location.get("properties", {}) or {}
+    platform = properties.get("platform")
+    if platform:
+        return platform
+    parent_props = (location.get("parent") or {}).get("properties", {}) or {}
+    return parent_props.get("platform")
+
+
+def _parse_location_time(location: Dict[str, Any], preferred_key: str, fallback_key: Optional[str] = None) -> Optional[str]:
+    """Parse a timestamp from a location dict, trying preferred key first."""
+    if not location:
+        return None
+    time_value = location.get(preferred_key)
+    if not time_value and fallback_key:
+        time_value = location.get(fallback_key)
+    return _parse_departure_time_iso(time_value)
+
+
 async def get_departures(
     station_id: Optional[str] = None,
     station_name: Optional[str] = None,
@@ -429,4 +511,165 @@ async def get_departures_json(
         "status": "success" if departures else "no_departures",
         "departures": [dep.to_dict() for dep in departures],
         "count": len(departures)
+    }
+
+
+async def get_journeys(
+    origin: str,
+    destination: str,
+    when: Optional[datetime] = None,
+    search_for_arrival: bool = False,
+    origin_type: str = "any",
+    destination_type: str = "any",
+    limit: int = 3,
+    via: Optional[str] = None,
+    via_type: str = "any",
+    language: str = "de"
+) -> List[JourneyPlan]:
+    """Search for full journeys between two points using the EFA trip endpoint."""
+    if not origin or not destination:
+        logger.warning("Origin and destination are required for journey search")
+        return []
+
+    query_time = when or datetime.utcnow()
+    params = {
+        "accessProfile": "0",
+        "allInterchangesAsLegs": "1",
+        "calcOneDirection": "1",
+        "changeSpeed": "fast",
+        "coordOutputDistance": "1",
+        "coordOutputFormat": "WGS84[dd.ddddd]",
+        "descWithCoordPedestrian": "1",
+        "genC": "1",
+        "genMaps": "0",
+        "imparedOptionsActive": "1",
+        "inclMOT_1": "true",
+        "inclMOT_2": "true",
+        "inclMOT_3": "true",
+        "inclMOT_4": "true",
+        "inclMOT_5": "true",
+        "inclMOT_6": "true",
+        "inclMOT_7": "true",
+        "inclMOT_8": "true",
+        "inclMOT_9": "true",
+        "inclMOT_10": "true",
+        "inclMOT_11": "true",
+        "inclMOT_13": "true",
+        "inclMOT_14": "true",
+        "inclMOT_15": "true",
+        "inclMOT_16": "true",
+        "inclMOT_17": "true",
+        "inclMOT_18": "true",
+        "inclMOT_19": "true",
+        "includedMeans": "checkbox",
+        "itOptionsActive": "1",
+        "itdDate": query_time.strftime("%Y%m%d"),
+        "itdTime": query_time.strftime("%H%M"),
+        "itdTripDateTimeDepArr": "arr" if search_for_arrival else "dep",
+        "language": language,
+        "lineRestriction": "400",
+        "locationServerActive": "1",
+        "name_destination": destination,
+        "name_origin": origin,
+        "ptOptionsActive": "1",
+        "routeType": "LEASTTIME",
+        "serverInfo": "1",
+        "sl3plusTripMacro": "1",
+        "trITMOTvalue100": "15",
+        "type_destination": destination_type,
+        "type_origin": origin_type,
+        "useProxFootSearchDestination": "true",
+        "useProxFootSearchOrigin": "true",
+        "useRealtime": "1",
+        "useUT": "1",
+        "version": "11.0.6.72"
+    }
+
+    if via:
+        params["name_via"] = via
+        params["type_via"] = via_type
+
+    result = await efa_request("/XML_TRIP_REQUEST2", params=params)
+
+    if result["status"] != 200:
+        logger.error(f"Failed to fetch journeys: {result['status']}")
+        return []
+
+    data = result.get("data", {})
+    raw_journeys = data.get("journeys", [])
+
+    if not isinstance(limit, int):
+        limit = len(raw_journeys)
+
+    if limit <= 0:
+        logger.debug("Journey limit <= 0, returning no results")
+        return []
+
+    journeys: List[JourneyPlan] = []
+    for raw_journey in raw_journeys[:limit]:
+        legs = raw_journey.get("legs", [])
+        steps: List[JourneyStep] = []
+        for leg in legs:
+            transportation = leg.get("transportation", {}) or {}
+            product = transportation.get("product", {}) or {}
+            product_name = (product.get("name") or "").lower()
+            product_class = product.get("class")
+
+            if product_name == "footpath" or product_class == 100:
+                mode = "walk"
+                line = None
+            else:
+                mode = transportation.get("name") or product.get("name") or "Unknown"
+                line = transportation.get("number") or transportation.get("name")
+
+            origin_node = leg.get("origin", {}) or {}
+            destination_node = leg.get("destination", {}) or {}
+
+            departure_planned = _parse_location_time(origin_node, "departureTimePlanned", "departureTimeBaseTimetable")
+            departure_estimated = _parse_location_time(origin_node, "departureTimeEstimated")
+            arrival_planned = _parse_location_time(destination_node, "arrivalTimePlanned", "arrivalTimeBaseTimetable")
+            arrival_estimated = _parse_location_time(destination_node, "arrivalTimeEstimated")
+
+            step = JourneyStep(
+                mode=mode,
+                line=line,
+                origin=origin_node.get("name") or origin_node.get("disassembledName") or "Unknown",
+                destination=destination_node.get("name") or destination_node.get("disassembledName") or "Unknown",
+                departure_planned=departure_planned,
+                departure_estimated=departure_estimated,
+                arrival_planned=arrival_planned,
+                arrival_estimated=arrival_estimated,
+                platform_origin=_extract_platform(origin_node),
+                platform_destination=_extract_platform(destination_node),
+                departure_delay_minutes=_calculate_delay(departure_planned, departure_estimated),
+                arrival_delay_minutes=_calculate_delay(arrival_planned, arrival_estimated),
+                duration_minutes=_seconds_to_minutes(leg.get("duration"))
+            )
+            steps.append(step)
+
+        if not steps:
+            continue
+
+        total_duration_seconds = sum(leg.get("duration", 0) or 0 for leg in legs)
+        journey_plan = JourneyPlan(
+            length_minutes=_seconds_to_minutes(total_duration_seconds),
+            steps=steps
+        )
+        journeys.append(journey_plan)
+
+    logger.debug(f"Found {len(journeys)} journeys between '{origin}' and '{destination}'")
+    return journeys
+
+
+async def get_journeys_json(
+    origin: str,
+    destination: str,
+    **kwargs: Any
+) -> Dict[str, Any]:
+    """Helper returning journeys in plain JSON-serializable format."""
+    journeys = await get_journeys(origin=origin, destination=destination, **kwargs)
+    return {
+        "status": "success" if journeys else "no_journeys",
+        "journeys": [journey.to_dict() for journey in journeys],
+        "count": len(journeys)
     }
