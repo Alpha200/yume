@@ -33,6 +33,8 @@ class AIScheduler:
         self.last_next_run: NextRun | None = None
         # Deque to keep recent executed memory reminder jobs (most recent last)
         self.executed_memory_reminders: Deque[ExecutedReminder] = deque(maxlen=10)
+        # Flag to request day planner execution from AI agent or memory updates
+        self.request_day_planner_run: bool = False
 
     def start(self):
         """Start the scheduler"""
@@ -114,7 +116,7 @@ class AIScheduler:
         except Exception as e:
             logger.error(f"Error scheduling day planner: {e}")
 
-    async def _update_day_plan(self, days_offset: int = 0, check_range_days: int = 1, trigger_scheduler: bool = False):
+    async def _update_day_plan(self, days_offset: int = 0, check_range_days: int = 1, trigger_scheduler: bool = False, force_execution: bool = False):
         """
         Generic method to update the day plan for a specified date.
         
@@ -122,6 +124,7 @@ class AIScheduler:
             days_offset: Number of days from today (0 = today, 1 = tomorrow)
             check_range_days: Number of days to check for calendar changes (1 = just this day, 2 = this day and next)
             trigger_scheduler: Whether to trigger the scheduler if the plan changes (only for today's plan)
+            force_execution: If True, skip pre-checks and always execute the agent (for AI agent runs)
         """
         try:
             from components.timezone_utils import now_user_tz
@@ -140,14 +143,19 @@ class AIScheduler:
             date_label = "today" if days_offset == 0 else f"+{days_offset}d"
             logger.debug(f"Checking calendar changes for {date_label} ({check_start_date} to {check_end_date})")
             
-            # If no plan exists yet, always run the planner to create the initial plan
-            existing_plan = day_planner_service.get_plan_for_date(target_date)
-            if not existing_plan:
-                logger.info(f"No existing plan for {target_date}, will generate new plan")
+            # If force_execution is True (AI agent run), skip pre-checks and always run
+            if force_execution:
                 has_changes = True
+                logger.info(f"Force execution enabled for {target_date}, skipping pre-checks")
             else:
-                # Check if calendar has changed before running the expensive agent
-                has_changes = await day_planner_service.check_calendar_changes(check_start_date, check_end_date)
+                # If no plan exists yet, always run the planner to create the initial plan
+                existing_plan = day_planner_service.get_plan_for_date(target_date)
+                if not existing_plan:
+                    logger.info(f"No existing plan for {target_date}, will generate new plan")
+                    has_changes = True
+                else:
+                    # Check if calendar has changed before running the expensive agent
+                    has_changes = await day_planner_service.check_calendar_changes(check_start_date, check_end_date)
             
             if not has_changes:
                 logger.debug(f"No calendar changes for {target_date}, skipping day planner agent run")
@@ -191,16 +199,30 @@ class AIScheduler:
         """
         Update day plans for today, tomorrow, and day after tomorrow.
         Runs as a single unified job every 15 minutes.
+        
+        If day planner execution was explicitly requested (by memory updates or AI agent),
+        runs all 3 day plans with force_execution=True, bypassing pre-checks.
+        Otherwise, uses normal pre-checks (calendar change detection).
         """
         try:
-            # Update today's plan with scheduler trigger
-            await self._update_day_plan(days_offset=0, check_range_days=1, trigger_scheduler=True)
-            # Update tomorrow's plan (checks tomorrow and day after)
-            await self._update_day_plan(days_offset=1, check_range_days=2, trigger_scheduler=False)
-            # Update day after tomorrow's plan
-            await self._update_day_plan(days_offset=2, check_range_days=1, trigger_scheduler=False)
+            # Check if explicit request was made
+            force_execute = self.request_day_planner_run
+            if force_execute:
+                self.request_day_planner_run = False  # Reset the flag
+                logger.info("Executing day planner with force execution (memory or agent request)")
+            
+            # Update all three day plans
+            await self._update_day_plan(days_offset=0, check_range_days=1, trigger_scheduler=True, force_execution=force_execute)
+            await self._update_day_plan(days_offset=1, check_range_days=1, trigger_scheduler=False, force_execution=force_execute)
+            await self._update_day_plan(days_offset=2, check_range_days=1, trigger_scheduler=False, force_execution=force_execute)
+            
         except Exception as e:
             logger.error(f"Error in unified day planner update: {e}")
+
+    def request_day_planner_execution(self):
+        """Allow AI agent or other components to request day planner execution"""
+        self.request_day_planner_run = True
+        logger.debug("Day planner execution requested")
 
     def schedule_next_run(self, next_run: NextRun):
         """Schedule the next run of the memory reminder"""

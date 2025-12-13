@@ -155,6 +155,11 @@ async def _handle_memory_update_background(memory_update_task: str):
             )
         )
 
+        # Memory has been updated, request day planner execution for all 3 days
+        from services.ai_scheduler import ai_scheduler
+        ai_scheduler.request_day_planner_execution()
+        logger.debug("Requested day planner execution due to memory update")
+
         await determine_next_run_by_memory()
     except Exception as e:
         logger.error(f"Error in background memory update: {e}")
@@ -178,9 +183,13 @@ async def _handle_day_planner_update_background(day_planner_update_task: str):
         
         logger.debug(f"Day planner update processed: {len(result.actions_taken)} actions taken")
         
-        # If the agent took actions, check if it was for today and trigger scheduler
+        # Day planner agent made changes, request full day planner execution for all 3 days
         if result.actions_taken and len(result.actions_taken) > 0:
-            # Check if any action mentions "today" or current date
+            from services.ai_scheduler import ai_scheduler
+            ai_scheduler.request_day_planner_execution()
+            logger.debug("Requested day planner execution due to agent update")
+            
+            # If the agent took actions on today, also trigger scheduler
             today_str = now_user_tz().date().isoformat()
             if "today" in day_planner_update_task.lower() or today_str in day_planner_update_task:
                 logger.info("Day plan for today updated, triggering scheduler")
