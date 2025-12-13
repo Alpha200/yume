@@ -30,12 +30,14 @@ Yume is built with a modular architecture consisting of several key components:
 - **AI Scheduler** (`services/ai_scheduler.py`): Background task scheduling with APScheduler
 - **Context Manager** (`services/context_manager.py`): Aggregates data from multiple sources into unified context
 - **Memory Manager** (`services/memory_manager.py`): Persistent memory storage with support for user preferences, observations, and reminders
+- **Memory Summarizer** (`services/memory_summarizer.py`): MongoDB-backed service that automatically summarizes memories after each update for optimized context input to the AI engine
 - **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API for weather forecasts, calendar events, geofence tracking, and proximity-based distance context
 - **EFA Service** (`services/efa.py`): Public transport integration with EFA API for querying departures with line and direction filtering
 
 ### AI Agents
 
 - **Memory Manager** (`aiagents/memory_manager.py`): Handles memory operations including intelligent cleanup and archival
+- **Memory Summarizer** (`aiagents/memory_summarizer.py`): Condenses full memory records into concise, detail-preserving summaries for optimized AI context input
 - **Day Planner** (`aiagents/day_planner.py`): AI agent that creates daily activity predictions using calendar, memories, and context. Makes high-confidence updates to plans via tools.
 - **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling with deferred execution, automatic re-evaluation, and dual-approach timing optimization (deterministic + AI-powered)
 - **EFA Agent** (`aiagents/efa_agent.py`): Specialized agent for querying public transport departures. Parses natural language queries to extract station names, line numbers, and destination directions. Used by the main AI engine as a tool.
@@ -78,9 +80,11 @@ Yume tracks all AI agent interactions for debugging:
 
 ## Performance Optimizations
 
-- **Async Background Processing**: Memory updates and scheduling run asynchronously
+- **Async Background Processing**: Memory updates, summarization, and scheduling run asynchronously
+- **Memory Summarization**: Automatically condenses full memory records into optimized summaries after each update, reducing token usage while preserving critical details
 - **Unified AI Agent**: Single agent handles both decision-making and response generation
-- **Efficient Memory Access**: Formatted memory retrieval with consistent formatting
+- **Efficient Memory Access**: Summarized memory retrieval with consistent formatting; falls back to full memory if summaries unavailable
+- **Smart Fallbacks**: Uses summarized memories when available, automatically falls back to full memory if needed
 
 ## Installation
 
@@ -223,8 +227,13 @@ Yume requires OpenID Connect (OIDC) authentication for securing the web interfac
 - **Adaptive Scheduling**: Re-evaluates when new interactions occur (chat, geofence, or reminder)
 - **Deferred Execution**: 60-second debounce consolidates multiple triggers
 - **Automatic Cleanup**: Memory Janitor runs every 12 hours to archive and clean up old entries
+- **Memory Summarization**: After each memory update, an AI summarizer automatically:
+  - Condenses preferences, observations, and reminders into concise summaries
+  - Preserves all critical details while removing redundancy
+  - Stores summaries in MongoDB for optimized context input
+  - Reduces token usage by providing condensed memory representations
 
-### API Endpoints
+#### Geofence Event API
 
 The Litestar interface provides several endpoints for monitoring and control.
 

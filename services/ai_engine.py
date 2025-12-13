@@ -17,6 +17,7 @@ from services.context_manager import build_ai_context, build_context_text
 from services.memory_manager import memory_manager
 from services.interaction_tracker import interaction_tracker
 from services.settings_manager import settings_manager
+from services.memory_summarizer import memory_summarizer_service
 from tools.day_planner import get_day_plan
 
 logger = logging_manager
@@ -40,8 +41,13 @@ last_taken_actions = deque(maxlen=10)
 def _build_agent_instructions() -> str:
     """Build agent instructions dynamically including user preferences"""
 
-    # Get user preferences from memory manager
-    preferences = memory_manager.get_formatted_preferences()
+    # Try to get summarized preferences first, fall back to full preferences if not available
+    summary = memory_summarizer_service.get_summary()
+    if summary and summary.get("summarized_preferences"):
+        preferences = summary["summarized_preferences"]
+    else:
+        # Fallback to full preferences if summaries not yet generated
+        preferences = memory_manager.get_formatted_preferences()
 
     instructions = f"""
 Your name is Yume. You are a helpful personal AI assistant. The user will interact with you in a chat via a messaging app.
@@ -202,10 +208,19 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
 
         input_with_context += build_context_text(context)
 
-        input_with_context += "\nStored memories (observations and reminders):\n"
-        input_with_context += memory_manager.get_formatted_observations_and_reminders()
+        # Use summarized memories if available, otherwise fall back to full memory
+        summary = memory_summarizer_service.get_summary()
+        if summary and (summary.get("summarized_observations") or summary.get("summarized_reminders")):
+            input_with_context += "\nUser Observations:\n"
+            input_with_context += summary.get("summarized_observations", "No observations stored.")
+            input_with_context += "\n\nUser Reminders:\n"
+            input_with_context += summary.get("summarized_reminders", "No reminders stored.")
+        else:
+            # Fallback to full memory if summaries not yet generated
+            input_with_context += "\nStored memories (observations and reminders):\n"
+            input_with_context += memory_manager.get_formatted_observations_and_reminders()
 
-        input_with_context += "\nBased on the above, determine if any actions are necessary and provide your response."
+        input_with_context += "\n\nBased on the above, determine if any actions are necessary and provide your response."
 
         response = await Runner.run(agent, input_with_context, run_config=RunConfig(tracing_disabled=True))
         parsed_result: AIEngineResult = response.final_output_as(AIEngineResult)

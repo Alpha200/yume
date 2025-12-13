@@ -1,3 +1,4 @@
+import asyncio
 import os
 from typing import List
 
@@ -155,10 +156,31 @@ Please review the stored memories and take any necessary actions to keep the mem
             logger.log("Memory update completed with no actions taken")
 
         logger.log(f"Reasoning: {result.reasoning_summary}")
+        
+        # Trigger memory summarization in the background
+        asyncio.create_task(_update_memory_summaries())
+        
         return result
     except Exception as e:
         logger.log(f"Error during memory update: {e}")
         raise
+
+
+async def _update_memory_summaries():
+    """Update memory summaries in the background after memory changes"""
+    try:
+        from services.memory_manager import memory_manager
+        from services.memory_summarizer import update_memory_summaries
+        
+        # Get the current memory in formatted form
+        formatted_preferences = memory_manager.get_formatted_preferences()
+        formatted_observations_and_reminders = memory_manager.get_formatted_observations_and_reminders()
+        
+        # Update summaries
+        await update_memory_summaries(formatted_preferences, formatted_observations_and_reminders)
+        logger.log("Memory summaries updated successfully in background")
+    except Exception as e:
+        logger.log(f"Error updating memory summaries in background: {e}")
 
 async def run_memory_janitor():
     logger.log("Starting memory janitor cleanup process")
@@ -197,6 +219,11 @@ Provide a summary of the actions taken."""
             logger.log("Memory janitor completed with no actions taken")
 
         logger.log(f"Reasoning: {response_object.reasoning_summary}")
+        
+        # Trigger memory summarization in the background if changes were made
+        if response_object.actions_taken:
+            asyncio.create_task(_update_memory_summaries())
+        
         return response_object
     except Exception as e:
         logger.log(f"Error during memory janitor process: {e}")
