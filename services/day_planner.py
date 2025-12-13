@@ -282,14 +282,14 @@ class DayPlannerService:
         if not plan:
             return f"No plan found for {date.strftime('%Y-%m-%d')}"
         
-        output = f"Day Plan for {date.strftime('%A, %B %d, %Y')}\n"
-        output += "=" * 50 + "\n\n"
+        output = f"Day Plan for {date.strftime('%A, %B %d, %Y')}:\n\n"
         
-        if plan.summary:
-            output += f"Summary: {plan.summary}\n\n"
+        # Don't include summary in formatted output for now
+        # if plan.summary:
+        #     output += f"Summary: {plan.summary}\n\n"
         
         if not plan.items:
-            output += "No activities planned.\n"
+            output += "No activities planned (yet).\n"
         else:
             # Sort items by start time
             sorted_items = sorted(
@@ -312,8 +312,6 @@ class DayPlannerService:
                 if item.tags:
                     output += f"  Tags: {', '.join(item.tags)}\n"
                 output += "\n"
-        
-        output += f"\nLast updated: {plan.updated_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
         
         return output
     
