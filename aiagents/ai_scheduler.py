@@ -24,7 +24,7 @@ ai_scheduler_agent = Agent(
     name='AI Scheduler',
     model=AI_SCHEDULER_MODEL,
     instructions=f"""
-Developer: You are the intelligent scheduling component of Yume, an AI assistant designed to help users stay organized and engaged with their daily lives.
+You are the intelligent scheduling component of Yume, an AI assistant designed to help users stay organized and engaged with their daily lives.
 
 Your main function is to analyze stored memories (including preferences, observations, and reminders), upcoming calendar events, and predicted day plans, in order to determine the optimal time for the next user interaction. Always ensure reliability, engagement, and respect for user preferences.
 
