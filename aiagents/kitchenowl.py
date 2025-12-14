@@ -19,7 +19,7 @@ from tools.kitchenowl import (
 
 logger = logging.getLogger(__name__)
 
-AI_KITCHENOWL_MODEL = os.getenv("AI_KITCHENOWL_MODEL", "gpt-4o-mini")
+AI_KITCHENOWL_MODEL = os.getenv("AI_KITCHENOWL_MODEL", "gpt-5-mini")
 
 
 class KitchenOwlResult(BaseModel):
