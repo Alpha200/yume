@@ -6,9 +6,8 @@ from typing import List
 from agents import Agent, ModelSettings, Runner, RunConfig, AgentOutputSchema
 from pydantic import BaseModel
 
-from components.agent_hooks import CustomAgentHooks
+from components.agent_hooks import CustomAgentHooks, InteractionTrackingContext
 from components.timezone_utils import now_user_tz
-from services.interaction_tracker import interaction_tracker
 from tools.day_planner import get_day_plan, update_day_plan
 
 logger = logging.getLogger(__name__)
@@ -146,20 +145,18 @@ Please analyze the task and determine if any day plan updates are needed. Rememb
 3. Provide clear reasoning for actions taken or not taken"""
 
     try:
-        response = await Runner.run(day_planner_agent, agent_input, run_config=RunConfig(tracing_disabled=True))
-        result = response.final_output_as(DayPlannerResult)
-
-        # Track the interaction for debugging
-        output_data = f"Actions taken: {', '.join(result.actions_taken) if result.actions_taken else 'None'}\\n\\nReasoning: {result.reasoning_summary}"
-        interaction_tracker.track_interaction(
-            agent_type="day_planner",
-            input_data=agent_input[:500] + "...",
-            output_data=output_data,
-            metadata={
-                "action_count": len(result.actions_taken),
-            },
-            system_instructions=day_planner_agent.instructions[:500] + "..."
+        tracking_context = InteractionTrackingContext(
+            agent_type="Day Planner",
+            input_data=agent_input,
+            metadata={"task": "update_day_plan"},
         )
+        response = await Runner.run(
+            day_planner_agent,
+            agent_input,
+            context=tracking_context,
+            run_config=RunConfig(tracing_disabled=True),
+        )
+        result = response.final_output_as(DayPlannerResult)
 
         logger.info(f"Day plan update processed: {len(result.actions_taken)} actions taken")
         return result
@@ -208,21 +205,18 @@ Generate a day plan for: {date.strftime('%A, %B %d, %Y')}
 Based on the above information, create a comprehensive day plan with predicted activities. Use get_day_plan to check if a plan already exists, and update_day_plan to create or update it with predicted activities, timing, and confidence levels."""
 
     try:
-        response = await Runner.run(day_planner_agent, agent_input, run_config=RunConfig(tracing_disabled=True))
-        result = response.final_output_as(DayPlannerResult)
-
-        # Track the interaction for debugging
-        output_data = f"Actions taken: {', '.join(result.actions_taken) if result.actions_taken else 'None'}\\n\\nReasoning: {result.reasoning_summary}"
-        interaction_tracker.track_interaction(
+        tracking_context = InteractionTrackingContext(
             agent_type="day_planner",
             input_data=agent_input,
-            output_data=output_data,
-            metadata={
-                "date": date.isoformat(),
-                "action_count": len(result.actions_taken),
-            },
-            system_instructions=day_planner_agent.instructions
+            metadata={"plan_date": date.isoformat()},
         )
+        response = await Runner.run(
+            day_planner_agent,
+            agent_input,
+            context=tracking_context,
+            run_config=RunConfig(tracing_disabled=True),
+        )
+        result = response.final_output_as(DayPlannerResult)
 
         logger.info(f"Day plan generated with {len(result.actions_taken)} actions taken")
         return result

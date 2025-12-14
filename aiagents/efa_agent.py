@@ -5,10 +5,9 @@ Handles public transport queries and provides departure information for stations
 
 import logging
 import os
-from agents import Agent, Runner, RunConfig, ModelSettings
+from agents import Agent, ModelSettings
 
-from components.agent_hooks import CustomAgentHooks
-from services.interaction_tracker import interaction_tracker
+from components.agent_hooks import LoggingOnlyAgentHooks
 from tools.efa import get_station_departures, get_journey_options
 
 logger = logging.getLogger(__name__)
@@ -19,7 +18,7 @@ AI_MODEL = os.getenv("AI_EFA_MODEL", "gpt-5-mini")
 
 # Initialize the EFA agent with tools
 efa_agent = Agent(
-    name="EFA Agent",
+    name="EFA",
     model=AI_MODEL,
     model_settings=ModelSettings(
         tool_choice="required",
@@ -38,13 +37,11 @@ Rules for Departures:
 
 Rules for Journeys:
 - Use get_journey_options when the user asks to travel between two stations/addresses (journeys, routes, trip planning).
-- After receiving journeys, ANALYZE and RATE them based on:
-  * Arrival time: Which journey arrives earliest?
-  * Simplicity: Which has fewer transfers/changes?
-  * Total duration: Prefer shorter journeys
+- After receiving journeys, ANALYZE them to pick the top two options (the best journey and a second-best alternative) based on arrival time, transfer count, and duration.
+- When you report transfer counts, treat walking steps as NOT counting toward transfers so that only vehicle changes are considered.
 - Present the results as:
-  * First: Your recommended journey with clear reasoning (e.g., "I recommend this journey because it arrives earliest" or "simplest with only 1 transfer")
-  * Second+: Alternative options with brief explanations
+  * First: Your recommended journey with a clear justification (e.g., "I recommend this journey because it arrives earliest" or "simplest with only 1 transfer")
+  * Second: The runner-up journey marked as an alternative, again documenting why it is a useful backup.
 - Be explicit and detailed in your response:
   * List each step with: "[Line/Mode] from [Station] to [Station], depart [time], arrive [time]"
   * Include platform information if available, omit if not provided
@@ -56,45 +53,9 @@ Tools available:
 - get_station_departures: Fetch departures with optional line and direction filters.
 - get_journey_options: Fetch full journey plans between an origin and a destination (with optional via).
     """.strip(),
-    hooks=CustomAgentHooks(),
+    hooks=LoggingOnlyAgentHooks(),
     tools=[
         get_station_departures,
         get_journey_options,
     ],
 )
-
-
-async def query_departures(query: str) -> str:
-    """
-    Query EFA for public transport information based on natural language input.
-
-    Handles both departure queries and journey planning requests:
-    - Departures: "What trains leave Essen Hbf?" or "Next U47 from Essen?"
-    - Journeys: "How do I get from Essen to Berlin?" or "Route from A to B via C"
-
-    Args:
-        query: Natural language question about public transport
-
-    Returns:
-        Departure times, journey plans, or error message as a string
-    """
-    try:
-        logger.debug(f"Processing departure query: {query[:80]}...")
-        result = await Runner.run(efa_agent, query, run_config=RunConfig(tracing_disabled=True))
-        departure_info = result.final_output
-
-        interaction_tracker.track_interaction(
-            agent_type="efa",
-            input_data=query,
-            output_data=departure_info,
-            metadata={
-                "query_length": len(query),
-            },
-            system_instructions=efa_agent.instructions
-        )
-
-        return departure_info
-        
-    except Exception as e:
-        logger.error(f"Error processing query: {e}")
-        return f"Error processing your query: {str(e)}"

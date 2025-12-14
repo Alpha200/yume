@@ -11,11 +11,10 @@ from pydantic import BaseModel
 from aiagents.ai_scheduler import determine_next_run_by_memory
 from aiagents.efa_agent import efa_agent
 from aiagents.memory_manager import handle_memory_update
-from components.agent_hooks import CustomAgentHooks
+from components.agent_hooks import CustomAgentHooks, InteractionTrackingContext
 from components.timezone_utils import now_user_tz
 from services.context_manager import build_ai_context, build_context_text
 from services.memory_manager import memory_manager
-from services.interaction_tracker import interaction_tracker
 from services.memory_summarizer import memory_summarizer_service
 from tools.day_planner import get_day_plan
 
@@ -55,7 +54,7 @@ You are part of a system that assists the user by keeping a memory about the use
 You should follow these messaging style guidelines if not otherwise specified by user preferences:
 - Write messages as a partner would: brief, natural, and personal, not formulaic or robotic with a subtle emotional touch. Max 1–2 relevant emojis
 - Try to detect the current mood and adapt your style accordingly. Be engaging and warm.
-- Do not use unnatural symbols like — or ; in the text, as it feels unnatural in this context. Also don't highlight text with **
+- Do not use unnatural symbols like — or ; in the text, as it feels unnatural in this context. Also DON'T highlight text with **
 - Avoid repetition of same wording used recently
 - Format dates/times in natural language (e.g., "today at 3 PM", "next week") but be precise
 - Always communicate in the user's preferred language: {USER_LANGUAGE}
@@ -91,9 +90,10 @@ You will be provided with:
 
 You have access to the following tools:
 - Public transport tool: Query public transport information via the EFA system. You can:
-  - Get departures from a station (e.g., "What trains leave Essen Hbf?")
-  - Get journeys between two stations (e.g., "How do I get from Essen to Berlin?")
+  - Get departures from a station (e.g., "What are the next departures for Essen Hbf?")
+  - Get journeys between two stations (e.g., "How do I get from Essen Hbf to Berlin Hbf?")
   - Filter by line, destination, or via intermediate stations as needed
+  - Call the tool only once per user request to avoid excessive queries. Do not retry on failures; instead, inform the user of the issue.
 
 - Day planner tools: View and manage daily plans that predict what the user will do throughout the day
   - get_day_plan: View the plan for a specific date (NOTE: Plans for today and tomorrow are already provided in the context below, only use this tool for other dates)
@@ -241,22 +241,22 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
 
         input_with_context += "\n\nBased on the above, determine if any actions are necessary and provide your response."
 
-        response = await Runner.run(agent, input_with_context, run_config=RunConfig(tracing_disabled=True))
-        parsed_result: AIEngineResult = response.final_output_as(AIEngineResult)
-
-        # Track the interaction for debugging
-        output_data = f"Message to user: {parsed_result.message_to_user}\n\nMemory update task: {parsed_result.memory_update_task}\n\nDay planner update task: {parsed_result.day_planner_update_task}\n\nReasoning: {parsed_result.reasoning}"
-        interaction_tracker.track_interaction(
-            agent_type="ai_engine",
+        tracking_context = InteractionTrackingContext(
+            agent_type="Yume - AI Chat Assistant",
             input_data=input_with_context,
-            output_data=output_data,
             metadata={
-                "trigger": trigger_description,
-                "has_message": parsed_result.message_to_user is not None,
-                "has_memory_update": parsed_result.memory_update_task is not None
+                "trigger_description": trigger_description,
+                "event_context": event_context,
             },
-            system_instructions=agent.instructions
         )
+
+        response = await Runner.run(
+            agent,
+            input_with_context,
+            context=tracking_context,
+            run_config=RunConfig(tracing_disabled=True),
+        )
+        parsed_result: AIEngineResult = response.final_output_as(AIEngineResult)
 
         # Start memory update in background if needed
         if parsed_result.memory_update_task:

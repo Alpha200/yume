@@ -178,8 +178,7 @@ async def get_journey_options(
 
         for idx, journey in enumerate(journeys, 1):
             length = journey.length_minutes
-            num_changes = len(journey.steps) - 1
-            formatted += f"\nOPTION {idx}: Total duration {length} minutes ({num_changes} changes)\n"
+            formatted += f"\nOPTION {idx}: Total duration {length} minutes\n"
 
             for step_idx, step in enumerate(journey.steps, 1):
                 mode = step.mode
@@ -237,9 +236,6 @@ async def get_journey_options(
                 # Duration
                 if duration:
                     formatted += f"  Duration: {duration} minutes\n"
-
-
-        logger.info(formatted)
 
         return formatted.strip()
 

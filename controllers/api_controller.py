@@ -47,6 +47,8 @@ class InteractionDetailResponse(Struct):
     output_data: str
     metadata: Dict[str, Any] | None = None
     system_instructions: str | None = None
+    tool_usage: List[Dict[str, Any]] | None = None
+    llm_calls: List[Dict[str, Any]] | None = None
 
 class DayPlanItemResponse(Struct):
     id: str
@@ -177,7 +179,9 @@ class APIController(Controller):
             input_data=interaction.input_data,
             output_data=interaction.output_data,
             metadata=interaction.metadata,
-            system_instructions=interaction.system_instructions
+            system_instructions=interaction.system_instructions,
+            tool_usage=interaction.tool_usage,
+            llm_calls=interaction.llm_calls
         )
 
 

@@ -27,13 +27,36 @@
           <div class="detail-label">Metadata</div>
           <pre class="detail-code">{{ JSON.stringify(interaction.metadata, null, 2) }}</pre>
         </div>
+        <div v-if="interaction.tool_usage && interaction.tool_usage.length" class="detail-section usage-section">
+          <div class="detail-label">Tool Usage</div>
+          <div class="usage-record-wrapper">
+            <div
+              v-for="(toolCall, index) in interaction.tool_usage"
+              :key="`${toolCall.tool_name}-${index}-${toolCall.start_time}`"
+              class="usage-record"
+            >
+              <div class="usage-record-header">
+                <span class="usage-record-title">{{ toolCall.tool_name }}</span>
+                <span class="usage-record-times">{{ formatTimeRange(toolCall.start_time, toolCall.end_time) }}</span>
+              </div>
+              <div v-if="toolCall.input" class="usage-input-wrapper">
+                <div class="usage-input-label">Input:</div>
+                <pre class="detail-code usage-input">{{ toolCall.input }}</pre>
+              </div>
+              <div v-if="toolCall.result" class="usage-result-wrapper">
+                <div class="usage-result-label">Result:</div>
+                <pre class="detail-code usage-result">{{ toolCall.result }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { formatTime, formatAgentType } from '../utils/formatters'
+import { formatTime, formatAgentType, formatDateTime } from '../utils/formatters'
 
 export default {
   name: 'InteractionDetailModal',
@@ -46,7 +69,17 @@ export default {
   emits: ['close'],
   methods: {
     formatTime,
-    formatAgentType
+    formatAgentType,
+    formatTimeRange(start, end) {
+      if (!start) {
+        return 'Unknown time'
+      }
+      const formattedStart = formatDateTime(start)
+      if (end) {
+        return `${formattedStart} → ${formatDateTime(end)}`
+      }
+      return `${formattedStart} (pending)`
+    }
   }
 }
 </script>
@@ -202,6 +235,64 @@ export default {
 .system-instructions {
   background: rgba(168, 85, 247, 0.1);
   border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.usage-section .usage-record-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.usage-record {
+  padding: 0.75rem;
+  border: 1px solid #27272a;
+  border-radius: 0.5rem;
+  background: #0f0f11;
+}
+
+.usage-record-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  align-items: center;
+}
+
+.usage-record-title {
+  font-weight: 600;
+  color: #f4f4f5;
+}
+
+.usage-record-times {
+  color: #a3a3ff;
+  font-size: 0.75rem;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+
+.usage-input-wrapper,
+.usage-result-wrapper {
+  margin-top: 0.5rem;
+}
+
+.usage-input-label,
+.usage-result-label {
+  color: #a1a1aa;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.usage-input {
+  margin: 0;
+  background: #1a1a1d;
+  border-color: #3f3f46;
+}
+
+.usage-result {
+  margin: 0;
+  background: #151515;
 }
 </style>
 

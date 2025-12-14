@@ -5,12 +5,11 @@ from typing import List
 
 from agents import Agent, Runner, RunConfig
 
-from components.agent_hooks import CustomAgentHooks
+from components.agent_hooks import CustomAgentHooks, InteractionTrackingContext
 from components.timezone_utils import now_user_tz, to_user_tz
 from services.home_assistant import get_current_geofence_for_user
 from services.memory_manager import memory_manager
 from services.memory_summarizer import memory_summarizer_service
-from services.interaction_tracker import interaction_tracker
 from services.day_planner import day_planner_service
 
 
@@ -388,22 +387,19 @@ def _format_memories_for_analysis(memories, recent_executed_reminders: List[Exec
 
 async def _run_ai_analysis(formatted_input: str) -> NextRun:
     """Run the AI agent analysis on the formatted memory data"""
-    run_config = RunConfig(tracing_disabled=True)
-    result = await Runner.run(ai_scheduler_agent, formatted_input, run_config=run_config)
-    next_run = result.final_output_as(NextRun)
-
-    # Track the interaction for debugging
-    output_data = f"Next run time: {next_run.next_run_time}\nReason: {next_run.reason}\nTopic: {next_run.topic}"
-    interaction_tracker.track_interaction(
-        agent_type="ai_scheduler",
+    tracking_context = InteractionTrackingContext(
+        agent_type="AI Scheduler",
         input_data=formatted_input,
-        output_data=output_data,
-        metadata={
-            "next_run_time": next_run.next_run_time.isoformat() if next_run.next_run_time else None,
-            "topic": next_run.topic
-        },
-        system_instructions=ai_scheduler_agent.instructions
+        metadata={"purpose": "next_run_analysis"},
     )
+    run_config = RunConfig(tracing_disabled=True)
+    result = await Runner.run(
+        ai_scheduler_agent,
+        formatted_input,
+        context=tracking_context,
+        run_config=run_config,
+    )
+    next_run = result.final_output_as(NextRun)
 
     return next_run
 

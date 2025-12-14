@@ -5,7 +5,7 @@ from typing import Optional
 from agents import Agent, ModelSettings, Runner, RunConfig
 from pydantic import BaseModel
 
-from components.agent_hooks import CustomAgentHooks
+from components.agent_hooks import CustomAgentHooks, InteractionTrackingContext
 from components.timezone_utils import now_user_tz
 
 logger = logging.getLogger(__name__)
@@ -97,7 +97,17 @@ OBSERVATIONS AND REMINDERS:
 Create three summarized versions that can be directly used in AI agent context. Be thorough - do not lose details while improving conciseness."""
 
     try:
-        response = await Runner.run(memory_summarizer_agent, agent_input, run_config=RunConfig(tracing_disabled=True))
+        tracking_context = InteractionTrackingContext(
+            agent_type="Memory Summarizer",
+            input_data=agent_input,
+            metadata={"purpose": "summary_generation"},
+        )
+        response = await Runner.run(
+            memory_summarizer_agent,
+            agent_input,
+            context=tracking_context,
+            run_config=RunConfig(tracing_disabled=True),
+        )
         result = response.final_output_as(MemorySummaryResult)
         
         logger.info("Memory summarization completed successfully")

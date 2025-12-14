@@ -16,6 +16,8 @@ class AgentInteraction:
     output_data: str
     metadata: Optional[Dict[str, Any]] = None
     system_instructions: Optional[str] = None
+    tool_usage: Optional[List[Dict[str, Any]]] = None
+    llm_calls: Optional[List[Dict[str, Any]]] = None
 
 
 class InteractionTracker:
@@ -32,7 +34,9 @@ class InteractionTracker:
         input_data: str,
         output_data: str,
         metadata: Optional[Dict[str, Any]] = None,
-        system_instructions: Optional[str] = None
+        system_instructions: Optional[str] = None,
+        tool_usage: Optional[List[Dict[str, Any]]] = None,
+        llm_calls: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         """
         Track a new agent interaction
@@ -57,7 +61,9 @@ class InteractionTracker:
             input_data=input_data,
             output_data=output_data,
             metadata=metadata or {},
-            system_instructions=system_instructions
+            system_instructions=system_instructions,
+            tool_usage=tool_usage,
+            llm_calls=llm_calls,
         )
 
         self.interactions.append(interaction)
