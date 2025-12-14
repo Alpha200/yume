@@ -5,6 +5,8 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from dataclasses import dataclass
 
+from components.timezone_utils import convert_utc_to_user_tz
+
 logger = logging.getLogger(__name__)
 
 # EFA API configuration
@@ -269,13 +271,25 @@ def _parse_departure_time(time_str: Optional[str]) -> Optional[str]:
 
 
 def _parse_departure_time_iso(time_str: Optional[str]) -> Optional[str]:
-    """Parse ISO timestamp to HH:MM format (e.g., '2025-12-11T18:54:00Z' -> '18:54')."""
+    """Parse ISO timestamp to HH:MM format in user's timezone.
+
+    Converts UTC timestamps (e.g., '2025-12-11T18:54:00Z') to user's local timezone
+    and extracts the time component as HH:MM.
+
+    Args:
+        time_str: ISO format timestamp string (e.g., '2025-12-11T18:54:00Z')
+
+    Returns:
+        Time string in HH:MM format in user's timezone, or None if invalid
+    """
     if not time_str:
         return None
     try:
-        # Parse ISO format timestamp
-        dt = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
-        return dt.strftime("%H:%M")
+        # Parse ISO format timestamp (which is in UTC)
+        dt_utc = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+        # Convert to user's timezone
+        dt_user = convert_utc_to_user_tz(dt_utc)
+        return dt_user.strftime("%H:%M")
     except (ValueError, AttributeError):
         return None
 
@@ -517,7 +531,6 @@ async def get_departures_json(
 async def get_journeys(
     origin: str,
     destination: str,
-    when: Optional[datetime] = None,
     search_for_arrival: bool = False,
     origin_type: str = "any",
     destination_type: str = "any",
@@ -531,7 +544,6 @@ async def get_journeys(
         logger.warning("Origin and destination are required for journey search")
         return []
 
-    query_time = when or datetime.utcnow()
     params = {
         "accessProfile": "0",
         "allInterchangesAsLegs": "1",
@@ -563,8 +575,6 @@ async def get_journeys(
         "inclMOT_19": "true",
         "includedMeans": "checkbox",
         "itOptionsActive": "1",
-        "itdDate": query_time.strftime("%Y%m%d"),
-        "itdTime": query_time.strftime("%H%M"),
         "itdTripDateTimeDepArr": "arr" if search_for_arrival else "dep",
         "language": language,
         "lineRestriction": "400",
@@ -660,16 +670,3 @@ async def get_journeys(
     logger.debug(f"Found {len(journeys)} journeys between '{origin}' and '{destination}'")
     return journeys
 
-
-async def get_journeys_json(
-    origin: str,
-    destination: str,
-    **kwargs: Any
-) -> Dict[str, Any]:
-    """Helper returning journeys in plain JSON-serializable format."""
-    journeys = await get_journeys(origin=origin, destination=destination, **kwargs)
-    return {
-        "status": "success" if journeys else "no_journeys",
-        "journeys": [journey.to_dict() for journey in journeys],
-        "count": len(journeys)
-    }

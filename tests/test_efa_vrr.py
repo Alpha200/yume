@@ -8,7 +8,6 @@ Run with: python -m pytest tests/test_efa_vrr.py -v -s
 """
 
 import pytest
-from datetime import datetime
 
 import services.efa as efa_module
 from services.efa import (
@@ -21,8 +20,7 @@ from services.efa import (
     _parse_departure_time,
     _calculate_delay,
     PublicTransportDeparture,
-    get_journeys,
-    get_journeys_json
+    get_journeys
 )
 
 
@@ -276,8 +274,7 @@ class TestJourneyParsing:
             destination=destination_id,
             origin_type="stop",
             destination_type="stop",
-            limit=1,
-            when=datetime.utcnow()
+            limit=1
         )
 
         if not journeys:
@@ -294,24 +291,22 @@ class TestJourneyParsing:
     async def test_get_journeys_json_shape(self, vrr_env):
         origin_id, destination_id = await self._resolve_trip_ids()
 
-        result = await get_journeys_json(
+        journeys = await get_journeys(
             origin=origin_id,
             destination=destination_id,
             origin_type="stop",
             destination_type="stop",
-            limit=1,
-            when=datetime.utcnow()
+            limit=1
         )
 
-        if result["count"] == 0:
-            pytest.skip("VRR returned no journeys for JSON request")
+        if len(journeys) == 0:
+            pytest.skip("VRR returned no journeys")
 
-        assert result["status"] == "success"
-        assert isinstance(result["journeys"], list)
-        first_journey = result["journeys"][0]
-        assert first_journey["length_minutes"] > 0
-        assert first_journey["steps"], "Journey JSON should include steps"
-        assert first_journey["steps"][0]["mode"]
+        assert isinstance(journeys, list)
+        first_journey = journeys[0]
+        assert first_journey.length_minutes > 0
+        assert first_journey.steps, "Journey should include steps"
+        assert first_journey.steps[0].mode
 
 
 class TestLineFiltering:

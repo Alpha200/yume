@@ -4,10 +4,41 @@ Provides functions to query departure times and information for public transport
 """
 
 import logging
+from typing import Optional
+
 from agents import function_tool
-from services.efa import get_departures_json
+from services.efa import (
+    get_departures_json,
+    get_journeys,
+    get_station_id,
+)
 
 logger = logging.getLogger(__name__)
+
+
+async def _resolve_station_identifier(name_or_id: str) -> str:
+    """Resolve human-readable station name to EFA station ID when possible."""
+    if not name_or_id:
+        return name_or_id
+
+    lowered = name_or_id.lower()
+    if lowered.startswith("de:") or lowered.startswith("coord:"):
+        return name_or_id
+
+    station_id = await get_station_id(name_or_id)
+    return station_id or name_or_id
+
+
+def _infer_station_type(identifier: str) -> str:
+    """Infer station type parameter for EFA trip requests."""
+    if not identifier:
+        return "any"
+    lowered = identifier.lower()
+    if lowered.startswith("de:"):
+        return "stop"
+    if lowered.startswith("coord:"):
+        return "coord"
+    return "any"
 
 
 @function_tool
@@ -85,3 +116,133 @@ async def get_station_departures(
     except Exception as e:
         logger.error(f"Exception fetching departures: {type(e).__name__}: {e}")
         return f"Error fetching departures for {station_name}: {str(e)}"
+
+
+@function_tool
+async def get_journey_options(
+    origin: str,
+    destination: str,
+    limit: int = 3,
+    via: Optional[str] = None
+) -> str:
+    """Fetch journey plans with detailed steps between two public transport stations.
+
+    Args:
+        origin: The starting station name or identifier (e.g., "Essen Hauptbahnhof"
+            or "de:2892" for station ID). Supports human-readable station names which
+            are automatically resolved to station IDs.
+        destination: The destination station name or identifier. Same format as origin.
+        limit: Maximum number of journey options to return (default: 3). Minimum is 1.
+        via: Optional intermediate station to route through. Uses same format as origin
+            and destination. If provided, all journeys will pass through this station.
+
+    Returns:
+        A formatted string containing journey options with the following details for
+        each journey:
+        - Total duration in minutes
+        - Each leg (step) of the journey with:
+          * Transport mode and line number (e.g., "U-Bahn U47", "S-Bahn S6")
+          * Origin and destination stations with platform information
+          * Planned and estimated departure/arrival times
+          * Delay information in minutes (if applicable)
+          * Duration of the leg in minutes
+
+        Returns a message if no journeys are found or an error occurs.
+    """
+    if not origin or not destination:
+        return "Origin and destination are both required to search for journeys."
+
+    try:
+        resolved_origin = await _resolve_station_identifier(origin)
+        resolved_destination = await _resolve_station_identifier(destination)
+        resolved_via = await _resolve_station_identifier(via) if via else None
+
+        journeys = await get_journeys(
+            origin=resolved_origin,
+            destination=resolved_destination,
+            origin_type=_infer_station_type(resolved_origin),
+            destination_type=_infer_station_type(resolved_destination),
+            via=resolved_via,
+            via_type=_infer_station_type(resolved_via) if resolved_via else "any",
+            limit=max(limit, 1)
+        )
+
+        if not journeys:
+            via_str = f" via {via}" if via else ""
+            return f"No journeys found from {origin} to {destination}{via_str}."
+
+        formatted = f"Journeys from {origin} to {destination}"
+        if via:
+            formatted += f" via {via}"
+        formatted += ":\n"
+
+        for idx, journey in enumerate(journeys, 1):
+            length = journey.length_minutes
+            num_changes = len(journey.steps) - 1
+            formatted += f"\nOPTION {idx}: Total duration {length} minutes ({num_changes} changes)\n"
+
+            for step_idx, step in enumerate(journey.steps, 1):
+                mode = step.mode
+                line = step.line
+                origin_name = step.origin
+                destination_name = step.destination
+                dep = step.departure_planned
+                dep_est = step.departure_estimated
+                arr = step.arrival_planned
+                arr_est = step.arrival_estimated
+                dep_delay = step.departure_delay_minutes
+                arr_delay = step.arrival_delay_minutes
+                platform_dep = step.platform_origin
+                platform_arr = step.platform_destination
+                duration = step.duration_minutes
+
+                formatted += f"\nStep {step_idx}:\n"
+
+                # Transport line information
+                if line:
+                    formatted += f"  Line: {mode} {line}\n"
+                else:
+                    formatted += f"  Mode: {mode}\n"
+
+                # Check if origin and destination are the same (walk within station)
+                if origin_name == destination_name:
+                    formatted += f"  Location: {origin_name}\n"
+                    formatted += f"  Action: Walk to another platform or transfer point in {origin_name}\n"
+                else:
+                    formatted += f"  From: {origin_name}"
+                    if platform_dep:
+                        formatted += f" (Platform {platform_dep})"
+                    formatted += "\n"
+                    formatted += f"  To: {destination_name}"
+                    if platform_arr:
+                        formatted += f" (Platform {platform_arr})"
+                    formatted += "\n"
+
+                # Departure time
+                if dep:
+                    formatted += f"  Depart: {dep}"
+                    if dep_est and dep_est != dep:
+                        delay_str = f"+{dep_delay}" if dep_delay and dep_delay > 0 else f"{dep_delay}"
+                        formatted += f" → Estimated: {dep_est} ({delay_str} min delay)"
+                    formatted += "\n"
+
+                # Arrival time
+                if arr:
+                    formatted += f"  Arrive: {arr}"
+                    if arr_est and arr_est != arr:
+                        delay_str = f"+{arr_delay}" if arr_delay and arr_delay > 0 else f"{arr_delay}"
+                        formatted += f" → Estimated: {arr_est} ({delay_str} min delay)"
+                    formatted += "\n"
+
+                # Duration
+                if duration:
+                    formatted += f"  Duration: {duration} minutes\n"
+
+
+        logger.info(formatted)
+
+        return formatted.strip()
+
+    except Exception as e:
+        logger.error(f"Exception fetching journeys: {type(e).__name__}: {e}")
+        return f"Error fetching journeys from {origin} to {destination}: {str(e)}"
