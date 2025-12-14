@@ -128,17 +128,20 @@ class ChatMessageManager:
             limit: Maximum number of recent messages to retrieve (default: 20)
 
         Returns:
-            List of ChatMessage objects in chronological order
+            List of ChatMessage objects in chronological order (oldest to newest)
         """
         try:
-            # Sort by timestamp (actual message timestamp) in ascending order (oldest to newest)
-            # This ensures messages are returned in the correct chronological order based on when they were actually sent
+            # Sort by timestamp descending (newest first), limit to get the latest messages
+            # Then we'll reverse to get chronological order
             docs = list(
                 self.collection.find()
-                .sort("timestamp", 1)
+                .sort("timestamp", -1)
                 .limit(limit)
             )
             
+            # Reverse to get chronological order (oldest to newest)
+            docs.reverse()
+
             messages = []
             for doc in docs:
                 # Remove MongoDB's _id field
@@ -160,15 +163,18 @@ class ChatMessageManager:
             limit: Maximum number of messages to retrieve
 
         Returns:
-            List of ChatMessage objects
+            List of ChatMessage objects in chronological order (oldest to newest)
         """
         try:
             docs = list(
                 self.collection.find({"sender": sender})
-                .sort("timestamp", 1)
+                .sort("timestamp", -1)
                 .limit(limit)
             )
             
+            # Reverse to get chronological order (oldest to newest)
+            docs.reverse()
+
             messages = []
             for doc in docs:
                 doc.pop("_id", None)

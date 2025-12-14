@@ -110,7 +110,7 @@ def build_context_text(context: AIContext, include_chat_history: bool = True, ma
     # Chat history
     if include_chat_history and context.chat_history:
         text_parts.append("Recent conversation history:")
-        recent_messages = context.chat_history[-max_chat_messages:] if len(context.chat_history) > max_chat_messages else context.chat_history
+        recent_messages = context.chat_history
 
         for msg in recent_messages:
             sender_name = msg.sender.split(":")[0].replace("@", "")
