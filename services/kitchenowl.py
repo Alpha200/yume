@@ -216,7 +216,7 @@ class KitchenOwlService:
                     headers["Authorization"] = f"Bearer {self.api_key}"
 
                 async with session.delete(
-                    f"{self.base_url}/shoppinglist/{self.household_id}/item/{entry_id}",
+                    f"{self.base_url}/item/{entry_id}",
                     headers=headers
                 ) as response:
                     if response.status in [200, 204]:
