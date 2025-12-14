@@ -118,10 +118,12 @@ def build_context_text(context: AIContext, include_chat_history: bool = True, ma
             # Parse and format the timestamp with date, time, and seconds
             try:
                 msg_time = datetime.fromisoformat(msg.timestamp).strftime("%m/%d %H:%M:%S")
-                text_parts.append(f"[{msg_time}] {sender_name}: {msg.message}")
+                text_parts.append(f"[{msg_time}] {sender_name}:")
             except:
                 # Fallback if timestamp parsing fails
-                text_parts.append(f"{sender_name}: {msg.message}")
+                text_parts.append(f"{sender_name}:")
+            text_parts.append(msg.message)
+            text_parts.append("---")
         text_parts.append("")
 
     result = "\n".join(text_parts)

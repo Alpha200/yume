@@ -131,15 +131,13 @@ class ChatMessageManager:
             List of ChatMessage objects in chronological order
         """
         try:
-            # Sort by created_at descending (most recent first), then limit and reverse
+            # Sort by timestamp (actual message timestamp) in ascending order (oldest to newest)
+            # This ensures messages are returned in the correct chronological order based on when they were actually sent
             docs = list(
                 self.collection.find()
-                .sort("created_at", -1)
+                .sort("timestamp", 1)
                 .limit(limit)
             )
-            
-            # Reverse to get chronological order (oldest to newest)
-            docs.reverse()
             
             messages = []
             for doc in docs:
@@ -167,11 +165,9 @@ class ChatMessageManager:
         try:
             docs = list(
                 self.collection.find({"sender": sender})
-                .sort("created_at", -1)
+                .sort("timestamp", 1)
                 .limit(limit)
             )
-            
-            docs.reverse()
             
             messages = []
             for doc in docs:

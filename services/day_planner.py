@@ -376,21 +376,20 @@ class DayPlannerService:
             )
             
             for item in sorted_items:
-                output += f"• {item.title}\n"
-                if item.description:
-                    output += f"  Description: {item.description}\n"
+                time_str = ""
                 if item.start_time:
                     time_str = item.start_time.strftime('%H:%M')
                     if item.end_time:
                         time_str += f" - {item.end_time.strftime('%H:%M')}"
-                    output += f"  Time: {time_str}\n"
+                    time_str = f" ({time_str})"
+
+                output += f"* {item.title}{time_str}\n"
+                if item.description:
+                    output += f"{item.description}\n"
                 if item.location:
-                    output += f"  Location: {item.location}\n"
-                output += f"  Source: {item.source} (confidence: {item.confidence})\n"
-                if item.tags:
-                    output += f"  Tags: {', '.join(item.tags)}\n"
-                output += "\n"
-        
+                    output += f"Location: {item.location}\n"
+                output += f"[{item.source} | confidence: {item.confidence}]\n"
+
         return output
     
     async def update_plan_from_agent_result(
