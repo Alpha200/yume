@@ -11,12 +11,14 @@ from pydantic import BaseModel
 from aiagents.ai_scheduler import determine_next_run_by_memory
 from aiagents.efa_agent import efa_agent
 from aiagents.memory_manager import handle_memory_update
+from aiagents.kitchenowl import handle_kitchenowl_task
 from components.agent_hooks import CustomAgentHooks, InteractionTrackingContext
 from components.timezone_utils import now_user_tz
 from services.context_manager import build_ai_context, build_context_text
 from services.memory_manager import memory_manager
 from services.memory_summarizer import memory_summarizer_service
 from tools.day_planner import get_day_plan
+from tools.kitchenowl import fetch_shopping_list, fetch_recipe_names
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,7 @@ class AIEngineResult(BaseModel):
     message_to_user: str | None
     memory_update_task: str | None
     day_planner_update_task: str | None
+    kitchenowl_task: str | None
     reasoning: str
 
 @dataclass
@@ -108,7 +111,17 @@ Do NOT use day_planner_update_task for:
 - General preferences or routines as those are handled by memory preferences
 - Reminders or observations (use memory_update_task instead)
 
-You may use these tools to help the user stay organized and provide relevant information.
+- KitchenOwl tools: Access and manage shopping lists and recipes
+  - fetch_shopping_list: View the current shopping list and all items on it
+  - fetch_recipe_names: See all available recipes
+  - When the user wants to add, update, or remove shopping list items, provide instructions in the `kitchenowl_task` field
+  - The KitchenOwl agent will handle all shopping list modification operations. You can also ask it to add items from recipes to the shopping list.
+
+Use kitchenowl_task when:
+- The user wants to add items to their shopping list (e.g., "Add milk and bread")
+- The user wants to update quantities/descriptions on existing items
+- The user wants to remove items from the shopping list
+- Multiple shopping list operations need to be performed together
 
 Focus on the relevant memories and context based on the reason you were triggered:
 If you are triggered by a geofence, check for relevant location-based memories. Don't mention the obvious fact that the user entered or left a location; instead, focus on what is relevant based on the user's memories and context.
@@ -131,7 +144,8 @@ Your output should include:
 1. message_to_user: The actual message to send to the user (or null if no message should be sent)
 2. memory_update_task: Instructions for updating memory (or null if no update needed)
 3. day_planner_update_task: Instructions for updating the day planner with new activities or schedule changes (or null if no update needed)
-4. reasoning: Your reasoning for the actions taken (keep it brief)
+4. kitchenowl_task: Instructions for shopping list or recipe operations (or null if no update needed)
+5. reasoning: Your reasoning for the actions taken (keep it brief)
 
 The user stated also the following preferences that you MUST incorporate into your behavior:
 {preferences}
@@ -151,7 +165,9 @@ def _create_agent() -> Agent:
         tools=[efa_agent.as_tool(
             tool_name="get_public_transport_info",
             tool_description="Query public transport information: departures from stations or complete journeys between locations"),
-            get_day_plan
+            get_day_plan,
+            fetch_shopping_list,
+            fetch_recipe_names
         ]
     )
 
@@ -212,6 +228,26 @@ async def _handle_day_planner_update_background(day_planner_update_task: str):
     except Exception as e:
         logger.error(f"Error in background day planner update: {e}")
 
+async def _handle_kitchenowl_task_background(kitchenowl_task: str):
+    """Handle KitchenOwl task in the background"""
+    try:
+        logger.debug(f"Processing KitchenOwl task: {kitchenowl_task}")
+
+        # Use the KitchenOwl agent to handle the task
+        result = await handle_kitchenowl_task(kitchenowl_task)
+
+        last_taken_actions.append(
+            ActionRecord(
+                action=f"KitchenOwl task executed: {len(result.actions_taken)} actions taken",
+                timestamp=now_user_tz()
+            )
+        )
+
+        logger.debug(f"KitchenOwl task processed: {len(result.actions_taken)} actions taken")
+
+    except Exception as e:
+        logger.error(f"Error in background KitchenOwl task: {e}")
+
 async def _process_ai_event(trigger_description: str, event_context: str = ""):
     """Common logic for processing AI events (chat, geofence, memory reminders)"""
     try:
@@ -265,6 +301,10 @@ async def _process_ai_event(trigger_description: str, event_context: str = ""):
         # Start day planner update in background if needed
         if parsed_result.day_planner_update_task:
             asyncio.create_task(_handle_day_planner_update_background(parsed_result.day_planner_update_task))
+
+        # Start KitchenOwl task in background if needed
+        if parsed_result.kitchenowl_task:
+            asyncio.create_task(_handle_kitchenowl_task_background(parsed_result.kitchenowl_task))
 
         # Use the message directly from the unified agent
         answer = parsed_result.message_to_user

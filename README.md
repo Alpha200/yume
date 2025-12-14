@@ -12,6 +12,7 @@
 - 🏠 **Home Assistant Integration**: Weather, calendar, location and proximity data integration
 - 📍 **Geofence Events**: Location-based triggers with distance context from proximity sensors
 - 🚌 **Public Transport Departures**: Real-time transit information via EFA (Elektronisches Fahrplanauskun ftssystem) API with dynamic station lookup and line/direction filtering
+- 🛒 **KitchenOwl Integration**: Manage shopping lists and recipes with intelligent duplicate handling
 - 🧠 **Advanced Memory System**: Persistent storage with preferences, observations, and reminders
 - 📅 **AI-Powered Day Planner**: Automatic daily planning based on calendar and memories with high-confidence updates
 - ⏰ **Intelligent AI Scheduler**: Context-aware scheduling with deferred execution and adaptive re-evaluation
@@ -33,6 +34,7 @@ Yume is built with a modular architecture consisting of several key components:
 - **Memory Summarizer** (`services/memory_summarizer.py`): Auto-summarizes memories for optimized AI context
 - **Chat Message Manager** (`services/chat_message_manager.py`): MongoDB-backed persistence for conversation history with duplicate prevention
 - **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API
+- **KitchenOwl** (`services/kitchenowl.py`): Shopping list and recipe management with intelligent duplicate handling
 - **EFA Service** (`services/efa.py`): Public transport integration with EFA API
 
 ### AI Agents
@@ -42,6 +44,7 @@ Yume is built with a modular architecture consisting of several key components:
 - **Day Planner** (`aiagents/day_planner.py`): AI agent that creates daily activity predictions using calendar, memories, and context. Makes high-confidence updates to plans via tools.
 - **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling with deferred execution, automatic re-evaluation, and dual-approach timing optimization (deterministic + AI-powered)
 - **EFA Agent** (`aiagents/efa_agent.py`): Specialized agent for querying public transport departures. Parses natural language queries to extract station names, line numbers, and destination directions. Used by the main AI engine as a tool.
+- **KitchenOwl Agent** (`aiagents/kitchenowl.py`): Manages shopping lists and recipes with autonomous decision-making. Intelligently handles duplicate items by checking the list before adding, and can update item descriptions on demand.
 
 ### Memory System
 
@@ -58,6 +61,7 @@ Reminders use dual-approach scheduling: deterministic (explicitly scheduled) + A
 - **Day Planner Tools** (`tools/day_planner.py`): Get and update daily plans
 - **Home Assistant Tools** (`tools/home_assistant.py`): Smart home control and sensor data
 - **EFA Tools** (`tools/efa.py`): Public transport departure queries with optional line and direction filtering
+- **KitchenOwl Tools** (`tools/kitchenowl.py`): Shopping list management and recipe access with batch operations
 
 ### Settings Management
 
@@ -144,6 +148,12 @@ Yume tracks all AI agent interactions for debugging:
    EFA_API_URL=https://efa.vrr.de/standard  # EFA API endpoint (defaults to VRR standard endpoint)
    EFA_CLIENT_ID=CLIENTID  # EFA client identifier (defaults to CLIENTID)
    EFA_CLIENT_NAME=yume  # EFA client name (defaults to yume)
+   
+   # KitchenOwl Configuration (Optional)
+   KITCHENOWL_API_URL=http://localhost:8080/api  # KitchenOwl API endpoint
+   KITCHENOWL_API_KEY=your_api_key  # API key for KitchenOwl authentication (if required)
+   KITCHENOWL_HOUSEHOLD_ID=1  # Household ID in KitchenOwl (defaults to 1)
+   AI_KITCHENOWL_MODEL=gpt-4-mini  # Model for KitchenOwl agent (defaults to gpt-4-mini)
    
    # User Configuration
    USER_LANGUAGE=en  # Language for AI responses
