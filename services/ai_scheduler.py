@@ -166,10 +166,45 @@ class AIScheduler:
             # Gather information
             memories = memory_manager.get_formatted_observations_and_reminders()
             calendar_events_list = await get_calendar_events_for_day(target_date)
-            calendar_events = "\n".join([
-                f"- {event.summary} at {event.start.strftime('%H:%M')}"
-                for event in calendar_events_list
-            ])
+            
+            # Format calendar events with full details for the AI agent
+            formatted_events = []
+            for event in calendar_events_list:
+                if event.is_all_day:
+                    # All-day event
+                    event_str = f"- {event.summary} (all-day)"
+                    if event.end:
+                        # Check if it extends beyond one day
+                        try:
+                            start_dt = datetime.datetime.fromisoformat(event.start.replace('Z', '+00:00'))
+                            end_dt = datetime.datetime.fromisoformat(event.end.replace('Z', '+00:00'))
+                            if (end_dt.date() - start_dt.date()).days > 0:
+                                event_str += f" from {start_dt.date()} to {end_dt.date()}"
+                        except:
+                            pass
+                else:
+                    # Timed event
+                    try:
+                        start_dt = datetime.datetime.fromisoformat(event.start.replace('Z', '+00:00'))
+                        end_dt = datetime.datetime.fromisoformat(event.end.replace('Z', '+00:00')) if event.end else None
+                        
+                        if end_dt and (end_dt.date() - start_dt.date()).days > 0:
+                            # Multi-day event
+                            event_str = f"- {event.summary} from {start_dt.strftime('%H:%M on %Y-%m-%d')} to {end_dt.strftime('%H:%M on %Y-%m-%d')}"
+                        elif end_dt:
+                            # Same day event
+                            event_str = f"- {event.summary} {start_dt.strftime('%H:%M')} - {end_dt.strftime('%H:%M')}"
+                        else:
+                            # No end time
+                            event_str = f"- {event.summary} at {start_dt.strftime('%H:%M')}"
+                    except:
+                        event_str = f"- {event.summary}"
+                
+                if event.location:
+                    event_str += f" @ {event.location}"
+                formatted_events.append(event_str)
+            
+            calendar_events = "\n".join(formatted_events)
 
             # Generate the plan (agent uses tools to save directly)
             result = await generate_day_plan(target_date, memories, calendar_events)
