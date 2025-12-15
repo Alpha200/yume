@@ -68,7 +68,7 @@ Calendar Information and Day Plan Confidence Levels:
 You should follow these timing guidelines:
 - Consider user preferences and the users schedule
 - Be contextual: Weekend timing may differ from weekday timing
-- Minimum spacing: At least 15 minutes from now, but consider if longer spacing is more appropriate. Only use 15 minutes if something urgent is needed
+- MINIMUM SPACING REQUIREMENT: At least 15 minutes from now - this is a hard requirement. If you suggest a time closer than 15 minutes or in the past, the system will automatically adjust it to exactly 15 minutes from now. Therefore, always suggest at least 15 minutes in the future to ensure your intended timing is preserved.
 - Maximum gap: Never let more than 4 hours pass without some form of check-in during active hours. Use 'wellness check-in' as topic if no other memory is relevant.
 - Your last interaction with the user was right now, so consider that when scheduling the next interaction
 
@@ -87,9 +87,15 @@ If you are given a currently scheduled next run, evaluate whether it should be k
 - If the current schedule is still optimal, you can return it unchanged. Otherwise, provide a new recommended next run time, reason, and topic.
 
 The output MUST be as follows:
-- next_run_time: Precise datetime for next interaction (minimum 15 minutes future)
+- next_run_time: Precise datetime for next interaction (minimum 15 minutes future - any time in the past or closer than 15 minutes will be automatically adjusted to 15 minutes from now)
 - reason: Clear, specific explanation of why this time was chosen, referencing relevant memories and/or calendar events
 - topic: Topic that reflects the relevant memory content, calendar event, and user preferences that should be the topic of the interaction
+
+IMPORTANT: Scheduling Rules
+- NEVER schedule times in the past
+- NEVER schedule times closer than 15 minutes from now
+- The system automatically adjusts any times that violate these rules to the minimum 15-minute future time
+- To ensure your intended timing is preserved, always suggest times at least 15 minutes in the future
 
 Wellness check ins may not lead to a specific action but are necessary to check the current users context.
 
@@ -105,7 +111,12 @@ Remember: You are not just a scheduler, you are Yume's timing intelligence, ensu
 )
 
 async def _determine_next_run_by_memory_impl(conversation_history: str = "", current_scheduled_run: str = ""):
-    """Internal implementation - determines the next memory reminder run time
+    """Internal implementation - determines the next memory reminder run time.
+    
+    IMPORTANT: Even if the AI decides to keep the currently scheduled run unchanged,
+    the system will validate that it hasn't become in the past and automatically adjust
+    it to 15 minutes from now if needed. This ensures we never attempt to schedule
+    runs in the past.
 
     Args:
         conversation_history: Recent conversation between user and Yume (collected at execution time)
@@ -202,6 +213,9 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
                 logger.warning(f"AI-suggested reminder was: {validated_ai.reason} at {validated_ai.next_run_time}")
             else:
                 chosen = NextRun(next_run_time=validated_ai.next_run_time, reason=validated_ai.reason, topic=validated_ai.topic)
+
+        # IMPORTANT: Even if the AI kept the current scheduled run unchanged, validate it's not in the past
+        chosen = _validate_not_in_past(chosen)
 
         # Finally schedule the chosen next run
         ai_scheduler.schedule_next_run(chosen)
@@ -405,7 +419,15 @@ async def _run_ai_analysis(formatted_input: str) -> NextRun:
 
 
 def _validate_and_adjust_time(next_run_result: NextRun) -> NextRun:
-    """Validate that the next run time is at least 15 minutes in the future"""
+    """Validate that the next run time is at least 15 minutes in the future.
+    
+    If the suggested time is in the past or too close to now, automatically adjusts it to
+    the minimum required time (15 minutes from now). This ensures the system never attempts
+    to schedule runs in the past.
+    
+    IMPORTANT: This is an after-check that corrects AI suggestions. The AI agent should
+    always suggest times at least 15 minutes in the future to ensure intended timing.
+    """
     min_future_time = now_user_tz() + datetime.timedelta(minutes=15)
 
     # Ensure the next_run_time is in user timezone
@@ -425,11 +447,43 @@ def _validate_and_adjust_time(next_run_result: NextRun) -> NextRun:
     )
 
 
+def _validate_not_in_past(next_run_result: NextRun) -> NextRun:
+    """Validate that the next run time is not in the past.
+    
+    Used when keeping a currently scheduled run unchanged. Only checks that it hasn't
+    become in the past - does not enforce the 15-minute minimum spacing.
+    
+    If the time is in the past, adjusts it to 15 minutes from now as a fallback.
+    """
+    current_time = now_user_tz()
+    next_run_time = to_user_tz(next_run_result.next_run_time)
+
+    if next_run_time < current_time:
+        min_future_time = current_time + datetime.timedelta(minutes=15)
+        return NextRun(
+            next_run_time=min_future_time,
+            reason=f"Original scheduled time {next_run_time} is now in the past. Rescheduled to 15min from now.",
+            topic=next_run_result.topic
+        )
+
+    return NextRun(
+        next_run_time=next_run_time,
+        reason=next_run_result.reason,
+        topic=next_run_result.topic
+    )
+
+
 def _determine_next_run_from_reminders(memories) -> NextRun | None:
     """Deterministic next-run calculation: find the closest upcoming reminder from stored reminders.
 
     This will consider one-time reminders (datetime_value) and simple recurring reminders with a time_value
-    and optional days_of_week. Returns None if no suitable upcoming reminder is found.
+    and optional days_of_week. All times are validated to be at least 15 minutes in the future.
+    
+    IMPORTANT: This function enforces the 15-minute minimum future requirement for all reminder times.
+    Any reminder that would occur in the past or within 15 minutes is skipped (for recurring) or
+    adjusted to next week (for weekly patterns).
+    
+    Returns None if no suitable upcoming reminder is found.
     """
     min_future_time = now_user_tz() + datetime.timedelta(minutes=15)
     candidates = []
