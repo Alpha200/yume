@@ -87,6 +87,9 @@
     <!-- Scheduler Logs Section -->
     <SchedulerRunsPanel v-if="activeTab === 'logs'" />
 
+    <!-- Day Planner Section -->
+    <DayPlanner v-if="activeTab === 'planner'" />
+
     <!-- Settings Section -->
     <Settings v-if="activeTab === 'settings'" />
 
