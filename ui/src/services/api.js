@@ -248,14 +248,6 @@ export const apiService = {
   },
 
   /**
-   * Fetch all actions
-   */
-  async getActions() {
-    const response = await api.get('/actions')
-    return response.data.reverse() // Show newest first
-  },
-
-  /**
    * Fetch all memories
    */
   async getMemories() {
@@ -298,6 +290,57 @@ export const apiService = {
    */
   async getDayPlan(date) {
     const response = await api.get(`/day-plans/${date}`)
+    return response.data
+  },
+
+  /**
+   * Fetch recent scheduler runs
+   */
+  async getSchedulerRuns(limit = 20, status = null) {
+    const params = new URLSearchParams()
+    params.append('limit', limit)
+    if (status) {
+      params.append('status', status)
+    }
+    const response = await api.get(`/scheduler-runs/recent?${params}`)
+    return response.data
+  },
+
+  /**
+   * Fetch a specific scheduler run by ID
+   */
+  async getSchedulerRun(runId) {
+    const response = await api.get(`/scheduler-runs/${runId}`)
+    return response.data
+  },
+
+  /**
+   * Fetch scheduler runs by topic
+   */
+  async getSchedulerRunsByTopic(topic, limit = 20) {
+    const params = new URLSearchParams()
+    params.append('limit', limit)
+    const response = await api.get(`/scheduler-runs/topic/${encodeURIComponent(topic)}?${params}`)
+    return response.data
+  },
+
+  /**
+   * Fetch failed scheduler runs
+   */
+  async getFailedSchedulerRuns(limit = 20) {
+    const params = new URLSearchParams()
+    params.append('limit', limit)
+    const response = await api.get(`/scheduler-runs/failed?${params}`)
+    return response.data
+  },
+
+  /**
+   * Fetch scheduler run statistics
+   */
+  async getSchedulerRunStatistics(days = 7) {
+    const params = new URLSearchParams()
+    params.append('days', days)
+    const response = await api.get(`/scheduler-runs/statistics?${params}`)
     return response.data
   }
 }

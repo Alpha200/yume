@@ -4,18 +4,14 @@ from litestar import Controller, get
 from litestar.exceptions import NotFoundException
 from msgspec import Struct
 
-from services.ai_engine import last_taken_actions
 from services.memory_manager import memory_manager
 from services.ai_scheduler import ai_scheduler
+from services.scheduler_run_logger import scheduler_run_logger
 from services.interaction_tracker import interaction_tracker
 from services.day_planner import day_planner_service
 import datetime
 
 logger = logging.getLogger(__name__)
-
-class ActionResponse(Struct):
-    action: str
-    timestamp: str
 
 class MemoryResponse(Struct):
     id: str
@@ -70,19 +66,33 @@ class DayPlanResponse(Struct):
     summary: str | None = None
 
 
+class SchedulerRunLogResponse(Struct):
+    id: str
+    scheduled_time: str
+    reason: str
+    topic: str
+    status: str  # "scheduled", "executing", "completed", "failed", "cancelled"
+    created_at: str
+    updated_at: str
+    actual_execution_time: str | None = None
+    error_message: str | None = None
+    execution_duration_ms: int | None = None
+    ai_response: str | None = None
+    details: str | None = None
+
+
+class SchedulerRunStatisticsResponse(Struct):
+    period_days: int
+    total_runs: int
+    completed_runs: int
+    failed_runs: int
+    scheduled_runs: int
+    success_rate: float
+    average_execution_duration_ms: int
+
+
 class APIController(Controller):
     path = "/api"
-
-    @get("/actions")
-    async def get_latest_actions(self) -> List[ActionResponse]:
-        """Get the latest actions taken by the AI"""
-        actions = []
-        for action_record in last_taken_actions:
-            actions.append(ActionResponse(
-                action=action_record.action,
-                timestamp=action_record.timestamp.isoformat()
-            ))
-        return actions
 
     @get("/memories")
     async def get_memories(self) -> List[MemoryResponse]:
@@ -222,4 +232,140 @@ class APIController(Controller):
             updated_at=plan.updated_at.isoformat(),
             summary=plan.summary
         )
+
+    # Scheduler run log endpoints
+    @get("/scheduler-runs/recent")
+    async def get_recent_scheduler_runs(self, limit: int = 20, status: str | None = None) -> List[SchedulerRunLogResponse]:
+        """Get recent scheduler runs with optional status filter"""
+        try:
+            # Convert status string to enum if provided
+            status_enum = None
+            if status:
+                from services.scheduler_run_logger import SchedulerRunStatus
+                try:
+                    status_enum = SchedulerRunStatus(status.lower())
+                except ValueError:
+                    raise NotFoundException(detail=f"Invalid status: {status}")
+            
+            runs = scheduler_run_logger.get_recent_runs(limit=limit, status=status_enum)
+            return [
+                SchedulerRunLogResponse(
+                    id=run.id,
+                    scheduled_time=run.scheduled_time.isoformat(),
+                    actual_execution_time=run.actual_execution_time.isoformat() if run.actual_execution_time else None,
+                    reason=run.reason,
+                    topic=run.topic,
+                    status=run.status.value if hasattr(run.status, 'value') else run.status,
+                    error_message=run.error_message,
+                    execution_duration_ms=run.execution_duration_ms,
+                    ai_response=run.ai_response,
+                    details=run.details,
+                    created_at=run.created_at.isoformat() if run.created_at else "",
+                    updated_at=run.updated_at.isoformat() if run.updated_at else ""
+                )
+                for run in runs
+            ]
+        except Exception as e:
+            logger.error(f"Error getting recent scheduler runs: {e}")
+            return []
+
+    @get("/scheduler-runs/{run_id:str}")
+    async def get_scheduler_run(self, run_id: str) -> SchedulerRunLogResponse:
+        """Get details of a specific scheduler run"""
+        run = scheduler_run_logger.get_run(run_id)
+        if not run:
+            raise NotFoundException(detail=f"Scheduler run {run_id} not found")
+        
+        return SchedulerRunLogResponse(
+            id=run.id,
+            scheduled_time=run.scheduled_time.isoformat(),
+            actual_execution_time=run.actual_execution_time.isoformat() if run.actual_execution_time else None,
+            reason=run.reason,
+            topic=run.topic,
+            status=run.status.value if hasattr(run.status, 'value') else run.status,
+            error_message=run.error_message,
+            execution_duration_ms=run.execution_duration_ms,
+            ai_response=run.ai_response,
+            details=run.details,
+            created_at=run.created_at.isoformat() if run.created_at else "",
+            updated_at=run.updated_at.isoformat() if run.updated_at else ""
+        )
+
+    @get("/scheduler-runs/topic/{topic:str}")
+    async def get_scheduler_runs_by_topic(self, topic: str, limit: int = 20) -> List[SchedulerRunLogResponse]:
+        """Get scheduler runs for a specific topic"""
+        try:
+            runs = scheduler_run_logger.get_runs_by_topic(topic, limit=limit)
+            return [
+                SchedulerRunLogResponse(
+                    id=run.id,
+                    scheduled_time=run.scheduled_time.isoformat(),
+                    actual_execution_time=run.actual_execution_time.isoformat() if run.actual_execution_time else None,
+                    reason=run.reason,
+                    topic=run.topic,
+                    status=run.status.value if hasattr(run.status, 'value') else run.status,
+                    error_message=run.error_message,
+                    execution_duration_ms=run.execution_duration_ms,
+                    ai_response=run.ai_response,
+                    details=run.details,
+                    created_at=run.created_at.isoformat() if run.created_at else "",
+                    updated_at=run.updated_at.isoformat() if run.updated_at else ""
+                )
+                for run in runs
+            ]
+        except Exception as e:
+            logger.error(f"Error getting scheduler runs by topic: {e}")
+            return []
+
+    @get("/scheduler-runs/failed")
+    async def get_failed_scheduler_runs(self, limit: int = 20) -> List[SchedulerRunLogResponse]:
+        """Get recent failed scheduler runs for debugging"""
+        try:
+            runs = scheduler_run_logger.get_failed_runs(limit=limit)
+            return [
+                SchedulerRunLogResponse(
+                    id=run.id,
+                    scheduled_time=run.scheduled_time.isoformat(),
+                    actual_execution_time=run.actual_execution_time.isoformat() if run.actual_execution_time else None,
+                    reason=run.reason,
+                    topic=run.topic,
+                    status=run.status.value if hasattr(run.status, 'value') else run.status,
+                    error_message=run.error_message,
+                    execution_duration_ms=run.execution_duration_ms,
+                    ai_response=run.ai_response,
+                    details=run.details,
+                    created_at=run.created_at.isoformat() if run.created_at else "",
+                    updated_at=run.updated_at.isoformat() if run.updated_at else ""
+                )
+                for run in runs
+            ]
+        except Exception as e:
+            logger.error(f"Error getting failed scheduler runs: {e}")
+            return []
+
+    @get("/scheduler-runs/statistics")
+    async def get_scheduler_run_statistics(self, days: int = 7) -> SchedulerRunStatisticsResponse:
+        """Get statistics about scheduler runs over a period"""
+        try:
+            stats = scheduler_run_logger.get_run_statistics(days=days)
+            return SchedulerRunStatisticsResponse(
+                period_days=stats.get("period_days", days),
+                total_runs=stats.get("total_runs", 0),
+                completed_runs=stats.get("completed_runs", 0),
+                failed_runs=stats.get("failed_runs", 0),
+                scheduled_runs=stats.get("scheduled_runs", 0),
+                success_rate=stats.get("success_rate", 0.0),
+                average_execution_duration_ms=stats.get("average_execution_duration_ms", 0)
+            )
+        except Exception as e:
+            logger.error(f"Error getting scheduler run statistics: {e}")
+            return SchedulerRunStatisticsResponse(
+                period_days=days,
+                total_runs=0,
+                completed_runs=0,
+                failed_runs=0,
+                scheduled_runs=0,
+                success_rate=0.0,
+                average_execution_duration_ms=0
+            )
 

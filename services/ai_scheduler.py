@@ -1,7 +1,8 @@
 import logging
 import datetime
-from typing import Optional, Deque, List, Callable
-from collections import deque
+import uuid
+import time
+from typing import Optional, List, Callable
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
@@ -9,7 +10,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 from pydantic import BaseModel
 
 from aiagents.memory_manager import run_memory_janitor
-from components.timezone_utils import to_user_tz
+from components.timezone_utils import to_user_tz, now_user_tz
+from services.scheduler_run_logger import scheduler_run_logger
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,7 @@ class NextRun(BaseModel):
     next_run_time: datetime.datetime
     reason: str
     topic: str
+    details: str | None = None  # Additional context/information for the AI engine
 
 class ExecutedReminder(BaseModel):
     executed_at: datetime.datetime
@@ -31,8 +34,6 @@ class AIScheduler:
         self.deferred_run_job_id = "deferred_ai_run_job"
         # Store the last scheduled NextRun (time + reason) so it can be queried by the API/UI
         self.last_next_run: NextRun | None = None
-        # Deque to keep recent executed memory reminder jobs (most recent last)
-        self.executed_memory_reminders: Deque[ExecutedReminder] = deque(maxlen=10)
         # Flag to request day planner execution from AI agent or memory updates
         self.request_day_planner_run: bool = False
 
@@ -260,21 +261,40 @@ class AIScheduler:
         logger.debug("Day planner execution requested")
 
     def schedule_next_run(self, next_run: NextRun):
-        """Schedule the next run of the memory reminder"""
+        """Schedule the next run of the memory reminder and log it"""
         # Persist the next_run so callers (API/UI) can retrieve the scheduled time and reason
         self.last_next_run = next_run
-        self._schedule_memory_reminder(next_run.next_run_time, next_run.reason, next_run.topic)
+        
+        # Cancel any previously scheduled runs (only one scheduled reminder at a time)
+        scheduler_run_logger.cancel_previous_scheduled_runs()
+        
+        # Log the scheduled run to MongoDB
+        run_id = str(uuid.uuid4())
+        scheduler_run_logger.log_scheduled_run(
+            run_id=run_id,
+            scheduled_time=next_run.next_run_time,
+            reason=next_run.reason,
+            topic=next_run.topic,
+            metadata={"version": "v2.0"},  # Version identifier for logging format
+            details=next_run.details
+        )
+        
+        self._schedule_memory_reminder(next_run.next_run_time, next_run.reason, next_run.topic, run_id, next_run.details)
 
-    def _schedule_memory_reminder(self, date_time: datetime.datetime, run_reason: str, topic: str | None = None):
+    def _schedule_memory_reminder(self, date_time: datetime.datetime, run_reason: str, topic: str | None = None, run_id: str = None, details: str = None):
         """Schedule or update the memory reminder job"""
         try:
+            # Generate run_id if not provided
+            if not run_id:
+                run_id = str(uuid.uuid4())
+            
             # Remove existing job if it exists
             if self.scheduler.get_job(self.memory_reminder_job_id):
                 self.scheduler.remove_job(self.memory_reminder_job_id)
                 logger.debug(f"Removed existing memory reminder job")
 
-            # Add new job with the run reason
-            job_kwargs = {"run_reason": run_reason, "topic": topic}
+            # Add new job with the run reason and run_id for logging
+            job_kwargs = {"run_reason": run_reason, "topic": topic, "run_id": run_id, "details": details}
 
             self.scheduler.add_job(
                 func=self._trigger_memory_reminder,
@@ -285,29 +305,53 @@ class AIScheduler:
                 kwargs=job_kwargs
             )
 
-            logger.info(f"Scheduled memory reminder for {date_time} with reason: {run_reason} and topic: {topic}")
+            logger.info(f"Scheduled memory reminder for {date_time} with reason: {run_reason} and topic: {topic} (run_id: {run_id})")
 
         except Exception as e:
             logger.error(f"Error scheduling memory reminder: {e}")
 
-    async def _trigger_memory_reminder(self, run_reason: str, topic: str):
-        """Trigger the memory reminder in the AI engine"""
+    async def _trigger_memory_reminder(self, run_reason: str, topic: str, run_id: str = None, details: str = None):
+        """Trigger the memory reminder in the AI engine and log execution"""
+        execution_start_time = time.time()
+        
+        # Generate run_id if not provided (shouldn't happen, but safety measure)
+        if not run_id:
+            run_id = str(uuid.uuid4())
+        
         try:
             from services.ai_engine import handle_memory_reminder
 
-            entry = ExecutedReminder(
-                executed_at=datetime.datetime.now(datetime.timezone.utc),
-                topic=topic,
-            )
-            self.executed_memory_reminders.append(entry)
-            logger.info(f"Memory reminder triggered with reason '{run_reason}' for topic {topic}")
+            # Log execution start
+            scheduler_run_logger.log_execution_start(run_id)
+
+            logger.info(f"Memory reminder triggered with reason '{run_reason}' for topic {topic} (run_id: {run_id})")
 
             ai_input = topic if topic is not None else run_reason
-            result = await handle_memory_reminder(ai_input)
+            result = await handle_memory_reminder(ai_input, details=details)
+
+            # Calculate execution duration
+            execution_duration_ms = int((time.time() - execution_start_time) * 1000)
+            
+            # Log successful completion
+            ai_response = str(result) if result else None
+            scheduler_run_logger.log_execution_completion(
+                run_id=run_id,
+                duration_ms=execution_duration_ms,
+                ai_response=ai_response
+            )
 
             return result
 
         except Exception as e:
+            # Calculate execution duration even for failed runs
+            execution_duration_ms = int((time.time() - execution_start_time) * 1000)
+            
+            # Log failure
+            scheduler_run_logger.log_execution_failure(
+                run_id=run_id,
+                error_message=str(e),
+                duration_ms=execution_duration_ms
+            )
             logger.error(f"Error triggering memory reminder: {e}")
 
     def cancel_memory_reminder(self):
@@ -367,17 +411,6 @@ class AIScheduler:
         except Exception as e:
             logger.error(f"Error getting next memory reminder: {e}")
             return None
-
-    def get_recent_executed_reminders(self, limit: int | None = None) -> List[ExecutedReminder]:
-        """Return a list of recent executed memory reminders (most recent last). If limit is provided, return at most that many entries."""
-        try:
-            items = list(self.executed_memory_reminders)
-            if limit is not None:
-                return items[-limit:]
-            return items
-        except Exception as e:
-            logger.error(f"Error getting recent executed reminders: {e}")
-            return []
 
     def schedule_deferred_run(self, callback: Callable):
         """Schedule a deferred AI run to happen 60 seconds from now.

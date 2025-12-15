@@ -90,6 +90,13 @@ The output MUST be as follows:
 - next_run_time: Precise datetime for next interaction (minimum 15 minutes future - any time in the past or closer than 15 minutes will be automatically adjusted to 15 minutes from now)
 - reason: Clear, specific explanation of why this time was chosen, referencing relevant memories and/or calendar events
 - topic: Topic that reflects the relevant memory content, calendar event, and user preferences that should be the topic of the interaction
+- details: (Optional) Additional context, instructions, or specific information for the AI engine when executing this reminder. This can include:
+  * What specific memories or patterns to focus on during the interaction
+  * Background context about recent events or changes that led to scheduling this reminder
+  * Guidance on tone or approach for this particular interaction
+  * Specific questions or considerations the AI should address
+  * Any urgent or time-sensitive information the user should know about
+  Use this field to give the AI engine more than just a topic - provide it with the reasoning and context that makes the interaction valuable.
 
 IMPORTANT: Scheduling Rules
 - NEVER schedule times in the past
@@ -175,7 +182,20 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
         logger.error(f"Error fetching day plans: {e}")
 
     # Format memories, actions, and day plans for AI analysis
-    recent_executed = services_ai_scheduler.get_recent_executed_reminders(limit=5)
+    from services.scheduler_run_logger import scheduler_run_logger, SchedulerRunStatus
+    # Get both completed and failed runs to help scheduler avoid repeating failures
+    recent_executed_logs = scheduler_run_logger.get_recent_runs(
+        limit=5, 
+        status=[SchedulerRunStatus.COMPLETED, SchedulerRunStatus.FAILED]
+    )
+    # Convert logs to ExecutedReminder format for backward compatibility
+    recent_executed = [
+        ExecutedReminder(
+            executed_at=log.actual_execution_time or log.created_at,
+            topic=log.topic
+        )
+        for log in recent_executed_logs
+    ]
     formatted_input = _format_memories_for_analysis(memories, recent_executed, current_location, today_plan, tomorrow_plan)
 
     # Add conversation history if available
@@ -198,7 +218,7 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
         # Choose the scheduled time that is closest in the future (earliest upcoming)
         if deterministic is None:
             # Ensure topic propagation from agent result if available
-            chosen = NextRun(next_run_time=validated_ai.next_run_time, reason=validated_ai.reason, topic=validated_ai.topic)
+            chosen = NextRun(next_run_time=validated_ai.next_run_time, reason=validated_ai.reason, topic=validated_ai.topic, details=validated_ai.details)
         elif validated_ai is None:
             chosen = deterministic
         else:
@@ -212,7 +232,7 @@ async def _determine_next_run_by_memory_impl(conversation_history: str = "", cur
                 logger.warning(f"Choosing deterministic reminder: {deterministic.reason} at {deterministic.next_run_time}")
                 logger.warning(f"AI-suggested reminder was: {validated_ai.reason} at {validated_ai.next_run_time}")
             else:
-                chosen = NextRun(next_run_time=validated_ai.next_run_time, reason=validated_ai.reason, topic=validated_ai.topic)
+                chosen = NextRun(next_run_time=validated_ai.next_run_time, reason=validated_ai.reason, topic=validated_ai.topic, details=validated_ai.details)
 
         # IMPORTANT: Even if the AI kept the current scheduled run unchanged, validate it's not in the past
         chosen = _validate_not_in_past(chosen)
@@ -437,13 +457,15 @@ def _validate_and_adjust_time(next_run_result: NextRun) -> NextRun:
         return NextRun(
             next_run_time=min_future_time,
             reason=f"Adjusted from AI suggestion: {next_run_result.reason} (minimum 15min delay applied)",
-            topic=next_run_result.topic
+            topic=next_run_result.topic,
+            details=next_run_result.details
         )
 
     return NextRun(
         next_run_time=next_run_time,
         reason=next_run_result.reason,
-        topic=next_run_result.topic
+        topic=next_run_result.topic,
+        details=next_run_result.details
     )
 
 
@@ -463,13 +485,15 @@ def _validate_not_in_past(next_run_result: NextRun) -> NextRun:
         return NextRun(
             next_run_time=min_future_time,
             reason=f"Original scheduled time {next_run_time} is now in the past. Rescheduled to 15min from now.",
-            topic=next_run_result.topic
+            topic=next_run_result.topic,
+            details=next_run_result.details
         )
 
     return NextRun(
         next_run_time=next_run_time,
         reason=next_run_result.reason,
-        topic=next_run_result.topic
+        topic=next_run_result.topic,
+        details=next_run_result.details
     )
 
 

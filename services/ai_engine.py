@@ -347,10 +347,34 @@ async def handle_chat_message(message: str):
 
 async def handle_geofence_event(geofence_name: str, event_type: str):
     """Handle geofence events (enter/leave)"""
+    import uuid
+    import time
+    from services.scheduler_run_logger import scheduler_run_logger, SchedulerRunStatus
+    
     trigger_description = f"You have been triggered by a geofence event."
     event_context = f"Geofence Event:\nLocation: {geofence_name}\nEvent: {event_type} (user has {'entered' if event_type == 'enter' else 'left'} this location)"
 
-    # Log the geofence event
+    # Generate unique ID for this geofence run
+    run_id = str(uuid.uuid4())
+    execution_start_time = time.time()
+    
+    # Log the geofence event to MongoDB
+    try:
+        scheduler_run_logger.log_scheduled_run(
+            run_id=run_id,
+            scheduled_time=now_user_tz(),
+            reason="Geofence trigger",
+            topic=f"{event_type}:{geofence_name}",
+            metadata={
+                "category": "geofence",
+                "geofence_name": geofence_name,
+                "event_type": event_type
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to log geofence run to MongoDB: {e}")
+
+    # Log the geofence event to in-memory deque (legacy)
     last_taken_actions.append(
         ActionRecord(
             action=f"Geofence event: {event_type} {geofence_name}",
@@ -358,7 +382,32 @@ async def handle_geofence_event(geofence_name: str, event_type: str):
         )
     )
 
+    try:
+        # Log execution start
+        scheduler_run_logger.log_execution_start(run_id)
+    except Exception as e:
+        logger.error(f"Failed to log geofence execution start: {e}")
+
     result, parsed_result = await _process_ai_event(trigger_description, event_context)
+
+    # Calculate execution duration and log completion/failure
+    execution_duration_ms = int((time.time() - execution_start_time) * 1000)
+    
+    try:
+        if result:
+            scheduler_run_logger.log_execution_completion(
+                run_id=run_id,
+                duration_ms=execution_duration_ms,
+                ai_response=str(result)
+            )
+        else:
+            scheduler_run_logger.log_execution_failure(
+                run_id=run_id,
+                error_message="No response from AI engine",
+                duration_ms=execution_duration_ms
+            )
+    except Exception as e:
+        logger.error(f"Failed to log geofence completion: {e}")
 
     # Trigger scheduler after geofence event
     # If a memory update was created, the scheduler will be called after the update
@@ -371,10 +420,18 @@ async def handle_geofence_event(geofence_name: str, event_type: str):
 
     return result
 
-async def handle_memory_reminder(event_details: str):
-    """Handle scheduled memory reminder events"""
+async def handle_memory_reminder(event_details: str, details: str = None):
+    """Handle scheduled memory reminder events
+    
+    Args:
+        event_details: The topic/event description from the scheduler
+        details: Optional additional context provided by the AI scheduler agent
+    """
     trigger_description = "You have been triggered by a scheduled memory reminder."
     event_context = f"Memory Reminder Event:\n{event_details}"
+    
+    if details:
+        event_context += f"\n\nAdditional Context:\n{details}"
 
     # Log the memory reminder event
     last_taken_actions.append(

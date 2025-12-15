@@ -2,7 +2,7 @@
   <div v-if="isAuthenticated" class="container">
     <div class="header">
       <h1>🌙 Yume Dashboard</h1>
-      <p>AI Actions & Memory Management</p>
+      <p>AI Memory & Scheduler Management</p>
       <button @click="logout" class="logout-button">Logout</button>
     </div>
 
@@ -21,10 +21,17 @@
       </button>
       <button
         class="tab"
-        :class="{ active: activeTab === 'actions' }"
-        @click="switchTab('actions')"
+        :class="{ active: activeTab === 'interactions' }"
+        @click="switchTab('interactions')"
       >
-        ⚡ AI Actions
+        🤖 Agent Interactions
+      </button>
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'logs' }"
+        @click="switchTab('logs')"
+      >
+        📋 Scheduler Logs
       </button>
       <button
         class="tab"
@@ -57,61 +64,28 @@
       </template>
     </Section>
 
-    <!-- AI Actions Section -->
-    <div v-if="activeTab === 'actions'">
-      <Section
-        title="📅 Next Scheduled Tasks"
-        :items="scheduledTasks"
-        :loading="loadingScheduledTasks"
-        loadingMessage="Loading scheduled tasks..."
-        emptyMessage="No scheduled tasks"
-        @refresh="loadScheduledTasks"
-      >
-        <template #default="{ items }">
-          <TaskItem v-for="task in items" :key="task.id" :task="task" />
-        </template>
-      </Section>
+    <!-- Agent Interactions Section -->
+    <Section
+      v-if="activeTab === 'interactions'"
+      title="🤖 Agent Interactions"
+      :items="interactions"
+      :loading="loadingInteractions"
+      loadingMessage="Loading interactions..."
+      emptyMessage="No interactions recorded yet"
+      @refresh="loadInteractions"
+    >
+      <template #default="{ items }">
+        <InteractionItem
+          v-for="interaction in items"
+          :key="interaction.id"
+          :interaction="interaction"
+          @select="showInteractionDetail"
+        />
+      </template>
+    </Section>
 
-      <Section
-        title="⚡ Recent AI Actions"
-        :items="actions"
-        :loading="loadingActions"
-        loadingMessage="Loading actions..."
-        emptyMessage="No actions recorded yet"
-        @refresh="loadActions"
-      >
-        <template #default="{ items }">
-          <ActionItem v-for="action in items" :key="action.timestamp" :action="action" />
-        </template>
-      </Section>
-
-      <Section
-        title="🤖 Agent Interactions"
-        :items="interactions"
-        :loading="loadingInteractions"
-        loadingMessage="Loading interactions..."
-        emptyMessage="No interactions recorded yet"
-        @refresh="loadInteractions"
-      >
-        <template #default="{ items }">
-          <InteractionItem
-            v-for="interaction in items"
-            :key="interaction.id"
-            :interaction="interaction"
-            @select="showInteractionDetail"
-          />
-        </template>
-      </Section>
-    </div>
-
-    <!-- Interaction Detail Modal -->
-    <InteractionDetailModal
-      :interaction="selectedInteraction"
-      @close="closeInteractionDetail"
-    />
-
-    <!-- Day Planner Section -->
-    <DayPlanner v-if="activeTab === 'planner'" />
+    <!-- Scheduler Logs Section -->
+    <SchedulerRunsPanel v-if="activeTab === 'logs'" />
 
     <!-- Settings Section -->
     <Settings v-if="activeTab === 'settings'" />
@@ -135,31 +109,27 @@ import InteractionItem from './components/InteractionItem.vue'
 import InteractionDetailModal from './components/InteractionDetailModal.vue'
 import Settings from './components/Settings.vue'
 import DayPlanner from './components/DayPlanner.vue'
+import SchedulerRunsPanel from './components/SchedulerRunsPanel.vue'
 
 export default {
   name: 'App',
   components: {
     Section,
     MemoryItem,
-    ActionItem,
-    TaskItem,
     InteractionItem,
     InteractionDetailModal,
     Settings,
-    DayPlanner
+    DayPlanner,
+    SchedulerRunsPanel
   },
   data() {
     return {
       isAuthenticated: false,
       activeTab: 'memories',
-      actions: [],
       memories: [],
-      scheduledTasks: [],
       interactions: [],
       selectedInteraction: null,
-      loadingActions: false,
       loadingMemories: false,
-      loadingScheduledTasks: false,
       loadingInteractions: false,
       error: null
     }
@@ -216,18 +186,6 @@ export default {
         setTimeout(() => this.login(), 2000)
       }
     },
-    async loadActions() {
-      this.loadingActions = true
-      this.error = null
-      try {
-        this.actions = await apiService.getActions()
-      } catch (error) {
-        this.error = 'Failed to load actions: ' + error.message
-        console.error('Error loading actions:', error)
-      } finally {
-        this.loadingActions = false
-      }
-    },
     async loadMemories() {
       this.loadingMemories = true
       this.error = null
@@ -238,18 +196,6 @@ export default {
         console.error('Error loading memories:', error)
       } finally {
         this.loadingMemories = false
-      }
-    },
-    async loadScheduledTasks() {
-      this.loadingScheduledTasks = true
-      this.error = null
-      try {
-        this.scheduledTasks = await apiService.getScheduledTasks()
-      } catch (error) {
-        this.error = 'Failed to load scheduled tasks: ' + error.message
-        console.error('Error loading scheduled tasks:', error)
-      } finally {
-        this.loadingScheduledTasks = false
       }
     },
     async loadInteractions() {
@@ -279,18 +225,8 @@ export default {
       this.activeTab = tab
       if (tab === 'memories' && this.memories.length === 0) {
         this.loadMemories()
-      } else if (tab === 'actions') {
-        if (this.actions.length === 0) {
-          this.loadActions()
-        }
-        if (this.scheduledTasks.length === 0) {
-          this.loadScheduledTasks()
-        }
-        if (this.interactions.length === 0) {
-          this.loadInteractions()
-        }
-      } else if (tab === 'logs' && this.logs.length === 0) {
-        this.loadLogs()
+      } else if (tab === 'interactions' && this.interactions.length === 0) {
+        this.loadInteractions()
       }
     }
   },
