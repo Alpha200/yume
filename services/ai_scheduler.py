@@ -47,10 +47,10 @@ class AIScheduler:
             self._schedule_memory_janitor()
             
             # Schedule day planner updates
-            self._schedule_day_planner()
+            #self._schedule_day_planner()
             
             # Run day planner immediately on startup for today and tomorrow
-            self._run_day_planner_on_startup()
+            #self._run_day_planner_on_startup()
 
     def stop(self):
         """Stop the scheduler"""
