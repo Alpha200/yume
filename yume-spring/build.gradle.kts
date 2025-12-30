@@ -27,6 +27,7 @@ val kotlinLoggingVersion = "7.0.13"
 val langChain4jVersion = "1.10.0-beta18"
 val calDav4jVersion = "1.0.5"
 val chromaClientVersion = "1.1.0"
+val caffeineCacheVersion = "3.2.3"
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
@@ -40,10 +41,6 @@ dependencies {
 	implementation("dev.langchain4j:langchain4j-spring-boot-starter:$langChain4jVersion")
 	implementation("dev.langchain4j:langchain4j-kotlin:$langChain4jVersion")
 	implementation("dev.langchain4j:langchain4j-open-ai-official:$langChain4jVersion") // Embedding
-	//implementation("dev.langchain4j:langchain4j-chroma:${langChain4jVersion}") {
-	//	exclude(group = "dev.langchain4j", module = "langchain4j-http-client-jdk")
-	//}
-	//implementation("io.github.locxngo:chroma-client:$chromaClientVersion") // Chroma client (because upsert is not implemented in langchain4j chroma module yet)
 	implementation("dev.langchain4j:langchain4j-pgvector:$langChain4jVersion")
 	runtimeOnly("com.fasterxml.jackson.module:jackson-module-kotlin")
 
@@ -64,6 +61,10 @@ dependencies {
 
 	// Spring Security
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+
+	// Spring Boot Caching
+	implementation("org.springframework.boot:spring-boot-starter-cache")
+	implementation("com.github.ben-manes.caffeine:caffeine:$caffeineCacheVersion")
 
 	// Observability (Spring Boot 4)
 	//implementation("org.springframework.boot:spring-boot-starter-actuator")

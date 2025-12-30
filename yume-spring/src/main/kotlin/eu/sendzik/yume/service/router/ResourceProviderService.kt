@@ -15,11 +15,14 @@ class ResourceProviderService(
         resources.forEach {
             when (it) {
                 YumeAgentResource.WEATHER -> {
-                    appendLine("Weather forecast")
-                    appendLine(weatherService.getWeatherFormattedForDay(LocalDate.now()))
+                    appendLine(weatherService.getWeatherForecast())
                 }
-                YumeAgentResource.DAY_PLAN_TODAY -> dayPlanService.getFormattedPlan(LocalDate.now())
-                YumeAgentResource.DAY_PLAN_TOMORROW -> dayPlanService.getFormattedPlan(LocalDate.now().plusDays(1))
+                YumeAgentResource.DAY_PLAN_TODAY -> {
+                    appendLine(dayPlanService.getFormattedPlan(LocalDate.now()))
+                }
+                YumeAgentResource.DAY_PLAN_TOMORROW -> {
+                    appendLine(dayPlanService.getFormattedPlan(LocalDate.now().plusDays(1)))
+                }
             }
         }
     }

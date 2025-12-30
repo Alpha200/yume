@@ -5,6 +5,7 @@ import eu.sendzik.yume.repository.memory.model.ReminderEntry
 import eu.sendzik.yume.repository.memory.model.ReminderOptions
 import eu.sendzik.yume.repository.memory.model.UserObservationEntry
 import eu.sendzik.yume.repository.memory.model.UserPreferenceEntry
+import eu.sendzik.yume.repository.memory.model.MemoryEntry
 import eu.sendzik.yume.service.memory.model.MemoryType
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -103,19 +104,24 @@ class MemoryManagerService(
             }
         }
 
-        return buildString {
-            groupedMemories.forEach { (type, memories) ->
-                appendLine("=== ${type.name} MEMORIES ===")
-                memories.forEach { memory ->
-                    appendLine("- ${memory.content}")
-                    appendLine("---")
-                }
-                appendLine()
-            }
-        }
+        return groupedMemories.map { (type, memories) ->
+            "=== ${type.name} MEMORIES ===\n" + memories.map { memory -> memory.content }.joinToString ("\n---\n")
+        }.joinToString("\n")
     }
 
     fun resetRagDatabase() {
         memoryRepository.resetRagDatabase()
+    }
+
+    fun getAllMemories(): List<MemoryEntry> {
+        return memoryRepository.findAll().toList()
+    }
+
+    fun getMemoryById(id: String): MemoryEntry? {
+        return memoryRepository.findById(id).orElse(null)
+    }
+
+    fun getMemoriesByType(type: MemoryType): List<MemoryEntry> {
+        return memoryRepository.findAllByType(type.id)
     }
 }

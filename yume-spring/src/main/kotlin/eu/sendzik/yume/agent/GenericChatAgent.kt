@@ -14,10 +14,9 @@ import eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult
 )
 interface GenericChatAgent {
     @SystemMessage(fromResource = "prompt/chat-interaction-system-message.txt")
-    fun handleChatInteraction(
+    fun handleUserMessage(
         @UserMessage query: String,
         @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
-        @V("userLanguage") userLanguage: String,
         @V("additionalInformation") additionalInformation: String,
     ): BasicUserInteractionAgentResult
 }

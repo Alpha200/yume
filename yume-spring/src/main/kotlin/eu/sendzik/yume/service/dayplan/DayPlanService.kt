@@ -8,7 +8,6 @@ import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.*
 
 @Service
@@ -255,5 +254,10 @@ class DayPlanService(
         }
 
         return false
+    }
+
+    // Added read helpers for controller use
+    fun getAllPlans(): List<DayPlan> {
+        return dayPlanRepository.findAll()
     }
 }

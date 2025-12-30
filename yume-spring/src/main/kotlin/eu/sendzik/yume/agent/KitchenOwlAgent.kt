@@ -14,10 +14,9 @@ import eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult
 )
 interface KitchenOwlAgent {
     @SystemMessage(fromResource = "prompt/kitchenowl-system-message.txt")
-    fun handleKitchenOwlTask(
+    fun handleUserMessage(
         @UserMessage query: String,
         @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
-        @V("userLanguage") userLanguage: String,
         @V("additionalInformation") additionalInformation: String,
     ): BasicUserInteractionAgentResult
 }

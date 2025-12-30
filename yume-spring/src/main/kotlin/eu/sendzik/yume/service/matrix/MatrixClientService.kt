@@ -1,8 +1,7 @@
 package eu.sendzik.yume.service.matrix
 
 import eu.sendzik.yume.configuration.MatrixConfiguration
-import eu.sendzik.yume.service.chat.ChatInteractionService
-import eu.sendzik.yume.service.router.ChatRouterService
+import eu.sendzik.yume.service.router.RequestRouterService
 import io.github.oshai.kotlinlogging.KLogger
 import io.ktor.http.Url
 import jakarta.annotation.PostConstruct
@@ -27,13 +26,12 @@ import org.springframework.stereotype.Service
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
-import java.time.ZoneId
 
 @Service
 class MatrixClientService(
     val logger: KLogger,
     val matrixConfiguration: MatrixConfiguration,
-    val chatRouterService: ChatRouterService,
+    val requestRouterService: RequestRouterService,
 ) {
     lateinit var matrixRestClient : MatrixClientServerApiClient
 
@@ -112,7 +110,7 @@ class MatrixClientService(
         val messageTimestamp = LocalDateTime.ofEpochSecond(event.originTimestamp / 1000, 0, OffsetDateTime.now().offset)
 
         runCatching {
-            chatRouterService.handleMessage(body, messageTimestamp)
+            requestRouterService.handleMessage(body, messageTimestamp)
         }.onSuccess {
             if (it != null) {
                 matrixRestClient.room.sendMessageEvent(

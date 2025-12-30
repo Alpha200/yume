@@ -1,6 +1,6 @@
 package eu.sendzik.yume.service.scheduler
 
-import eu.sendzik.yume.service.chat.ChatInteractionService
+import eu.sendzik.yume.service.router.RequestRouterService
 import eu.sendzik.yume.service.scheduler.model.SchedulerRunDetails
 import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.context.annotation.Lazy
@@ -15,7 +15,8 @@ import kotlin.concurrent.withLock
 class ScheduleExecutorService(
     private val taskScheduler: TaskScheduler,
     private val logger: KLogger,
-    @Lazy private val chatInteractionService: ChatInteractionService,
+    @Lazy
+    private val requestRouterService: RequestRouterService,
 ) {
     private var nextAIRun: ScheduledFuture<*>? = null
     private val lock = ReentrantLock()
@@ -37,7 +38,6 @@ class ScheduleExecutorService(
         }
 
         logger.info {"Executing scheduled run. Topic: ${schedulerRunDetails.topic}" }
-        // TODO: Fix
-        //chatInteractionService.handleScheduledRun(schedulerRunDetails)
+        requestRouterService.runFromScheduler(schedulerRunDetails)
     }
 }

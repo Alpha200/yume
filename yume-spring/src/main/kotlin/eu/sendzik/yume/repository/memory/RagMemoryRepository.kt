@@ -94,6 +94,10 @@ class RagMemoryRepository (
         }
     }
 
+    fun findAllByType(type: String): List<MemoryEntry> {
+        return mongoRepository.findAllByType(type)
+    }
+
     fun resetRagDatabase() {
         lock.withLock {
             logger.info {"Resetting RAG memory repository..." }

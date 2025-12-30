@@ -12,10 +12,10 @@ import java.time.LocalDateTime
 class ConversationHistoryManager(
     private val conversationHistoryRepository: ConversationHistoryRepository,
 ) {
-    fun getRecentHistoryFormatted(limit: Int = 20): String {
+    fun getRecentHistoryFormatted(limit: Int = 10): String {
         val history = conversationHistoryRepository.findAllOrderByTimestampDesc(Limit.of(limit))
-        return history.joinToString(separator = "\n") { entry ->
-            "[${entry.type} - ${formatTimestampForLLM(entry.timestamp, true)}] ${entry.content}"
+        return history.reversed().joinToString(separator = "\n\n") { entry ->
+            "[${entry.type} - ${formatTimestampForLLM(entry.timestamp, true)}]\n${entry.content}"
         }
     }
 
