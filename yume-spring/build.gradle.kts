@@ -1,3 +1,5 @@
+import org.gradle.util.GradleVersion.version
+
 plugins {
 	kotlin("jvm") version "2.2.21"
 	kotlin("plugin.spring") version "2.2.21"
@@ -28,13 +30,11 @@ val langChain4jVersion = "1.10.0-beta18"
 val calDav4jVersion = "1.0.5"
 val chromaClientVersion = "1.1.0"
 val caffeineCacheVersion = "3.2.3"
+val mockkVersion = "1.14.7"
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
-
-	// Kotlin logging
-	implementation("io.github.oshai:kotlin-logging-jvm:$kotlinLoggingVersion")
 
 	// Langchain4j dependencies
 	implementation("dev.langchain4j:langchain4j-open-ai-spring-boot-starter:$langChain4jVersion")
@@ -54,7 +54,13 @@ dependencies {
 	implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:${kotlinxSerializationVersion}")
 
 	// Calendar
-	implementation("com.github.caldav4j:caldav4j:${calDav4jVersion}")
+	implementation("com.github.caldav4j:caldav4j:$calDav4jVersion")
+	// Commons Lang3 (forced version due to CVE)
+	implementation("org.apache.commons:commons-lang3:3.20.0")
+
+	// Kotlin logging
+	implementation("io.github.oshai:kotlin-logging-jvm:$kotlinLoggingVersion")
+
 
 	// Spring data
 	implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
@@ -75,6 +81,7 @@ dependencies {
 	// Testing dependencies
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+	testImplementation("io.mockk:mockk:${mockkVersion}")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
