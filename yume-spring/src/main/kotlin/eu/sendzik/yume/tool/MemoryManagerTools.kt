@@ -4,71 +4,65 @@ import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
 import eu.sendzik.yume.repository.memory.model.ReminderOptions
 import eu.sendzik.yume.service.memory.MemoryManagerService
+import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.stereotype.Component
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 @Component
+@Suppress("unused")
 class MemoryManagerTools(
     private val memoryManagerService: MemoryManagerService,
+    private val logger: KLogger,
 ) {
 
     @Tool("Create a new user preference or update an existing one")
     fun upsertUserPreference(
         @P("Preference content")
         content: String,
-        @P("Memory ID to update (omit to create new)")
+        @P("Memory ID to update (omit to create new)", required = false)
         memoryId: String? = null,
-        @P("Associated place/location")
+        @P("Associated place/location", required = false)
         place: String? = null
     ): String {
-        val resultId = memoryManagerService.upsertUserPreference(
-            content = content,
-            memoryId = memoryId,
-            place = place
-        )
-        val action = if (memoryId != null) "updated" else "created"
-        return "User preference $action with ID: $resultId"
+        try {
+            val resultId = memoryManagerService.upsertUserPreference(
+                content = content,
+                memoryId = memoryId,
+                place = place
+            )
+            val action = if (memoryId != null) "updated" else "created"
+            return "User preference $action with ID: $resultId"
+        } catch (ex: RuntimeException) {
+            logger.error(ex) { "Error creating/updating user preference" }
+            return "Tool execution failed: ${ex.message}"
+        }
     }
 
     @Tool("Create a new user observation or update an existing one with an observation date")
     fun upsertUserObservation(
         @P("Observation content")
         content: String,
-        @P("Date in YYYY-MM-DD or YYYY-MM-DD HH:MM:SS format")
-        observationDate: String,
-        @P("Memory ID to update (omit to create new)")
+        @P("Date and time of the observation (can be omitted on creation)", required = false)
+        observationDate: LocalDateTime? = null,
+        @P("Memory ID to update (omit to create new)", required = false)
         memoryId: String? = null,
-        @P("Associated place/location")
+        @P("Associated place/location", required = false)
         place: String? = null
     ): String {
         return try {
-            val obsDate = try {
-                // Try to parse with time first (YYYY-MM-DD HH:MM:SS)
-                LocalDateTime.parse(observationDate, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-            } catch (e: DateTimeParseException) {
-                // If that fails, try date only (YYYY-MM-DD) and set time to current time
-                try {
-                    val datePart = LocalDateTime.parse("${observationDate}T00:00:00")
-                    datePart.withHour(LocalDateTime.now().hour)
-                        .withMinute(LocalDateTime.now().minute)
-                        .withSecond(LocalDateTime.now().second)
-                } catch (_: DateTimeParseException) {
-                    throw e
-                }
-            }
-
             val resultId = memoryManagerService.upsertUserObservation(
                 content = content,
-                observationDate = obsDate,
+                observationDate = observationDate ?: LocalDateTime.now(),
                 memoryId = memoryId,
                 place = place
             )
             val action = if (memoryId != null) "updated" else "created"
             "User observation $action with ID: $resultId"
-        } catch (e: DateTimeParseException) {
-            "Error parsing observation date '$observationDate': ${e.message}. Please use format YYYY-MM-DD or YYYY-MM-DD HH:MM:SS"
+        } catch (e: RuntimeException) {
+            logger.error(e) { "Error creating/updating user observation" }
+            "Tool execution failed: ${e.message}"
         }
     }
 
@@ -76,29 +70,26 @@ class MemoryManagerTools(
     fun upsertReminder(
         @P("Reminder content")
         content: String,
-        @P("For one-time reminders: datetime in YYYY-MM-DD HH:MM:SS format")
-        reminderDatetime: String? = null,
-        @P("For recurring reminders: time in HH:MM format")
+        @P("For one-time reminders", required = false)
+        reminderDatetime: LocalDateTime? = null,
+        @P("For recurring reminders: time in HH:MM format", required = false)
         reminderTime: String? = null,
-        @P("For recurring reminders: list of weekday names (Monday, Tuesday, etc.)")
+        @P("For recurring reminders: list of weekday names (Monday, Tuesday, etc.)", required = false)
         daysOfWeek: List<String>? = null,
-        @P("For location-based reminders: geofence location name")
+        @P("For location-based reminders: geofence location name", required = false)
         location: String? = null,
-        @P("For location-based reminders: 'enter' or 'leave'")
+        @P("For location-based reminders: 'enter' or 'leave'", required = false)
         triggerType: String? = null,
-        @P("Memory ID to update (omit to create new)")
+        @P("Memory ID to update (omit to create new)", required = false)
         memoryId: String? = null,
-        @P("Associated place/location")
+        @P("Associated place/location", required = false)
         place: String? = null
     ): String {
         return try {
             val reminderOptions = ReminderOptions()
 
             if (reminderDatetime != null) {
-                reminderOptions.datetimeValue = LocalDateTime.parse(
-                    reminderDatetime,
-                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                )
+                reminderOptions.datetimeValue = reminderDatetime
             }
 
             if (reminderTime != null) {
@@ -136,8 +127,10 @@ class MemoryManagerTools(
             val action = if (memoryId != null) "updated" else "created"
             "Reminder $action with ID: $resultId"
         } catch (e: DateTimeParseException) {
+            logger.error(e) { "Error parsing reminder" }
             "Error creating/updating reminder: ${e.message}"
-        } catch (e: Exception) {
+        } catch (e: RuntimeException) {
+            logger.error { "Error creating/updating reminder: ${e.message}" }
             "Error creating/updating reminder: ${e.message}"
         }
     }

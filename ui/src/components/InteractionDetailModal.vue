@@ -2,53 +2,43 @@
   <div v-if="interaction" class="modal-overlay" @click="$emit('close')">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
-        <h2>🤖 {{ formatAgentType(interaction.agent_type) }}</h2>
+        <h2>🤖 {{ interaction.agent }}</h2>
         <button class="close-btn" @click="$emit('close')">✕</button>
       </div>
       <div class="modal-body">
-        <div v-if="interaction.system_instructions" class="detail-section system-instructions-section">
-          <div class="detail-label">System Instructions</div>
-          <pre class="detail-code system-instructions">{{ interaction.system_instructions }}</pre>
-        </div>
         <div class="detail-section">
           <div class="detail-label">Timestamp</div>
           <div class="detail-value">{{ formatTime(interaction.timestamp) }}</div>
           <div class="detail-value-full">{{ new Date(interaction.timestamp).toLocaleString() }}</div>
         </div>
-        <div class="detail-section">
-          <div class="detail-label">Input</div>
-          <pre class="detail-code">{{ interaction.input_data }}</pre>
-        </div>
-        <div class="detail-section">
-          <div class="detail-label">Output</div>
-          <pre class="detail-code">{{ interaction.output_data }}</pre>
-        </div>
-        <div v-if="interaction.metadata && Object.keys(interaction.metadata).length > 0" class="detail-section">
-          <div class="detail-label">Metadata</div>
-          <pre class="detail-code">{{ JSON.stringify(interaction.metadata, null, 2) }}</pre>
-        </div>
-        <div v-if="interaction.tool_usage && interaction.tool_usage.length" class="detail-section usage-section">
-          <div class="detail-label">Tool Usage</div>
-          <div class="usage-record-wrapper">
+        <div v-if="interaction.messages && interaction.messages.length" class="detail-section">
+          <div class="detail-label">Messages</div>
+          <div class="messages-wrapper">
             <div
-              v-for="(toolCall, index) in interaction.tool_usage"
-              :key="`${toolCall.tool_name}-${index}-${toolCall.start_time}`"
-              class="usage-record"
+              v-for="(message, index) in interaction.messages"
+              :key="index"
+              class="message-record"
+              :class="message.role.toLowerCase()"
             >
-              <div class="usage-record-header">
-                <span class="usage-record-title">{{ toolCall.tool_name }}</span>
-                <span class="usage-record-times">{{ formatTimeRange(toolCall.start_time, toolCall.end_time) }}</span>
+              <div class="message-role">{{ message.role }}</div>
+              <div v-if="message.role === 'TOOL_CALL' && message.toolCall">
+                <div class="tool-call-name">{{ message.toolCall.name }}</div>
+                <div v-if="message.toolCall.arguments" class="tool-section">
+                  <div class="tool-section-label">Arguments:</div>
+                  <pre class="detail-code tool-code">{{ formatJson(message.toolCall.arguments) }}</pre>
+                </div>
+                <div v-if="message.toolCall.response" class="tool-section">
+                  <div class="tool-section-label">Response:</div>
+                  <pre class="detail-code tool-code">{{ message.toolCall.response }}</pre>
+                </div>
               </div>
-              <div v-if="toolCall.input" class="usage-input-wrapper">
-                <div class="usage-input-label">Input:</div>
-                <pre class="detail-code usage-input">{{ toolCall.input }}</pre>
-              </div>
-              <div v-if="toolCall.result" class="usage-result-wrapper">
-                <div class="usage-result-label">Result:</div>
-                <pre class="detail-code usage-result">{{ toolCall.result }}</pre>
-              </div>
+              <pre v-else-if="message.text" class="detail-code message-text">{{ message.text }}</pre>
             </div>
           </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Response</div>
+          <pre class="detail-code">{{ interaction.response }}</pre>
         </div>
       </div>
     </div>
@@ -56,7 +46,7 @@
 </template>
 
 <script>
-import { formatTime, formatAgentType, formatDateTime } from '../utils/formatters'
+import { formatTime } from '../utils/formatters'
 
 export default {
   name: 'InteractionDetailModal',
@@ -69,16 +59,12 @@ export default {
   emits: ['close'],
   methods: {
     formatTime,
-    formatAgentType,
-    formatTimeRange(start, end) {
-      if (!start) {
-        return 'Unknown time'
+    formatJson(jsonString) {
+      try {
+        return JSON.stringify(JSON.parse(jsonString), null, 2)
+      } catch (e) {
+        return jsonString
       }
-      const formattedStart = formatDateTime(start)
-      if (end) {
-        return `${formattedStart} → ${formatDateTime(end)}`
-      }
-      return `${formattedStart} (pending)`
     }
   }
 }
@@ -224,59 +210,62 @@ export default {
   border-radius: 3px;
 }
 
-.system-instructions-section {
-  border: 1px solid #a855f7;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  background: rgba(168, 85, 247, 0.05);
-  margin-bottom: 1.5rem;
-}
-
-.system-instructions {
-  background: rgba(168, 85, 247, 0.1);
-  border: 1px solid rgba(168, 85, 247, 0.3);
-}
-
-.usage-section .usage-record-wrapper {
+.messages-wrapper {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.usage-record {
+.message-record {
   padding: 0.75rem;
   border: 1px solid #27272a;
   border-radius: 0.5rem;
   background: #0f0f11;
 }
 
-.usage-record-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-  align-items: center;
+.message-record.user {
+  border-left: 3px solid #3b82f6;
 }
 
-.usage-record-title {
+.message-record.system {
+  border-left: 3px solid #a855f7;
+}
+
+.message-record.tool_call {
+  border-left: 3px solid #10b981;
+}
+
+.message-role {
   font-weight: 600;
   color: #f4f4f5;
-}
-
-.usage-record-times {
-  color: #a3a3ff;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   font-size: 0.75rem;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
 }
 
-.usage-input-wrapper,
-.usage-result-wrapper {
-  margin-top: 0.5rem;
+.message-text {
+  margin: 0;
+  background: #1a1a1d;
+  border-color: #3f3f46;
 }
 
-.usage-input-label,
-.usage-result-label {
-  color: #a1a1aa;
+.tool-call-name {
+  font-weight: 700;
+  color: #10b981;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #3f3f46;
+}
+
+.tool-section {
+  margin-top: 0.75rem;
+}
+
+.tool-section-label {
+  color: #10b981;
   font-size: 0.75rem;
   font-weight: 600;
   margin-bottom: 0.375rem;
@@ -284,15 +273,10 @@ export default {
   letter-spacing: 0.05em;
 }
 
-.usage-input {
+.tool-code {
   margin: 0;
   background: #1a1a1d;
   border-color: #3f3f46;
-}
-
-.usage-result {
-  margin: 0;
-  background: #151515;
 }
 </style>
 

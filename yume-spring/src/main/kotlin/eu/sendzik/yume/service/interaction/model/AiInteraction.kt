@@ -1,13 +1,14 @@
 package eu.sendzik.yume.service.interaction.model
 
-import java.time.Instant
+import java.time.LocalDateTime
 import java.util.UUID
 
 data class AiInteraction(
     val id: UUID = UUID.randomUUID(),
-    val timestamp: Instant,
+    val agent: String,
+    val timestamp: LocalDateTime,
     val messages: List<AiInteractionMessage>,
-    val response: String = ""
+    val response: String = "",
 )
 
 data class ToolCall(
@@ -18,7 +19,7 @@ data class ToolCall(
 
 data class AiInteractionMessage(
     val role: MessageRole,
-    val text: String,
+    val text: String?,
     val toolCall: ToolCall? = null
 )
 

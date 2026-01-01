@@ -54,7 +54,7 @@ api.interceptors.request.use(async config => {
   if (shouldRefresh && refreshToken) {
     try {
       // Get OIDC config
-      const configResponse = await axios.get('/auth/config')
+      const configResponse = await axios.get('/api/auth/config')
       const oidcConfig = configResponse.data
       
       // Refresh the token directly with Keycloak
@@ -116,7 +116,7 @@ export const apiService = {
    * Get authentication configuration (bypasses auth interceptor)
    */
   async getAuthConfig() {
-    const response = await axios.get('/auth/config')
+    const response = await axios.get('/api/auth/config')
     return response.data
   },
 
@@ -127,7 +127,7 @@ export const apiService = {
     const config = await this.getAuthConfig()
     
     // Validate config was received
-    if (!config.authorization_endpoint) {
+    if (!config.authorizationEndpoint) {
       throw new Error('OIDC configuration not available. Please check server logs.')
     }
     
@@ -144,8 +144,8 @@ export const apiService = {
     
     // Build authorization URL with PKCE
     const redirectUri = `${window.location.origin}/`
-    const authUrl = `${config.authorization_endpoint}?` +
-      `client_id=${encodeURIComponent(config.client_id)}&` +
+    const authUrl = `${config.authorizationEndpoint}?` +
+      `client_id=${encodeURIComponent(config.clientId)}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_type=code&` +
       `scope=${encodeURIComponent('openid profile email')}&` +
@@ -172,12 +172,12 @@ export const apiService = {
     // Exchange code for tokens with PKCE
     const formData = new URLSearchParams()
     formData.append('grant_type', 'authorization_code')
-    formData.append('client_id', config.client_id)
+    formData.append('client_id', config.clientId)
     formData.append('code', code)
     formData.append('redirect_uri', `${window.location.origin}/`)
     formData.append('code_verifier', codeVerifier)
     
-    const response = await axios.post(config.token_endpoint, formData, {
+    const response = await axios.post(config.tokenEndpoint, formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
     
@@ -196,8 +196,8 @@ export const apiService = {
     const redirectUri = `${window.location.origin}/`
     
     return {
-      logout_url: `${config.end_session_endpoint}?` +
-        `client_id=${encodeURIComponent(config.client_id)}&` +
+      logout_url: `${config.endSessionEndpoint}?` +
+        `client_id=${encodeURIComponent(config.clientId)}&` +
         `post_logout_redirect_uri=${encodeURIComponent(redirectUri)}`
     }
   },
@@ -258,18 +258,6 @@ export const apiService = {
   },
 
   /**
-   * Fetch all scheduled tasks
-   */
-  async getScheduledTasks() {
-    const response = await api.get('/scheduled-tasks')
-    return response.data.sort((a, b) => {
-      if (!a.next_run_time) return 1
-      if (!b.next_run_time) return -1
-      return new Date(a.next_run_time) - new Date(b.next_run_time)
-    }) // Sort by next run time
-  },
-
-  /**
    * Fetch all interactions
    */
   async getInteractions() {
@@ -311,16 +299,6 @@ export const apiService = {
    */
   async getSchedulerRun(runId) {
     const response = await api.get(`/scheduler-runs/${runId}`)
-    return response.data
-  },
-
-  /**
-   * Fetch scheduler runs by topic
-   */
-  async getSchedulerRunsByTopic(topic, limit = 20) {
-    const params = new URLSearchParams()
-    params.append('limit', limit)
-    const response = await api.get(`/scheduler-runs/topic/${encodeURIComponent(topic)}?${params}`)
     return response.data
   },
 

@@ -9,6 +9,7 @@ import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.stereotype.Component
 
 @Component
+@Suppress("unused")
 class KitchenOwlTools(
     private val kitchenOwlService: KitchenOwlService,
     private val logger: KLogger,

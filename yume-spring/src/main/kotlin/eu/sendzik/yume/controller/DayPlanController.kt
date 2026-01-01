@@ -14,11 +14,11 @@ import java.time.LocalDate
 import java.util.UUID
 
 @RestController
-@RequestMapping("day-plan")
+@RequestMapping("day-plans")
 class DayPlanController(
     private val dayPlanService: DayPlanService
 ) {
-    @GetMapping("/date/{date}")
+    @GetMapping("/{date}")
     fun getPlanForDate(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) date: LocalDate): ResponseEntity<DayPlan> {
         val plan = dayPlanService.getPlanForDate(date)
         return if (plan != null) ResponseEntity.ok(plan) else ResponseEntity.notFound().build()

@@ -9,7 +9,7 @@ import eu.sendzik.yume.agent.model.SchedulerAgentResult
 
 @AiService(
     wiringMode = AiServiceWiringMode.EXPLICIT,
-    chatModel = "defaultChatModel",
+    chatModel = "schedulerChatModel",
     tools = [],
 )
 interface SchedulerAgent {

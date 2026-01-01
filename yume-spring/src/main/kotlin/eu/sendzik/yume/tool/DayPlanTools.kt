@@ -13,6 +13,7 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 @Component
+@Suppress("unused")
 class DayPlanTools(
     private val dayPlanService: DayPlanService,
     private val logger: KLogger,

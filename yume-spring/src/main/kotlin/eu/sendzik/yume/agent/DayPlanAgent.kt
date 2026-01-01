@@ -7,7 +7,7 @@ import eu.sendzik.yume.agent.model.DayPlanAgentResult
 
 @AiService(
     wiringMode = AiServiceWiringMode.EXPLICIT,
-    chatModel = "defaultChatModel",
+    chatModel = "dayPlanChatModel",
     tools = ["dayPlanTools"],
 )
 interface DayPlanAgent {

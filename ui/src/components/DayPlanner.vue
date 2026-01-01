@@ -67,7 +67,7 @@
 
       <div class="plan-footer">
         <p class="update-time">
-          Last updated: {{ formatDateTime(plan.updated_at) }}
+          Last updated: {{ formatDateTime(plan.updatedAt) }}
         </p>
       </div>
     </div>
@@ -118,26 +118,26 @@ export default {
       
       return [...this.plan.items].sort((a, b) => {
         // Items with start times first
-        if (a.start_time && !b.start_time) return -1
-        if (!a.start_time && b.start_time) return 1
+        if (a.startTime && !b.startTime) return -1
+        if (!a.startTime && b.startTime) return 1
         
         // Both have times - sort by time
-        if (a.start_time && b.start_time) {
-          return new Date(a.start_time) - new Date(b.start_time)
+        if (a.startTime && b.startTime) {
+          return new Date(a.startTime) - new Date(b.startTime)
         }
         
         // Neither has time - sort by confidence
-        const order = {'high': 3, 'medium': 2, 'low': 1}
-        return order[b.confidence.toLowerCase()] - order[a.confidence.toLowerCase()]
+        const order = {'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}
+        return order[b.confidence] - order[a.confidence]
       })
     },
     scheduledCount() {
       if (!this.plan || !this.plan.items) return 0
-      return this.plan.items.filter(item => item.start_time).length
+      return this.plan.items.filter(item => item.startTime).length
     },
     confirmedCount() {
       if (!this.plan || !this.plan.items) return 0
-      return this.plan.items.filter(item => item.confidence.toLowerCase() === 'high').length
+      return this.plan.items.filter(item => item.confidence === 'HIGH').length
     }
   },
   methods: {

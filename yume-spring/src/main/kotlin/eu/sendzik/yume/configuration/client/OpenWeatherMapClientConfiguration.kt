@@ -1,6 +1,5 @@
-package eu.sendzik.yume.configuration
+package eu.sendzik.yume.configuration.client
 
-import eu.sendzik.yume.client.NominatimClient
 import eu.sendzik.yume.client.OpenWeatherMapClient
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -10,19 +9,19 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory
 import org.springframework.web.service.invoker.createClient
 
 @Configuration
-class NominatimClientConfiguration {
+class OpenWeatherMapClientConfiguration {
     @Bean
-    fun nominatimClient(
+    fun openWeatherMapClient(
         restClientBuilder: RestClient.Builder,
-    ): NominatimClient {
+    ): OpenWeatherMapClient {
         val webClient = restClientBuilder
-            .baseUrl("https://nominatim.openstreetmap.org/")
+            .baseUrl("https://api.openweathermap.org/data/3.0/")
             .build()
 
         val serviceProxyFactory = HttpServiceProxyFactory
             .builderFor(RestClientAdapter.create(webClient))
             .build()
 
-        return serviceProxyFactory.createClient<NominatimClient>()
+        return serviceProxyFactory.createClient<OpenWeatherMapClient>()
     }
 }

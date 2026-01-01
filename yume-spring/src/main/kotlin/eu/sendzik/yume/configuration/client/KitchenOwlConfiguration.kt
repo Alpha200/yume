@@ -1,4 +1,4 @@
-package eu.sendzik.yume.configuration
+package eu.sendzik.yume.configuration.client
 
 import eu.sendzik.yume.client.KitchenOwlClient
 import org.springframework.beans.factory.annotation.Value
@@ -16,25 +16,22 @@ class KitchenOwlConfiguration(
     @Value("\${yume.kitchenowl.api-key:}")
     private val kitchenOwlApiKey: String,
 ) {
-
     @Bean
-    fun kitchenOwlRestClient(): RestClient {
-        val builder = RestClient.builder()
+    fun kitchenOwlClient(
+        restClientBuilder: RestClient.Builder,
+    ): KitchenOwlClient {
+        val restClient = restClientBuilder
             .baseUrl(kitchenOwlApiUrl)
-            .defaultHeader("Content-Type", "application/json")
+            .let {
+                if (kitchenOwlApiKey.isNotBlank()) {
+                    it.defaultHeader("Authorization", "Bearer $kitchenOwlApiKey")
+                } else {
+                    it
+                }
+            }.build()
 
-        if (kitchenOwlApiKey.isNotBlank()) {
-            builder.defaultHeader("Authorization", "Bearer $kitchenOwlApiKey")
-        }
-
-        return builder.build()
-    }
-
-    @Bean
-    fun kitchenOwlClient(kitchenOwlRestClient: RestClient): KitchenOwlClient {
-        val adapter = RestClientAdapter.create(kitchenOwlRestClient)
+        val adapter = RestClientAdapter.create(restClient)
         val factory = HttpServiceProxyFactory.builderFor(adapter).build()
         return factory.createClient<KitchenOwlClient>()
     }
 }
-

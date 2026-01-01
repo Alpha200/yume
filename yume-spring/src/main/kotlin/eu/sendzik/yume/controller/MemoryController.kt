@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("memory")
+@RequestMapping("memories")
 class MemoryController(
     private val memoryManagerService: MemoryManagerService,
 ) {

@@ -7,7 +7,7 @@ import eu.sendzik.yume.agent.model.MemoryManagerAgentResult
 
 @AiService(
     wiringMode = AiServiceWiringMode.EXPLICIT,
-    chatModel = "defaultChatModel",
+    chatModel = "memoryManagerChatModel",
     tools = ["memoryManagerTools"],
 )
 interface MemoryManagerAgent {

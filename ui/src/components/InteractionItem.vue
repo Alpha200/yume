@@ -1,14 +1,14 @@
 <template>
   <div class="interaction-item item" @click="handleClick">
     <div class="interaction-header">
-      <div class="interaction-agent-type">{{ formatAgentType(interaction.agent_type) }}</div>
+      <div class="interaction-agent">{{ interaction.agent }}</div>
       <div class="interaction-time">{{ formatTime(interaction.timestamp) }}</div>
     </div>
   </div>
 </template>
 
 <script>
-import { formatTime, formatAgentType } from '../utils/formatters'
+import { formatTime } from '../utils/formatters'
 
 export default {
   name: 'InteractionItem',
@@ -21,7 +21,6 @@ export default {
   emits: ['select'],
   methods: {
     formatTime,
-    formatAgentType,
     handleClick() {
       this.$emit('select', this.interaction.id)
     }
@@ -58,10 +57,14 @@ export default {
   gap: 1rem;
 }
 
-.interaction-agent-type {
+.interaction-agent {
   color: #e4e4e7;
   font-size: 0.875rem;
   font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .interaction-time {

@@ -2,10 +2,6 @@ package eu.sendzik.yume.configuration
 
 import dev.langchain4j.model.chat.Capability
 import dev.langchain4j.model.chat.ChatModel
-import dev.langchain4j.model.chat.listener.ChatModelErrorContext
-import dev.langchain4j.model.chat.listener.ChatModelListener
-import dev.langchain4j.model.chat.listener.ChatModelRequestContext
-import dev.langchain4j.model.chat.listener.ChatModelResponseContext
 import dev.langchain4j.model.openai.OpenAiChatModel
 import eu.sendzik.yume.service.interaction.InteractionTrackerService
 import org.springframework.beans.factory.annotation.Value
@@ -14,7 +10,7 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class ChatModelConfiguration(
-    val interactionTrackerService: InteractionTrackerService,
+    private val interactionTrackerService: InteractionTrackerService,
     @Value("\${langchain4j.open-ai.chat-model.api-key}")
     private val openAiApiKey: String,
     @Value("\${langchain4j.open-ai.chat-model.base-url}")
@@ -23,48 +19,72 @@ class ChatModelConfiguration(
     private val logRequest: Boolean,
     @Value("\${langchain4j.open-ai.chat-model.log-response}")
     private val logResponse: Boolean,
-    val agentConfiguration: AgentConfiguration,
+    private val agentConfiguration: AgentConfiguration,
 ) {
     @Bean
-    fun defaultChatModel(): ChatModel {
-        return OpenAiChatModel
-            .builder()
-            .baseUrl(baseUrl)
-            .apiKey(openAiApiKey)
-            .modelName(agentConfiguration.model.defaultAgentModel)
-            .strictJsonSchema(true)
-            .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
-            .logRequests(logRequest)
-            .logResponses(logResponse)
-            .listeners(listOf(interactionTrackerService))
-            .build()
-    }
+    fun genericChatModel() = buildYumeChatModel(
+        "Generic"
+    )
 
     @Bean
-    fun routerChatModel(): ChatModel {
-        return OpenAiChatModel
-            .builder()
-            .baseUrl(baseUrl)
-            .apiKey(openAiApiKey)
-            .modelName(agentConfiguration.model.routerAgentModel)
-            .strictJsonSchema(true)
-            .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
-            .logRequests(logRequest)
-            .logResponses(logResponse)
-            .listeners(listOf(interactionTrackerService))
-            .build()
-    }
+    fun efaChatModel() = buildYumeChatModel(
+        agentName = "EFA",
+    )
 
     @Bean
-    fun conversationSummarizerModel(): ChatModel {
+    fun dayPlanChatModel() = buildYumeChatModel(
+        agentName = "DayPlan",
+    )
+
+    @Bean
+    fun kitchenOwlChatModel() = buildYumeChatModel(
+        agentName = "KitchenOwl",
+    )
+
+    @Bean
+    fun memoryManagerChatModel() = buildYumeChatModel(
+        agentName = "MemoryManager",
+    )
+
+    @Bean
+    fun schedulerChatModel() = buildYumeChatModel(
+        agentName = "Scheduler",
+    )
+
+    @Bean
+    fun routerChatModel() = buildYumeChatModel(
+        agentName = "Router",
+        modelName = agentConfiguration.model.routerAgentModel,
+    )
+
+    @Bean
+    fun conversationSummarizerModel() = buildYumeChatModel(
+        agentName = "Summarizer",
+        modelName = agentConfiguration.model.conversationSummarizerModel,
+        jsonOutput = false
+    )
+
+    private fun buildYumeChatModel(
+        agentName: String,
+        jsonOutput: Boolean = true,
+        modelName: String? = null,
+    ): ChatModel {
         return OpenAiChatModel
             .builder()
+            .modelName(modelName ?: agentConfiguration.model.defaultAgentModel)
             .baseUrl(baseUrl)
             .apiKey(openAiApiKey)
-            .modelName(agentConfiguration.model.conversationSummarizerModel)
             .logRequests(logRequest)
             .logResponses(logResponse)
             .listeners(listOf(interactionTrackerService))
+            .metadata(mapOf("agentName" to agentName))
+            .let {
+                if (jsonOutput) {
+                    it.supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA).strictJsonSchema(true)
+                } else {
+                    it
+                }
+            }
             .build()
     }
 }

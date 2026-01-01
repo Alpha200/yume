@@ -1,6 +1,7 @@
-package eu.sendzik.yume.configuration
+package eu.sendzik.yume.configuration.client
 
 import eu.sendzik.yume.client.EfaClient
+import eu.sendzik.yume.component.ClientLoggerRequestInterceptor
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -11,29 +12,21 @@ import org.springframework.web.service.invoker.createClient
 
 @Configuration
 class EfaConfiguration(
-    @Value("\${yume.efa.api-url:https://efa.vrr.de/standard}")
+    @Value("\${yume.efa.api-url}")
     private val efaApiUrl: String,
-    @Value("\${yume.efa.client-id:CLIENTID}")
-    @Suppress("UNUSED")
-    private val efaClientId: String,
-    @Value("\${yume.efa.client-name:yume}")
-    @Suppress("UNUSED")
-    private val efaClientName: String,
 ) {
-
-    @Bean("efaRestClient")
-    fun efaRestClient(): RestClient {
-        return RestClient.builder()
-            .baseUrl(efaApiUrl)
-            .defaultHeader("Content-Type", "application/json")
-            .build()
-    }
-
     @Bean
-    fun efaClient(efaRestClient: RestClient): EfaClient {
-        val adapter = RestClientAdapter.create(efaRestClient)
+    fun efaClient(
+        restClientBuilder: RestClient.Builder,
+        clientLoggerRequestInterceptor: ClientLoggerRequestInterceptor,
+    ): EfaClient {
+        val restClient = restClientBuilder
+            .baseUrl(efaApiUrl)
+            .requestInterceptor(clientLoggerRequestInterceptor)
+            .build()
+
+        val adapter = RestClientAdapter.create(restClient)
         val factory = HttpServiceProxyFactory.builderFor(adapter).build()
         return factory.createClient<EfaClient>()
     }
 }
-

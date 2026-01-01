@@ -9,7 +9,7 @@ import eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult
 
 @AiService(
     wiringMode = AiServiceWiringMode.EXPLICIT,
-    chatModel = "defaultChatModel",
+    chatModel = "genericChatModel",
     tools = [],
 )
 interface GenericChatAgent {

@@ -1,7 +1,6 @@
-package eu.sendzik.yume.configuration
+package eu.sendzik.yume.configuration.client
 
-import eu.sendzik.yume.client.HomeAssistantClient
-import org.springframework.beans.factory.annotation.Value
+import eu.sendzik.yume.client.NominatimClient
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.client.RestClient
@@ -9,26 +8,20 @@ import org.springframework.web.client.support.RestClientAdapter
 import org.springframework.web.service.invoker.HttpServiceProxyFactory
 import org.springframework.web.service.invoker.createClient
 
-
 @Configuration
-class HomeAssistantConfiguration {
+class NominatimClientConfiguration {
     @Bean
-    fun homeAssistantClient(
+    fun nominatimClient(
         restClientBuilder: RestClient.Builder,
-        @Value("\${yume.home-assistant.api.url}")
-        homeAssistantApiUrl: String,
-        @Value("\${yume.home-assistant.api.token}")
-        homeAssistantApiToken: String,
-    ): HomeAssistantClient {
+    ): NominatimClient {
         val webClient = restClientBuilder
-            .baseUrl(homeAssistantApiUrl)
-            .defaultHeader("Authorization", "Bearer $homeAssistantApiToken")
+            .baseUrl("https://nominatim.openstreetmap.org/")
             .build()
 
         val serviceProxyFactory = HttpServiceProxyFactory
             .builderFor(RestClientAdapter.create(webClient))
             .build()
 
-        return serviceProxyFactory.createClient<HomeAssistantClient>()
+        return serviceProxyFactory.createClient<NominatimClient>()
     }
 }

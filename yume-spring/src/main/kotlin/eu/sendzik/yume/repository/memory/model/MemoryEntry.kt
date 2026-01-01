@@ -16,6 +16,7 @@ sealed class MemoryEntry {
     abstract val place: String?
     abstract val createdAt: LocalDateTime
     abstract val modifiedAt: LocalDateTime
+    abstract val type: String
 }
 
 /**
@@ -32,6 +33,7 @@ data class UserPreferenceEntry(
     override val createdAt: LocalDateTime,
     @Field("modified_at")
     override val modifiedAt: LocalDateTime,
+    override val type: String = "USER_PREFERENCE"
 ) : MemoryEntry()
 
 /**
@@ -49,7 +51,8 @@ data class UserObservationEntry(
     @Field("modified_at")
     override val modifiedAt: LocalDateTime,
     @Field("observation_date")
-    val observationDate: LocalDateTime
+    val observationDate: LocalDateTime,
+    override val type: String = "USER_OBSERVATION"
 ) : MemoryEntry()
 
 /**
@@ -67,7 +70,8 @@ data class ReminderEntry(
     @Field("modified_at")
     override val modifiedAt: LocalDateTime,
     @Field("reminder_options")
-    val reminderOptions: ReminderOptions
+    val reminderOptions: ReminderOptions,
+    override val type: String = "REMINDER"
 ) : MemoryEntry()
 
 /**

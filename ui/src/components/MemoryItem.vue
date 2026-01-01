@@ -2,24 +2,24 @@
   <div class="memory-item item">
     <div class="memory-header">
       <div class="memory-content">{{ memory.content }}</div>
-      <div class="memory-type" :class="memory.type">
+      <div class="memory-type" :class="getMemoryTypeClass(memory.type)">
         {{ formatMemoryType(memory.type) }}
       </div>
     </div>
     <div class="memory-meta">
       <div v-if="memory.place">📍 {{ memory.place }}</div>
-      <div>🕒 Created: {{ formatTime(memory.created_at) }}</div>
-      <div v-if="memory.observation_date">👁️ Observed: {{ formatTime(memory.observation_date) }}</div>
-      <div v-if="memory.reminder_options">
+      <div>🕒 Created: {{ formatTime(memory.createdAt) }}</div>
+      <div v-if="memory.observationDate">👁️ Observed: {{ formatTime(memory.observationDate) }}</div>
+      <div v-if="memory.reminderOptions">
         🔔
-        <span v-if="memory.reminder_options.datetime_value">
-          Remind at: {{ formatTime(memory.reminder_options.datetime_value) }}
+        <span v-if="memory.reminderOptions.datetimeValue">
+          Remind at: {{ formatTime(memory.reminderOptions.datetimeValue) }}
         </span>
-        <span v-if="memory.reminder_options.time_value">
-          Daily at: {{ memory.reminder_options.time_value }}
+        <span v-if="memory.reminderOptions.timeValue">
+          Daily at: {{ memory.reminderOptions.timeValue }}
         </span>
-        <span v-if="memory.reminder_options.days_of_week">
-          Days: {{ memory.reminder_options.days_of_week.join(', ') }}
+        <span v-if="memory.reminderOptions.daysOfWeek">
+          Days: {{ memory.reminderOptions.daysOfWeek.join(', ') }}
         </span>
       </div>
     </div>
@@ -39,7 +39,15 @@ export default {
   },
   methods: {
     formatTime,
-    formatMemoryType
+    formatMemoryType,
+    getMemoryTypeClass(type) {
+      const classMap = {
+        'USER_PREFERENCE': 'preference',
+        'USER_OBSERVATION': 'observation',
+        'REMINDER': 'reminder'
+      }
+      return classMap[type] || 'default'
+    }
   }
 }
 </script>
@@ -82,11 +90,11 @@ export default {
   white-space: nowrap;
 }
 
-.memory-type.user_preference {
+.memory-type.preference {
   background: #3b82f6;
 }
 
-.memory-type.user_observation {
+.memory-type.observation {
   background: #10b981;
 }
 

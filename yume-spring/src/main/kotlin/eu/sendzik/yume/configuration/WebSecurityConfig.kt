@@ -1,5 +1,6 @@
 package eu.sendzik.yume.configuration
 
+import eu.sendzik.yume.component.JwtAuthConverter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.Customizer
@@ -13,9 +14,12 @@ import org.springframework.security.web.SecurityFilterChain
 @EnableMethodSecurity(prePostEnabled = true)
 class WebSecurityConfig {
     @Bean
-    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+    fun filterChain(
+        http: HttpSecurity,
+        jwtAuthConverter: JwtAuthConverter
+    ): SecurityFilterChain {
         val jwtConverter = JwtAuthenticationConverter().apply {
-            setJwtGrantedAuthoritiesConverter(JwtAuthConverter())
+            setJwtGrantedAuthoritiesConverter(jwtAuthConverter)
         }
 
         http.authorizeHttpRequests { authorize ->
@@ -23,7 +27,9 @@ class WebSecurityConfig {
         }.httpBasic(Customizer.withDefaults())
 
         http.authorizeHttpRequests { authorize ->
-            authorize.anyRequest().authenticated()
+            authorize
+                .requestMatchers("/auth/config").permitAll()
+                .anyRequest().authenticated()
         }.oauth2ResourceServer { oauth2 ->
             oauth2.jwt { jwt -> jwt.jwtAuthenticationConverter(jwtConverter) }
         }

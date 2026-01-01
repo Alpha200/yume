@@ -2,11 +2,13 @@ package eu.sendzik.yume.service.interaction
 
 import dev.langchain4j.data.message.AiMessage
 import dev.langchain4j.data.message.SystemMessage
+import dev.langchain4j.data.message.TextContent
 import dev.langchain4j.data.message.ToolExecutionResultMessage
 import dev.langchain4j.data.message.UserMessage
 import dev.langchain4j.model.chat.listener.ChatModelErrorContext
 import dev.langchain4j.model.chat.listener.ChatModelListener
 import dev.langchain4j.model.chat.listener.ChatModelResponseContext
+import dev.langchain4j.model.openai.OpenAiChatRequestParameters
 import dev.langchain4j.model.output.FinishReason
 import eu.sendzik.yume.service.interaction.model.AiInteraction
 import eu.sendzik.yume.service.interaction.model.AiInteractionMessage
@@ -14,7 +16,7 @@ import eu.sendzik.yume.service.interaction.model.MessageRole
 import eu.sendzik.yume.service.interaction.model.ToolCall
 import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.stereotype.Service
-import java.time.Instant
+import java.time.LocalDateTime
 
 @Service
 class InteractionTrackerService(
@@ -27,13 +29,16 @@ class InteractionTrackerService(
 
         val toolCalls: MutableMap<String, ToolCall> = mutableMapOf()
         val messages: MutableList<AiInteractionMessage> = mutableListOf()
+        val agent = (responseContext.chatRequest().parameters() as OpenAiChatRequestParameters).metadata()["agentName"]
 
         for (message in responseContext.chatRequest().messages()) {
             when (message) {
                 is UserMessage -> messages.add(
                     AiInteractionMessage(
                         MessageRole.USER,
-                        message.contents().joinToString("\n")
+                        message.contents()
+                            .filterIsInstance<TextContent>()
+                            .joinToString("\n") { it.text() }
                     )
                 )
                 is SystemMessage -> messages.add(
@@ -68,12 +73,13 @@ class InteractionTrackerService(
         }
 
         val aiInteraction = AiInteraction(
-            timestamp = Instant.now(),
+            timestamp = LocalDateTime.now(),
+            agent = agent ?: "unknown",
             messages = messages,
             response = responseContext.chatResponse().aiMessage().text(),
         )
 
-        logger.debug { "Tracked AI Interaction: $aiInteraction" }
+        logger.trace { "Tracked AI Interaction: $aiInteraction" }
 
         synchronized(aiInteractions) {
             aiInteractions.addLast(aiInteraction)
