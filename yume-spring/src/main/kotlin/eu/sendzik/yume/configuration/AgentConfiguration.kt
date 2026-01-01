@@ -11,6 +11,7 @@ class AgentConfiguration(
     class Model(
         val defaultAgentModel: String,
         val routerAgentModel: String,
+        val conversationSummarizerModel: String,
     )
 
     class Preferences(

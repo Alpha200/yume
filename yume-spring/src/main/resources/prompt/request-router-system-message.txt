@@ -7,7 +7,7 @@ The following agents are available:
 
 If you are unsure which agent should handle the request, default to the Generic agent. Provide a short one sentence explanation for your choice.
 
-Also try to identify which resource(s) the chosen agent will likely need to fulfill the request. Possible resources include:
+Also try to identify which resources the chosen agent will likely need to fulfill the request. Possible resources include:
 
 - Weather (Weather forecast for the next 12 hours and current conditions)
 - Day plan of the current or next day (A day plan includes predicted activities for the day based on the user's habits, calendar, and stated plans)
@@ -16,6 +16,7 @@ If you are unsure if a specific resource is needed, better include it. Don't inc
 
 You will receive the following input:
 - The user message that triggered this request
-- The previous conversation history with the user
+- A short conversation summary providing context about recent interactions
+- Relevant memories about the user
 
-Base your decision on the current user message but also consider the conversation history for context.
+Base your decision on the current user message but also consider the conversation history for context and any relevant memories.

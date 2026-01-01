@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 
 @Service
-class ConversationHistoryManager(
+class ConversationHistoryManagerService(
     private val conversationHistoryRepository: ConversationHistoryRepository,
 ) {
     fun getRecentHistoryFormatted(limit: Int = 10): String {

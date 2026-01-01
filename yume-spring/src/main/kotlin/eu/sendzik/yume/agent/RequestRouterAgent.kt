@@ -13,10 +13,10 @@ import eu.sendzik.yume.agent.model.RequestRouterAgentResult
 )
 interface RequestRouterAgent {
     @SystemMessage(fromResource = "prompt/request-router-system-message.txt")
-    @UserMessage("Current date and time: {{currentDateTime}}\n\nPrevious conversation history:\n{{messageHistory}}\n-------------\nRelevant memory entries: {{relevantMemories}}\n-------------\nUser message:\n{{userMessage}} ")
+    @UserMessage("Current date and time: {{currentDateTime}}\n\nConversation summary:\n{{conversationSummary}}\n-------------\nRelevant memory entries: {{relevantMemories}}\n-------------\nUser message:\n{{userMessage}} ")
     fun determineRequestRouting(
         @V("currentDateTime") currentDateTime: String,
-        @V("messageHistory") messageHistory: String,
+        @V("conversationSummary") conversationSummary: String,
         @V("userMessage") userMessage: String,
         @V("relevantMemories") relevantMemories: String
     ): RequestRouterAgentResult

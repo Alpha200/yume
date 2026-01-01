@@ -1,8 +1,12 @@
 package eu.sendzik.yume.service.scheduler
 
 import eu.sendzik.yume.agent.SchedulerAgent
+import eu.sendzik.yume.agent.model.YumeChatResource
 import eu.sendzik.yume.configuration.SchedulerConfiguration
+import eu.sendzik.yume.service.provider.ResourceProviderService
+import eu.sendzik.yume.service.provider.model.YumeResource
 import eu.sendzik.yume.service.scheduler.model.SchedulerRunDetails
+import eu.sendzik.yume.utils.formatTimestampForLLM
 import io.github.oshai.kotlinlogging.KLogger
 import jakarta.annotation.PostConstruct
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
@@ -20,6 +24,7 @@ class SchedulerService(
     private val taskScheduler: ThreadPoolTaskScheduler,
     private val schedulerConfiguration: SchedulerConfiguration,
     private val schedulerAgent: SchedulerAgent,
+    private val resourceProviderService: ResourceProviderService,
     private val logger: KLogger,
 ) {
     private var scheduledTask: ScheduledFuture<*>? = null
@@ -48,7 +53,18 @@ class SchedulerService(
     }
 
     private fun executeScheduling() {
-        val result = schedulerAgent.determineNextRun()
+        val additionalInformation = resourceProviderService.provideResources(listOf(
+            YumeResource.DAY_PLAN_TODAY,
+            YumeResource.DAY_PLAN_TOMORROW,
+            YumeResource.LOCATION,
+            YumeResource.CURRENT_DATE_TIME,
+            YumeResource.USER_LANGUAGE,
+        ))
+
+        // TODO: Fetch relevant memories for scheduling context
+        val result = schedulerAgent.determineNextRun(
+            additionalInformation = additionalInformation,
+        )
 
         if (result.nextRun < LocalDateTime.now().plus(Duration.ofMinutes(schedulerConfiguration.minTemporalDistanceMinutes))) {
             logger.warn { "Scheduler agent result was not at least ${schedulerConfiguration.minTemporalDistanceMinutes} minutes in the future! Will be adjusted. Result was: ${result.nextRun}" }

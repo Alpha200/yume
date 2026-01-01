@@ -54,4 +54,17 @@ class ChatModelConfiguration(
             .listeners(listOf(interactionTrackerService))
             .build()
     }
+
+    @Bean
+    fun conversationSummarizerModel(): ChatModel {
+        return OpenAiChatModel
+            .builder()
+            .baseUrl(baseUrl)
+            .apiKey(openAiApiKey)
+            .modelName(agentConfiguration.model.conversationSummarizerModel)
+            .logRequests(logRequest)
+            .logResponses(logResponse)
+            .listeners(listOf(interactionTrackerService))
+            .build()
+    }
 }
