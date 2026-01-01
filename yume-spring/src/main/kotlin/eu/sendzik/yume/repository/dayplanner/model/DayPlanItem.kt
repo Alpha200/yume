@@ -17,7 +17,8 @@ data class DayPlanItem(
     enum class Source {
         MEMORY,
         CALENDAR,
-        USER_INPUT
+        USER_INPUT,
+        GUESS
     }
 
     enum class Confidence {

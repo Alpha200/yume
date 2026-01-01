@@ -1,7 +1,7 @@
 package eu.sendzik.yume.service.provider
 
-import eu.sendzik.yume.agent.model.YumeChatResource
 import eu.sendzik.yume.configuration.AgentConfiguration
+import eu.sendzik.yume.service.calendar.CalendarService
 import eu.sendzik.yume.service.dayplan.DayPlanService
 import eu.sendzik.yume.service.location.LocationService
 import eu.sendzik.yume.service.provider.model.YumeResource
@@ -17,6 +17,7 @@ class ResourceProviderService(
     private val dayPlanService: DayPlanService,
     private val locationService: LocationService,
     private val agentConfiguration: AgentConfiguration,
+    private val calendarService: CalendarService,
 ) {
     fun provideResources(resources: List<YumeResource>): String = buildString {
         resources.forEach {
@@ -38,6 +39,14 @@ class ResourceProviderService(
                 }
                 YumeResource.CURRENT_DATE_TIME -> {
                     appendLine("The current date and time is: ${formatTimestampForLLM(LocalDateTime.now())}")
+                }
+
+                YumeResource.CALENDAR_NEXT_2_DAYS -> {
+                    val start = LocalDate.now().atStartOfDay()
+                    val end = start.plusDays(2)
+                    val calendarEntries = calendarService.getFormattedCalendarEntries(start, end)
+
+                    appendLine("Upcoming calendar events for the next two days:\n${calendarEntries}")
                 }
             }
         }

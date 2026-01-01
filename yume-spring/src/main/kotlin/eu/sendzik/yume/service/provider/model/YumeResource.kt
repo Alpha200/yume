@@ -12,6 +12,7 @@ enum class YumeResource {
     DAY_PLAN_TOMORROW,
     USER_LANGUAGE,
     CURRENT_DATE_TIME,
+    CALENDAR_NEXT_2_DAYS
 }
 
 fun YumeChatResource.toYumeResource(): YumeResource {

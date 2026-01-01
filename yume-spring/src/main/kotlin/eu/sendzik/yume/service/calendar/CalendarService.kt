@@ -7,7 +7,7 @@ import com.github.caldav4j.model.request.CalendarQuery
 import com.github.caldav4j.model.request.CompFilter
 import com.github.caldav4j.model.request.TimeRange
 import com.github.caldav4j.model.response.CalendarDataProperty
-import eu.sendzik.yume.service.calendar.model.CalendarEntryDto
+import eu.sendzik.yume.service.calendar.model.CalendarEntry
 import io.github.oshai.kotlinlogging.KLogger
 import net.fortuna.ical4j.model.Calendar
 import net.fortuna.ical4j.model.Component
@@ -43,13 +43,17 @@ class CalendarService(
     private val logger: KLogger,
 ) {
 
-    /**
-     * Fetches calendar entries for a given time span
-     * @param startDate The start of the time span (inclusive)
-     * @param endDate The end of the time span (inclusive)
-     * @return List of calendar entries within the specified time span
-     */
-    fun getCalendarEntries(startDate: LocalDateTime, endDate: LocalDateTime): List<CalendarEntryDto> {
+    fun getFormattedCalendarEntries(startDate: LocalDateTime, endDate: LocalDateTime): String {
+        val calendarEntries = getCalendarEntries(startDate, endDate)
+
+        if (calendarEntries.isEmpty()) {
+            return "No calendar entries"
+        }
+
+        return calendarEntries.joinToString("\n") { it.formatForLLM() }
+    }
+
+    fun getCalendarEntries(startDate: LocalDateTime, endDate: LocalDateTime): List<CalendarEntry> {
         return try {
             logger.debug { "Fetching calendar entries from: $calendarUrl for range $startDate to $endDate" }
 
@@ -118,7 +122,7 @@ class CalendarService(
 
                 logger.debug { "Found ${multiStatusResponses.size} responses from server" }
 
-                val entries = mutableListOf<CalendarEntryDto>()
+                val entries = mutableListOf<CalendarEntry>()
 
                 for (response in multiStatusResponses) {
                     if (response.status[0].statusCode != HttpServletResponse.SC_OK) {
@@ -156,7 +160,6 @@ class CalendarService(
         }
     }
 
-
     private fun convertToLocalDateTime(date: Any?): LocalDateTime? {
         if (date !is String) return null
 
@@ -190,7 +193,7 @@ class CalendarService(
         }
     }
 
-    private fun mapToCalendarEntryDto(event: VEvent): CalendarEntryDto? {
+    private fun mapToCalendarEntryDto(event: VEvent): CalendarEntry? {
         val uid = event.uid?.value ?: UUID.randomUUID().toString()
         val title = event.summary?.value ?: "Untitled"
         val description = event.description?.value
@@ -207,7 +210,7 @@ class CalendarService(
                      startDateValue.length == 8 &&
                      startDateValue.all { it.isDigit() }
 
-        return CalendarEntryDto(
+        return CalendarEntry(
             uid = uid,
             title = title,
             description = description,
