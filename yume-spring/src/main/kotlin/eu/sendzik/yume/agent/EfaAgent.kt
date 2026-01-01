@@ -19,4 +19,11 @@ interface EfaAgent {
         @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
         @V("additionalInformation") additionalInformation: String,
     ): BasicUserInteractionAgentResult
+
+    @SystemMessage(fromResource = "prompt/efa-geofence-system-message.txt")
+    fun handleGeofenceEvent(
+        @UserMessage query: String,
+        @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
+        @V("additionalInformation") additionalInformation: String,
+    ): BasicUserInteractionAgentResult
 }

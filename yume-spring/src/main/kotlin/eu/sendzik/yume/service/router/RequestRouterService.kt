@@ -11,6 +11,7 @@ import eu.sendzik.yume.repository.conversation.model.ConversationHistoryEntryTyp
 import eu.sendzik.yume.service.conversation.ConversationHistoryManagerService
 import eu.sendzik.yume.service.dayplan.DayPlanExecutorService
 import eu.sendzik.yume.service.location.model.GeofenceEventRequest
+import eu.sendzik.yume.service.location.model.GeofenceEventType
 import eu.sendzik.yume.service.memory.MemoryManagerExecutorService
 import eu.sendzik.yume.service.memory.MemoryManagerService
 import eu.sendzik.yume.service.provider.ResourceProviderService
@@ -104,14 +105,133 @@ class RequestRouterService(
     }
 
     fun runFromScheduler(schedulerRunDetails: SchedulerRunDetails) {
-        TODO("Not yet implemented")
+        val schedulerMessage = buildString {
+            append("Scheduled run: ")
+            append(schedulerRunDetails.reason)
+            append(". Topic: ")
+            append(schedulerRunDetails.topic)
+        }
+
+        logger.info { schedulerMessage }
+
+        val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
+        val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(schedulerRunDetails.details)
+
+        routeAndExecuteEvent(
+            eventMessage = schedulerMessage,
+            messageContent = schedulerRunDetails.details,
+            relevantMemories = relevantMemoryEntries,
+            conversationHistory = conversationHistory,
+            eventType = EventType.SCHEDULED,
+        )
     }
 
     fun handleGeofenceEvent(geofenceEvent: GeofenceEventRequest) {
-        TODO("Not yet implemented")
+        val geofenceEventMessage = buildString {
+            append("Geofence event: User ")
+            append(when (geofenceEvent.eventType) {
+                GeofenceEventType.ENTER -> "entered"
+                GeofenceEventType.LEAVE -> "left"
+            })
+            append(" geofence '${geofenceEvent.geofenceName}'")
+        }
+
+        logger.info { geofenceEventMessage }
+
+        val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
+        val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(geofenceEvent.geofenceName)
+
+        routeAndExecuteEvent(
+            eventMessage = geofenceEventMessage,
+            messageContent = geofenceEventMessage,
+            relevantMemories = relevantMemoryEntries,
+            conversationHistory = conversationHistory,
+            eventType = EventType.GEOFENCE,
+        )
     }
 
-    // TODO: Extract to a separate service (or use context object and attach data there)
+    private enum class EventType {
+        GEOFENCE, SCHEDULED
+    }
+
+    private fun routeAndExecuteEvent(
+        eventMessage: String,
+        messageContent: String,
+        relevantMemories: String,
+        conversationHistory: String,
+        eventType: EventType,
+    ) {
+        val routerResult = routerAgent.determineRequestRouting(
+            conversationSummary = eventMessage,
+            userMessage = messageContent,
+            currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
+            relevantMemories = relevantMemories,
+        )
+
+        logger.debug { "Routing ${eventType.name.lowercase()} event to agent: ${routerResult.agent}. Reasoning: ${routerResult.reasoning}" }
+
+        val defaultPreferencesPrefix = defaultPreferencesPrefixResource.getContentAsString(Charsets.UTF_8)
+        val additionalInformation = provideAdditionalResources(
+            resources = routerResult.requiredResources,
+            relevantMemories = relevantMemories,
+            conversationHistory = conversationHistory
+        )
+
+        val agentResponse = when (eventType) {
+            EventType.GEOFENCE -> executeGeofenceAgent(routerResult.agent, messageContent, defaultPreferencesPrefix, additionalInformation)
+            EventType.SCHEDULED -> executeScheduledAgent(routerResult.agent, messageContent, defaultPreferencesPrefix, additionalInformation)
+        }
+
+        if (!agentResponse.memoryUpdateTask.isNullOrBlank()) {
+            memoryManagerExecutorService.updateMemoryWithTask(agentResponse.memoryUpdateTask)
+        }
+
+        if (!agentResponse.dayPlannerUpdateTask.isNullOrBlank()) {
+            dayPlanExecutorService.updateDayPlansWithTask(agentResponse.dayPlannerUpdateTask)
+        }
+
+        if (!agentResponse.messageToUser.isNullOrBlank()) {
+            conversationHistoryManagerService.addEntry(
+                agentResponse.messageToUser,
+                ConversationHistoryEntryType.SYSTEM_MESSAGE
+            )
+        }
+
+        // Always add event message for geofence events; for scheduled events only if no message was already added
+        if (eventType == EventType.GEOFENCE) {
+            conversationHistoryManagerService.addEntry(
+                eventMessage,
+                ConversationHistoryEntryType.SYSTEM_MESSAGE
+            )
+        }
+    }
+
+    private fun executeScheduledAgent(
+        agentType: YumeAgentType,
+        message: String,
+        systemPromptPrefix: String,
+        additionalInformation: String,
+    ): eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult {
+        return when (agentType) {
+            YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleUserMessage(message, systemPromptPrefix, additionalInformation)
+            YumeAgentType.GENERIC -> genericAgent.handleUserMessage(message, systemPromptPrefix, additionalInformation)
+            YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleUserMessage(message, systemPromptPrefix, additionalInformation)
+        }
+    }
+
+    private fun executeGeofenceAgent(
+        agentType: YumeAgentType,
+        message: String,
+        systemPromptPrefix: String,
+        additionalInformation: String,
+    ): eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult {
+        return when (agentType) {
+            YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleGeofenceEvent(message, systemPromptPrefix, additionalInformation)
+            YumeAgentType.GENERIC -> genericAgent.handleGeofenceEvent(message, systemPromptPrefix, additionalInformation)
+            YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleGeofenceEvent(message, systemPromptPrefix, additionalInformation)
+        }
+    }
+
     private fun provideAdditionalResources(
         resources: List<YumeChatResource>,
         relevantMemories: String,

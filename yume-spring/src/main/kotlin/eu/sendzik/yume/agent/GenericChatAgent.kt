@@ -19,4 +19,11 @@ interface GenericChatAgent {
         @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
         @V("additionalInformation") additionalInformation: String,
     ): BasicUserInteractionAgentResult
+
+    @SystemMessage(fromResource = "prompt/geofence-event-system-message.txt")
+    fun handleGeofenceEvent(
+        @UserMessage query: String,
+        @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
+        @V("additionalInformation") additionalInformation: String,
+    ): BasicUserInteractionAgentResult
 }

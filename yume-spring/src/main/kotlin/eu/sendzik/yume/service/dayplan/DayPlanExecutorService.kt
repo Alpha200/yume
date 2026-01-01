@@ -30,6 +30,7 @@ class DayPlanExecutorService(
                 YumeResource.CURRENT_DATE_TIME,
                 YumeResource.USER_LANGUAGE,
                 YumeResource.CALENDAR_NEXT_2_DAYS,
+                // TODO: Add memory entries related to day planning
             ))
 
             dayPlanAgent.updateDayPlansWithTask(

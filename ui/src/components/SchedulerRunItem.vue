@@ -5,12 +5,12 @@
       <span class="status-badge" :class="run.status">{{ formatStatus(run.status) }}</span>
     </div>
     <div class="details">
-      <p><strong>Scheduled:</strong> {{ formatDateTime(run.scheduled_time) }}</p>
-      <p v-if="run.actual_execution_time"><strong>Executed:</strong> {{ formatDateTime(run.actual_execution_time) }}</p>
-      <p v-if="run.execution_duration_ms"><strong>Duration:</strong> {{ run.execution_duration_ms }}ms</p>
+      <p><strong>Scheduled:</strong> {{ formatDateTime(run.scheduledTime) }}</p>
+      <p v-if="run.actualExecutionTime"><strong>Executed:</strong> {{ formatDateTime(run.actualExecutionTime) }}</p>
+      <p v-if="run.executionDurationMs"><strong>Duration:</strong> {{ run.executionDurationMs }}ms</p>
       <p v-if="run.details" class="details-text"><strong>Details:</strong> {{ run.details }}</p>
-      <p v-if="run.error_message" class="error-message"><strong>Error:</strong> {{ run.error_message }}</p>
-      <p v-if="run.ai_response" class="response"><strong>Response:</strong> {{ truncateResponse(run.ai_response) }}</p>
+      <p v-if="run.errorMessage" class="error-message"><strong>Error:</strong> {{ run.errorMessage }}</p>
+      <p v-if="run.aiResponse" class="response"><strong>Response:</strong> {{ truncateResponse(run.aiResponse) }}</p>
     </div>
     <button v-if="run.id" @click="showDetails" class="details-button">View Details</button>
   </div>
