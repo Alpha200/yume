@@ -1,9 +1,9 @@
 <template>
   <div class="plan-item" :class="sourceClass">
     <div class="item-header">
-      <span class="item-time" v-if="item.start_time">
-        {{ formatTime(item.start_time) }}
-        <span v-if="item.end_time"> - {{ formatTime(item.end_time) }}</span>
+      <span class="item-time" v-if="item.startTime">
+        {{ formatTime(item.startTime) }}
+        <span v-if="item.endTime"> - {{ formatTime(item.endTime) }}</span>
       </span>
       <span class="item-time all-day" v-else>All Day</span>
       <span class="confidence-badge" :class="confidenceClass">
