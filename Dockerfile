@@ -27,8 +27,8 @@ RUN gradle bootJar --no-daemon
 # Stage 3: Runtime with Nginx, Spring Boot, and built frontend
 FROM eclipse-temurin:21-jre-alpine
 
-# Install Nginx
-RUN apk add --no-cache nginx
+# Install Nginx and bash (for wait -n support)
+RUN apk add --no-cache nginx bash
 
 WORKDIR /app
 
@@ -41,8 +41,11 @@ COPY --from=frontend-builder /app/ui/dist /usr/share/nginx/html
 # Copy Nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Expose port
+# Set default port for Spring Boot
+ENV SERVER_PORT=8080
+
+# Expose port for Nginx
 EXPOSE 8079
 
-# Run both Nginx and Spring Boot
-CMD sh -c 'java -jar app.jar & nginx -g "daemon off;"'
+# Run both processes; exit container if either dies
+CMD ["/bin/bash", "-c", "java -jar app.jar & nginx -g 'daemon off;' & wait -n"]
