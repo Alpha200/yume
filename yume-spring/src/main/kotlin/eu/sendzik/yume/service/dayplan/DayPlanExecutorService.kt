@@ -23,13 +23,14 @@ class DayPlanExecutorService(
 
     @Scheduled(cron = "\${yume.day-plan.update-cron}")
     fun executeDayPlanUpdates() {
-        lock.withLock {
+        val agentResult = lock.withLock {
             logger.info { "Executing scheduled day plan update" }
 
             val additionalInformation = resourceProviderService.provideResources(listOf(
                 YumeResource.CURRENT_DATE_TIME,
                 YumeResource.USER_LANGUAGE,
                 YumeResource.CALENDAR_NEXT_2_DAYS,
+                YumeResource.WEATHER_FORECAST
                 // TODO: Add memory entries related to day planning
             ))
 
@@ -37,6 +38,10 @@ class DayPlanExecutorService(
                 "Check if a day plan for today and tomorrow exists and create or update them as necessary.",
                 additionalInformation
             )
+        }
+
+        if (!agentResult.actionsTaken.isNullOrEmpty()) {
+            schedulerService.triggerRun()
         }
     }
 
@@ -47,22 +52,27 @@ class DayPlanExecutorService(
 
     @Async
     fun updateDayPlansWithTask(dayPlannerUpdateTask: String) {
-        lock.withLock {
+        val result = lock.withLock {
             logger.info { "Updating day plans with task: $dayPlannerUpdateTask" }
 
             val additionalInformation = resourceProviderService.provideResources(listOf(
                 YumeResource.CURRENT_DATE_TIME,
-                YumeResource.USER_LANGUAGE
+                YumeResource.USER_LANGUAGE,
+                YumeResource.CALENDAR_NEXT_2_DAYS,
+                YumeResource.WEATHER_FORECAST,
+                YumeResource.SUMMARIZED_PREFERENCES,
+                YumeResource.SUMMARIZED_OBSERVATIONS,
+                // TODO: Weather forecast for the specific days? Maybe via tool?
             ))
 
-            val result = dayPlanAgent.updateDayPlansWithTask(
+            dayPlanAgent.updateDayPlansWithTask(
                 query = dayPlannerUpdateTask,
                 additionalInformation =  additionalInformation
             )
+        }
 
-            if (!result.actionsTaken.isNullOrEmpty()) {
-                schedulerService.triggerRun()
-            }
+        if (!result.actionsTaken.isNullOrEmpty()) {
+            schedulerService.triggerRun()
         }
     }
 }

@@ -59,9 +59,11 @@ class SchedulerService(
             YumeResource.LOCATION,
             YumeResource.CURRENT_DATE_TIME,
             YumeResource.USER_LANGUAGE,
+            YumeResource.SUMMARIZED_REMINDERS,
+            YumeResource.SUMMARIZED_OBSERVATIONS,
+            YumeResource.SUMMARIZED_PREFERENCES,
         ))
 
-        // TODO: Fetch relevant memories for scheduling context
         val result = schedulerAgent.determineNextRun(
             additionalInformation = additionalInformation,
         )

@@ -94,21 +94,6 @@ class MemoryManagerService(
         }
     }
 
-    fun getFormattedRelevantMemories(message: String): String {
-        val relevantMemories = memoryRepository.searchAll(message)
-        val groupedMemories = relevantMemories.groupBy {
-            when (it) {
-                is UserPreferenceEntry -> MemoryType.PREFERENCE
-                is UserObservationEntry -> MemoryType.OBSERVATION
-                is ReminderEntry -> MemoryType.REMINDER
-            }
-        }
-
-        return groupedMemories.map { (type, memories) ->
-            "=== ${type.name} MEMORIES ===\n" + memories.map { memory -> memory.content }.joinToString ("\n---\n")
-        }.joinToString("\n")
-    }
-
     fun resetRagDatabase() {
         memoryRepository.resetRagDatabase()
     }
@@ -122,6 +107,31 @@ class MemoryManagerService(
     }
 
     fun getMemoriesByType(type: MemoryType): List<MemoryEntry> {
-        return memoryRepository.findAllByType(type.id)
+        return memoryRepository.findAllByMemoryType(type.id)
+    }
+
+    fun getFormattedMemories(): String {
+        val memories = getAllMemories()
+        return memories.joinToString ("\n\n") { it.toFormattedString(compact = false) }
+    }
+
+    fun getCompactedFormattedMemories(memoryType: MemoryType): String {
+        val memories = getMemoriesByType(memoryType)
+        return memories.joinToString ("\n\n") { it.toFormattedString(compact = true) }
+    }
+
+    fun getFormattedRelevantMemories(message: String): String {
+        val relevantMemories = memoryRepository.searchAll(message)
+        val groupedMemories = relevantMemories.groupBy {
+            when (it) {
+                is UserPreferenceEntry -> MemoryType.PREFERENCE
+                is UserObservationEntry -> MemoryType.OBSERVATION
+                is ReminderEntry -> MemoryType.REMINDER
+            }
+        }
+
+        return groupedMemories.map { (type, memories) ->
+            "=== ${type.name} MEMORIES ===\n" + memories.joinToString("\n---\n") { memory -> memory.toFormattedString(compact = true) }
+        }.joinToString("\n")
     }
 }

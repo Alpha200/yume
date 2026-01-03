@@ -55,7 +55,7 @@ You should follow these steps when processing information:
 
 1. Note the current date and time provided in the input
 2. Analyze the information to understand what type of memory it represents
-3. Check existing memories using get_memory to avoid duplicates and identify updates needed
+3. Check existing memories to avoid duplicates and identify updates needed
 4. Determine actions:
    - UPDATE existing memory if information refines or changes existing knowledge
    - CREATE new memory if information is genuinely new and relevant

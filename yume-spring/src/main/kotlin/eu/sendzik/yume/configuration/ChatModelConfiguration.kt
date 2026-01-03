@@ -23,32 +23,38 @@ class ChatModelConfiguration(
 ) {
     @Bean
     fun genericChatModel() = buildYumeChatModel(
-        "Generic"
+        agentName = "Generic",
+        modelName = agentConfiguration.model.genericAgentModel,
     )
 
     @Bean
     fun efaChatModel() = buildYumeChatModel(
         agentName = "EFA",
+        modelName = agentConfiguration.model.efaAgentModel,
     )
 
     @Bean
     fun dayPlanChatModel() = buildYumeChatModel(
         agentName = "DayPlan",
+        modelName = agentConfiguration.model.dayPlanAgentModel,
     )
 
     @Bean
     fun kitchenOwlChatModel() = buildYumeChatModel(
         agentName = "KitchenOwl",
+        modelName = agentConfiguration.model.kitchenOwlAgentModel,
     )
 
     @Bean
     fun memoryManagerChatModel() = buildYumeChatModel(
         agentName = "MemoryManager",
+        modelName = agentConfiguration.model.memoryManagerAgentModel,
     )
 
     @Bean
     fun schedulerChatModel() = buildYumeChatModel(
         agentName = "Scheduler",
+        modelName = agentConfiguration.model.schedulerAgentModel,
     )
 
     @Bean
@@ -58,20 +64,27 @@ class ChatModelConfiguration(
     )
 
     @Bean
-    fun conversationSummarizerModel() = buildYumeChatModel(
+    fun conversationSummarizerChatModel() = buildYumeChatModel(
         agentName = "Summarizer",
         modelName = agentConfiguration.model.conversationSummarizerModel,
         jsonOutput = false
     )
 
+    @Bean
+    fun memorySummarizerChatModel() = buildYumeChatModel(
+        agentName = "MemorySummarizer",
+        modelName = agentConfiguration.model.memorySummarizerModel,
+        jsonOutput = false
+    )
+
     private fun buildYumeChatModel(
         agentName: String,
+        modelName: String,
         jsonOutput: Boolean = true,
-        modelName: String? = null,
     ): ChatModel {
         return OpenAiChatModel
             .builder()
-            .modelName(modelName ?: agentConfiguration.model.defaultAgentModel)
+            .modelName(modelName)
             .baseUrl(baseUrl)
             .apiKey(openAiApiKey)
             .logRequests(logRequest)

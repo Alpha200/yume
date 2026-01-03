@@ -7,7 +7,7 @@ import dev.langchain4j.service.spring.AiService
 import dev.langchain4j.service.spring.AiServiceWiringMode
 
 @AiService(
-    chatModel = "conversationSummarizerModel",
+    chatModel = "conversationSummarizerChatModel",
     wiringMode = AiServiceWiringMode.EXPLICIT,
 )
 interface ConversationSummarizerAgent {

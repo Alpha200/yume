@@ -4,6 +4,8 @@ import eu.sendzik.yume.configuration.AgentConfiguration
 import eu.sendzik.yume.service.calendar.CalendarService
 import eu.sendzik.yume.service.dayplan.DayPlanService
 import eu.sendzik.yume.service.location.LocationService
+import eu.sendzik.yume.service.memory.MemorySummarizerService
+import eu.sendzik.yume.service.memory.model.MemoryType
 import eu.sendzik.yume.service.provider.model.YumeResource
 import eu.sendzik.yume.service.weather.WeatherService
 import eu.sendzik.yume.utils.formatTimestampForLLM
@@ -18,6 +20,7 @@ class ResourceProviderService(
     private val locationService: LocationService,
     private val agentConfiguration: AgentConfiguration,
     private val calendarService: CalendarService,
+    private val memorySummarizerService: MemorySummarizerService,
 ) {
     fun provideResources(resources: List<YumeResource>): String = buildString {
         resources.forEach {
@@ -39,6 +42,18 @@ class ResourceProviderService(
                 }
                 YumeResource.CURRENT_DATE_TIME -> {
                     appendLine("The current date and time is: ${formatTimestampForLLM(LocalDateTime.now())}")
+                }
+                YumeResource.SUMMARIZED_PREFERENCES -> {
+                    val summary = memorySummarizerService.getMemorySummary(MemoryType.PREFERENCE)
+                    appendLine("Memorized user preferences:\n$summary")
+                }
+                YumeResource.SUMMARIZED_OBSERVATIONS -> {
+                    val summary = memorySummarizerService.getMemorySummary(MemoryType.OBSERVATION)
+                    appendLine("Memorized user obseravtions:\n$summary")
+                }
+                YumeResource.SUMMARIZED_REMINDERS -> {
+                    val summary = memorySummarizerService.getMemorySummary(MemoryType.REMINDER)
+                    appendLine("Memorized reminders:\n$summary")
                 }
 
                 YumeResource.CALENDAR_NEXT_2_DAYS -> {

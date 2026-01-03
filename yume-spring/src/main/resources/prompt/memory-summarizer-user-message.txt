@@ -1,0 +1,7 @@
+Current date and time: {{currentDateTime}}
+
+Please summarize the following user memories. Preserve all important details while making them more concise and actionable.
+
+BEGIN OF MEMORIES
+{{memories}}
+END OF MEMORIES

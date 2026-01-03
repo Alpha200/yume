@@ -94,8 +94,8 @@ class RagMemoryRepository (
         }
     }
 
-    fun findAllByType(type: String): List<MemoryEntry> {
-        return mongoRepository.findAllByType(type)
+    fun findAllByMemoryType(type: String): List<MemoryEntry> {
+        return mongoRepository.findAllByMemoryType(type)
     }
 
     fun resetRagDatabase() {

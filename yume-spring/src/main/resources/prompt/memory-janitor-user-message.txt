@@ -1,0 +1,12 @@
+Current date and time: {{currentDateTime}}
+
+BEGIN OF MEMORIES
+{{memories}}
+END OF MEMORIES
+
+Review the stored memories and ensure they are up to date. Consider the current date/time when:
+- Removing past non-recurring reminders
+- Identifying outdated observations
+- Cleaning up completed or irrelevant entries
+
+Provide a summary of the actions taken.

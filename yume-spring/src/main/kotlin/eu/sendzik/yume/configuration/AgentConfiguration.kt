@@ -9,9 +9,15 @@ class AgentConfiguration(
 ) {
 
     class Model(
-        val defaultAgentModel: String,
+        val genericAgentModel: String,
+        val efaAgentModel: String,
+        val dayPlanAgentModel: String,
+        val kitchenOwlAgentModel: String,
+        val memoryManagerAgentModel: String,
+        val schedulerAgentModel: String,
         val routerAgentModel: String,
         val conversationSummarizerModel: String,
+        val memorySummarizerModel: String,
     )
 
     class Preferences(
