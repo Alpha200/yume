@@ -27,8 +27,8 @@ RUN gradle bootJar --no-daemon
 # Stage 3: Runtime with Nginx, Spring Boot, and built frontend
 FROM eclipse-temurin:21-jre-alpine
 
-# Install Nginx and bash (for wait -n support)
-RUN apk add --no-cache nginx bash
+# Install Nginx, bash, and tini (for proper signal handling)
+RUN apk add --no-cache nginx bash tini
 
 WORKDIR /app
 
@@ -48,4 +48,6 @@ ENV SERVER_PORT=8080
 EXPOSE 8079
 
 # Run both processes; exit container if either dies
+# tini ensures signals (SIGTERM) are forwarded properly for graceful shutdown
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/bin/bash", "-c", "java -jar app.jar & nginx -g 'daemon off;' & wait -n"]
