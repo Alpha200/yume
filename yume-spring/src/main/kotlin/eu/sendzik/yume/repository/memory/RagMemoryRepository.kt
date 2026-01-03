@@ -105,18 +105,14 @@ class RagMemoryRepository (
 
             val data = mongoRepository.findAll().asSequence()
 
-            do {
-                val batch = data.take(100).toList()
-                if (batch.isEmpty()) {
-                    break
-                }
+            data.chunked(100).forEach { batch ->
                 val embeddings = embeddingModel.embedAll(batch.map { textSegment(it.formatForRAG()) }).content()
                 embeddingStore.addAll(
                     batch.map { it.id },
                     embeddings,
                     null
                 )
-            } while (true)
+            }
 
             logger.info {"Finished resetting RAG memory repository..." }
         }
