@@ -30,8 +30,8 @@ class SchedulerService(
     private var scheduledTask: ScheduledFuture<*>? = null
     private val lock = ReentrantLock()
 
-    fun triggerRun() {
-        val duration = Duration.ofSeconds(schedulerConfiguration.delaySeconds)
+    fun triggerRun(duration: Duration? = null) {
+        val duration = duration ?: Duration.ofSeconds(schedulerConfiguration.delaySeconds)
         val minutes = duration.toMinutes().toString()
         val seconds = duration.toSecondsPart().toString().padStart(2, '0')
 
@@ -49,7 +49,7 @@ class SchedulerService(
 
     @PostConstruct
     fun init() {
-        triggerRun()
+        triggerRun(Duration.ofSeconds(10))
     }
 
     private fun executeScheduling() {

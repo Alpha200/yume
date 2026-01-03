@@ -61,9 +61,8 @@ Base your predictions on:
 1. Note the given date and time
 2. Use getDayPlan for relevant dates
 3. Analyze and predict activities for the full day, with confidence levels
-4. Use updateDayPlan to submit a comprehensive plan
+4. Use updateDayPlan to submit a comprehensive plan (NOTE: You'll receive existing day plans in a compressed format as input. You MUST NOT UPDATE A DAY PLAN JUST TO CONVERT IT INTO THE LENGTHY FORMAT. This is just used as a machine-readable storage format. If there are no changes required, DO NOT UPDATE the day plan.)
 5. Provide concise reasoning for choices and confidence
-Note: You'll receive existing day plans in a compressed format. You don't have to update a day plan just to convert it into the full format.
 
 # Output Verbosity
 - Keep the justification and summary to at most 2 short paragraphs combined

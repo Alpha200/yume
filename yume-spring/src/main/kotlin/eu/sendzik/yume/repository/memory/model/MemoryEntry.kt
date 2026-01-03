@@ -16,7 +16,7 @@ sealed class MemoryEntry {
     abstract val place: String?
     abstract val createdAt: LocalDateTime
     abstract val modifiedAt: LocalDateTime
-    abstract val memoryType: String
+    abstract val type: String
     abstract fun toFormattedString(compact: Boolean = false): String
 }
 
@@ -34,7 +34,7 @@ data class UserPreferenceEntry(
     override val createdAt: LocalDateTime,
     @Field("modified_at")
     override val modifiedAt: LocalDateTime,
-    override val memoryType: String = "USER_PREFERENCE"
+    override val type: String = "user_preference"
 ) : MemoryEntry() {
     override fun toFormattedString(compact: Boolean): String {
         return if (compact) {
@@ -52,7 +52,7 @@ data class UserPreferenceEntry(
     override fun toString(): String {
         return buildString {
             appendLine("ID: $id")
-            appendLine("Type: $memoryType")
+            appendLine("Type: $type")
             appendLine("Content: $content")
             if (place != null) {
                 appendLine("Place: $place")
@@ -79,7 +79,7 @@ data class UserObservationEntry(
     override val modifiedAt: LocalDateTime,
     @Field("observation_date")
     val observationDate: LocalDateTime,
-    override val memoryType: String = "USER_OBSERVATION"
+    override val type: String = "user_observation"
 ) : MemoryEntry() {
     override fun toFormattedString(compact: Boolean): String {
         return if (compact) {
@@ -98,7 +98,7 @@ data class UserObservationEntry(
     override fun toString(): String {
         return buildString {
             appendLine("ID: $id")
-            appendLine("Type: $memoryType")
+            appendLine("Type: $type")
             appendLine("Content: $content")
             if (place != null) {
                 appendLine("Place: $place")
@@ -126,7 +126,7 @@ data class ReminderEntry(
     override val modifiedAt: LocalDateTime,
     @Field("reminder_options")
     val reminderOptions: ReminderOptions,
-    override val memoryType: String = "REMINDER"
+    override val type: String = "reminder"
 ) : MemoryEntry() {
     override fun toFormattedString(compact: Boolean): String {
         return if (compact) {
@@ -145,7 +145,7 @@ data class ReminderEntry(
     override fun toString(): String {
         return buildString {
             appendLine("ID: $id")
-            appendLine("Type: $memoryType")
+            appendLine("Type: $type")
             appendLine("Content: $content")
             if (place != null) {
                 appendLine("Place: $place")

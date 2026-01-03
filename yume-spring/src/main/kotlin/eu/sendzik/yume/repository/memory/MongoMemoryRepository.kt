@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface MongoMemoryRepository : MongoRepository<MemoryEntry, String> {
-    @Query("{ 'memoryType': ?0 }")
+    @Query("{ 'type': ?0 }")
     fun findAllByMemoryType(type: String): List<MemoryEntry>
 }
