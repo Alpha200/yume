@@ -244,6 +244,7 @@ class RequestRouterService(
                 listOf(
                     YumeResource.USER_LANGUAGE,
                     YumeResource.CURRENT_DATE_TIME,
+                    YumeResource.LOCATION,
                 ) + resources.map { it.toYumeResource() }
             ))
 

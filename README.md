@@ -9,7 +9,9 @@
 ## Features
 
 - 🤖 **Matrix Chat Integration**: AI-powered responses to messages in Matrix rooms
-- 🏠 **Home Assistant Integration**: Weather, calendar, location and proximity data integration
+- 🏠 **Home Assistant Integration**: Location and proximity data integration
+- 📅 **Calendar Integration**: iCalDAV-based calendar events and scheduling
+- 🌤️ **Weather Integration**: Real-time weather data via OpenWeatherMap
 - 📍 **Geofence Events**: Location-based triggers with distance context from proximity sensors
 - 🚌 **Public Transport Departures**: Real-time transit information via EFA (Elektronisches Fahrplanauskun ftssystem) API with dynamic station lookup and line/direction filtering
 - 🛒 **KitchenOwl Integration**: Manage shopping lists and recipes with intelligent duplicate handling
@@ -26,25 +28,24 @@ Yume is built with a modular architecture consisting of several key components:
 
 ### Core Services
 
-- **AI Engine** (`services/ai_engine.py`): Unified AI agent for decision-making and response generation
-- **Matrix Bot** (`services/matrix_bot.py`): Matrix protocol client for chat integration
-- **AI Scheduler** (`services/ai_scheduler.py`): Background task scheduling with APScheduler
-- **Context Manager** (`services/context_manager.py`): Aggregates data from multiple sources
-- **Memory Manager** (`services/memory_manager.py`): Persistent storage for user preferences, observations, and reminders
-- **Memory Summarizer** (`services/memory_summarizer.py`): Auto-summarizes memories for optimized AI context
-- **Chat Message Manager** (`services/chat_message_manager.py`): MongoDB-backed persistence for conversation history with duplicate prevention
-- **Home Assistant** (`services/home_assistant.py`): Integration with Home Assistant API
-- **KitchenOwl** (`services/kitchenowl.py`): Shopping list and recipe management with intelligent duplicate handling
-- **EFA Service** (`services/efa.py`): Public transport integration with EFA API
+- **Matrix Bot Service** (`service/matrix/`): Matrix protocol client for chat integration
+- **Memory Manager Service** (`service/memory/`): MongoDB-backed persistent storage for user preferences, observations, and reminders
+- **Scheduler Service** (`service/scheduler/`): Background task scheduling with Spring's TaskScheduler
+- **Context Manager** (`service/`): Aggregates data from multiple sources (Home Assistant, calendar, weather)
+- **Home Assistant Service** (`service/provider/`): Integration with Home Assistant API
+- **Calendar & Weather Services** (`service/calendar/`, `service/weather/`): External service integrations
+- **Conversation Service** (`service/conversation/`): Message history and conversation management
 
-### AI Agents
+### AI Agents (langchain4j-powered)
 
-- **Memory Manager** (`aiagents/memory_manager.py`): Handles memory operations including intelligent cleanup and archival
-- **Memory Summarizer** (`aiagents/memory_summarizer.py`): Condenses full memory records into concise, detail-preserving summaries for optimized AI context input
-- **Day Planner** (`aiagents/day_planner.py`): AI agent that creates daily activity predictions using calendar, memories, and context. Makes high-confidence updates to plans via tools.
-- **AI Scheduler** (`aiagents/ai_scheduler.py`): Intelligent scheduling with deferred execution, automatic re-evaluation, and dual-approach timing optimization (deterministic + AI-powered)
-- **EFA Agent** (`aiagents/efa_agent.py`): Specialized agent for querying public transport departures. Parses natural language queries to extract station names, line numbers, and destination directions. Used by the main AI engine as a tool.
-- **KitchenOwl Agent** (`aiagents/kitchenowl.py`): Manages shopping lists and recipes with autonomous decision-making. Intelligently handles duplicate items by checking the list before adding, and can update item descriptions on demand.
+- **RequestRouterAgent** (`agent/RequestRouterAgent.kt`): Routes incoming requests to appropriate agents based on context
+- **GenericChatAgent** (`agent/GenericChatAgent.kt`): Main conversational AI for handling general interactions
+- **MemoryManagerAgent** (`agent/MemoryManagerAgent.kt`): Handles memory operations including intelligent cleanup and archival
+- **ConversationSummarizerAgent** (`agent/ConversationSummarizerAgent.kt`): Condenses conversation history into concise, detail-preserving summaries for optimized AI context
+- **DayPlanAgent** (`agent/DayPlanAgent.kt`): AI agent that creates daily activity predictions using calendar, memories, and context. Makes high-confidence updates to plans via tools.
+- **SchedulerAgent** (`agent/SchedulerAgent.kt`): Intelligent scheduling with deferred execution, automatic re-evaluation, and dual-approach timing optimization (deterministic + AI-powered)
+- **EfaAgent** (`agent/EfaAgent.kt`): Specialized agent for querying public transport departures. Parses natural language queries to extract station names, line numbers, and destination directions.
+- **KitchenOwlAgent** (`agent/KitchenOwlAgent.kt`): Manages shopping lists and recipes with autonomous decision-making. Intelligently handles duplicate items by checking the list before adding.
 
 ### Memory System
 
@@ -55,48 +56,52 @@ The memory system stores three types of entries:
 
 Reminders use dual-approach scheduling: deterministic (explicitly scheduled) + AI-powered (pattern-based). The AI Scheduler runs after every interaction with a 60-second debounce.
 
-### Tools Integration
+### Tool Integration
 
-- **Memory Tools** (`tools/memory.py`): Memory operations (search, CRUD)
-- **Day Planner Tools** (`tools/day_planner.py`): Get and update daily plans
-- **Home Assistant Tools** (`tools/home_assistant.py`): Smart home control and sensor data
-- **EFA Tools** (`tools/efa.py`): Public transport departure queries with optional line and direction filtering
-- **KitchenOwl Tools** (`tools/kitchenowl.py`): Shopping list management and recipe access with batch operations
+langchain4j-powered tools for AI agents:
+- **Memory Tools**: Memory operations (search, CRUD) with MongoDB
+- **Day Planner Tools**: Get and update daily plans  
+- **Home Assistant Tools**: Smart home control and sensor data
+- **EFA Tools**: Public transport departure queries with optional line and direction filtering
+- **KitchenOwl Tools**: Shopping list management and recipe access with batch operations
 
-### Settings Management
+### Data Management
 
-- **MongoDB-backed Storage**: Persistent settings with on-demand database queries
+- **MongoDB Storage**: Persistent storage for memories, conversations, and interactions
+- **Spring Cache (Caffeine)**: In-memory caching for frequently accessed data
+- **Vector Embeddings**: langchain4j with pgvector for semantic search capabilities
 
 ### Components
 
-- **Conversation** (`components/conversation.py`): Message history data structures
-- **Calendar & Weather** (`components/calendar.py`, `components/weather.py`): External service models
-- **Logging Manager** (`components/logging_manager.py`): Centralized logging with history
-- **Agent Hooks** (`components/agent_hooks.py`): Custom hooks for AI behavior
-- **Timezone Utils** (`components/timezone_utils.py`): Timezone-aware datetime handling
+- **Conversation Models** (`component/conversation/`): Message history data structures
+- **Calendar & Weather Models** (`component/calendar/`, `component/weather/`): External service models
+- **Timezone Utils** (`utils/`): Timezone-aware datetime handling
 
 ### Interaction Tracking
 
 Yume tracks all AI agent interactions for debugging:
 - **Agent Type**: Records which agent executed the interaction
 - **Input/Output**: Stores full data for each interaction
-- **Metadata**: Captures next_run_time, topic, system instructions
-- **Storage**: Persisted in `data/interactions.json`
+- **Metadata**: Captures scheduling information, topic, and system instructions
+- **Storage**: Persisted in MongoDB
 
 ## Performance Optimizations
 
-- **Async Background Processing**: Memory updates, summarization, and scheduling run asynchronously
-- **Memory Summarization**: Automatically condenses full memory records into optimized summaries after each update, reducing token usage while preserving critical details
-- **Unified AI Agent**: Single agent handles both decision-making and response generation
+- **Async Background Processing**: Memory updates, summarization, and scheduling run asynchronously using Spring's @Async
+- **Conversation Summarization**: Automatically condenses conversation history into optimized summaries after each update, reducing token usage while preserving critical details
 - **Efficient Memory Access**: Summarized memory retrieval with consistent formatting; falls back to full memory if summaries unavailable
 - **Smart Fallbacks**: Uses summarized memories when available, automatically falls back to full memory if needed
+- **In-Memory Caching**: Caffeine cache for frequently accessed data (memories, preferences, schedules)
+- **Vector Search**: langchain4j pgvector integration for semantic search on memories and conversations
+- **Connection Pooling**: Optimized database connections with MongoDB
 
 ## Installation
 
 ### Prerequisites
 
-- Python 3.13+
-- Poetry (for dependency management)
+- Java 21 or later
+- Spring Boot 3.5+
+- MongoDB instance (local or cloud)
 - Matrix account and room
 - Home Assistant instance (optional)
 - OpenAI API key
@@ -109,127 +114,53 @@ Yume tracks all AI agent interactions for debugging:
    cd yume
    ```
 
-2. **Install dependencies**
+2. **Build the project**
    ```bash
-   poetry install
+   cd yume-spring
+   ./gradlew build
    ```
 
-3. **Configure environment variables**
-   Create a `.env` file or set the following environment variables:
+3. **Configure application properties**
+   
+   All configuration is managed through Spring Boot's `application.properties` file located at `yume-spring/src/main/resources/application.properties`.
 
-   ```bash
-   # Matrix Configuration
-   MATRIX_HOMESERVER=https://matrix.example.com
-   MATRIX_USER_ID=@botname:example.com
-   MATRIX_PASSWORD=your_bot_password
-   MATRIX_ROOM_ID=!roomid:example.com
-   MATRIX_SYSTEM_USERNAME=botname
+   Review the configuration file and fill in all required properties for your environment:
+   - Matrix bot credentials and connection details
+   - MongoDB connection settings
+   - OpenAI API key and model configuration
+   - Home Assistant integration (if applicable)
+   - KitchenOwl integration (if applicable)
+   - EFA public transport API settings
+   - OIDC authentication provider settings
+   - Basic Auth credentials for webhook endpoints
 
-   # Home Assistant Configuration (Optional)
-   HA_URL=http://localhost:8123
-   HA_TOKEN=your_ha_token
-   HA_DEVICE_TRACKER_ENTITY=device_tracker.phone
-   HA_WEATHER_ENTITY=weather.forecast_home
-   HA_CALENDAR_ENTITY=calendar.personal
-   HA_PROXIMITY_ENTITY=sensor.proximity_home_distance
-   HA_HOME_GEOFENCE=home
-   HA_TIMEZONE=Europe/Berlin
-
-   # OpenAI Configuration
-   OPENAI_API_KEY=your_openai_api_key
-   
-   # AI Model Configuration (Optional)
-   AI_ASSISTANT_MODEL=gpt-4o-mini  # Model for main chat assistant (defaults to AI_MODEL)
-   AI_SCHEDULER_MODEL=gpt-5-mini  # Model for scheduling agent (defaults to AI_MODEL)
-   AI_MEMORY_MODEL=gpt-5-mini  # Model for memory manager agent (defaults to AI_MODEL)
-   AI_ENDPOINT_URL=  # Optional: Custom OpenAI API endpoint URL (leave empty for default)
-   
-   # Public Transport Configuration
-   EFA_API_URL=https://efa.vrr.de/standard  # EFA API endpoint (defaults to VRR standard endpoint)
-   EFA_CLIENT_ID=CLIENTID  # EFA client identifier (defaults to CLIENTID)
-   EFA_CLIENT_NAME=yume  # EFA client name (defaults to yume)
-   
-   # KitchenOwl Configuration (Optional)
-   KITCHENOWL_API_URL=http://localhost:8080/api  # KitchenOwl API endpoint
-   KITCHENOWL_API_KEY=your_api_key  # API key for KitchenOwl authentication (if required)
-   KITCHENOWL_HOUSEHOLD_ID=1  # Household ID in KitchenOwl (defaults to 1)
-   AI_KITCHENOWL_MODEL=gpt-4-mini  # Model for KitchenOwl agent (defaults to gpt-4-mini)
-   
-   # User Configuration
-   USER_LANGUAGE=en  # Language for AI responses
-   
-   # OpenID Connect Authentication (Required)
-   OIDC_CLIENT_ID=yume  # OAuth2 public client ID (required)
-   OIDC_WELL_KNOWN_URL=https://auth.example.com/realms/myrealm/.well-known/openid-configuration  # OIDC discovery URL (required)
-   
-   # Basic Auth for Home Assistant Webhooks (Optional)
-   # Generate hash: echo -n "your_password" | shasum -a 256 | cut -d' ' -f1
-   BASIC_AUTH_USERNAME=homeassistant  # Username for /webhook/geofence-event endpoint
-   BASIC_AUTH_PASSWORD_HASH=5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8  # SHA-256 hash of password
-   ```
+   For Docker deployments, you can override properties using environment variables. Property names follow Spring's convention: replace dots with underscores and uppercase (e.g., `matrix.homeserver` → `MATRIX_HOMESERVER`).
 
 ## Usage
 
 ### Running the Application
 
+#### From command line:
 ```bash
-# Using Poetry
-poetry run python main.py
+cd yume-spring
+./gradlew bootRun
+```
 
-# Or directly with Python
-python main.py
+#### With Docker:
+```bash
+docker-compose up
 ```
 
 The application will start:
-- Litestar server on `http://0.0.0.0:8200`
+- Spring Boot server on `http://0.0.0.0:8079`
+- Nginx on port 8079 serving the Vue.js frontend
 - Matrix bot connecting to your configured room
 - AI scheduler with automatic memory management
 - Background processing for optimal performance
 
 ### Authentication
 
-Yume requires OpenID Connect (OIDC) authentication for securing the web interface:
-
-- **Public OAuth Client**: Uses public client configuration (no client secret) with PKCE for security
-- **Provider Agnostic**: Works with any OIDC-compliant provider (Keycloak, Auth0, Okta, etc.)
-- **Automatic Discovery**: Endpoints are automatically discovered via OIDC well-known configuration
-- **Frontend-Only OAuth Flow**: Entire OAuth flow handled in frontend JavaScript
-- **PKCE Protection**: Uses Proof Key for Code Exchange (SHA-256) to prevent authorization code interception
-- **Bearer Token Authentication**: Access and refresh tokens are stored in browser localStorage
-- **JWT Verification**: All API requests must include `Authorization: Bearer <token>` header
-- **Token Validation**: Tokens are verified against the provider's JWKS (public keys) on each request
-- **Client-Side Token Refresh**: Frontend automatically refreshes tokens before expiration
-- **Mandatory Setup**: Application will not start without proper OIDC configuration
-
-#### Authentication Endpoints
-
-- `GET /auth/config` - Returns OIDC endpoints and client ID for frontend
-
-#### Authentication Flow
-
-1. Frontend redirects unauthenticated users to identity provider
-2. Frontend generates PKCE code_challenge and OAuth state
-3. User authenticates with identity provider
-4. Provider redirects back with authorization code
-5. Frontend validates state and exchanges code for tokens (using PKCE)
-6. Frontend stores access_token and refresh_token in localStorage
-7. Frontend includes `Authorization: Bearer <token>` in API requests
-8. Backend validates token against provider's JWKS endpoint
-9. Frontend automatically refreshes expired tokens
-10. Logout clears localStorage and redirects to provider logout
-
-#### OIDC Provider Setup
-
-**For Keycloak:**
-
-1. Create a new public client (Authentication OFF)
-2. Set **Valid Redirect URIs** to `http://localhost:8200/*`
-3. Set **Web Origins** to `http://localhost:8200`
-4. Enable **Standard Flow** and **Direct Access Grants**
-5. Set `OIDC_CLIENT_ID` to your client ID
-6. Set `OIDC_WELL_KNOWN_URL` to `https://your-keycloak.com/realms/your-realm/.well-known/openid-configuration`
-
-**For other providers (Auth0, Okta, etc.):** Configure a public OAuth2 client with PKCE, set redirect URI to `http://localhost:8200`, and set `OIDC_WELL_KNOWN_URL` to the provider's discovery endpoint.
+Yume uses OpenID Connect (OIDC) authentication to secure the web interface. Configure your OIDC provider details in the application properties.
 
 ### Memory Management
 
@@ -237,48 +168,20 @@ Yume requires OpenID Connect (OIDC) authentication for securing the web interfac
 - **Intelligent Reminder Scheduling**: One-time, recurring, or location-based reminders with adaptive scheduling
 - **Adaptive Scheduling**: Re-evaluates when new interactions occur (chat, geofence, or reminder)
 - **Deferred Execution**: 60-second debounce consolidates multiple triggers
-- **Automatic Cleanup**: Memory Janitor runs every 12 hours to archive and clean up old entries
-- **Memory Summarization**: After each memory update, an AI summarizer automatically:
-  - Condenses preferences, observations, and reminders into concise summaries
+- **Automatic Cleanup**: Memory Janitor runs once a day to archive and clean up old entries
+- **Conversation Summarization**: After each conversation update, an AI summarizer automatically:
+  - Condenses conversation history into concise summaries
   - Preserves all critical details while removing redundancy
   - Stores summaries in MongoDB for optimized context input
-  - Reduces token usage by providing condensed memory representations
+  - Reduces token usage by providing condensed conversation representations
 
-#### Geofence Event API
+#### Geofence Webhook
 
-The Litestar interface provides several endpoints for monitoring and control.
-
-**Note**: All `/api/*` endpoints require authentication. Only `/health` and `/auth/*` endpoints are public.
-
-- `GET /health` - Health check endpoint for Docker deployments (no auth required)
-- `GET /api/memories` - Retrieve all stored memories with full details including reminder scheduling options
-- `GET /api/actions` - Get recent AI actions and responses
-- `GET /api/scheduled-tasks` - View next scheduled tasks including memory reminders and janitor tasks with topics
-- `GET /api/logs` - Access system logs with filtering capabilities
-- `GET /api/interactions` - Get summary of recent agent interactions for debugging
-- `GET /api/interactions/<id>` - Get detailed information about a specific interaction including input/output and system instructions
-- `POST /webhook/geofence-event` - Trigger geofence events (enter/leave locations) - Uses Basic Auth
-
-#### Geofence Event API
-
-Trigger location-based AI responses by posting to the geofence endpoint. This endpoint uses **Basic Auth** instead of OIDC to allow Home Assistant webhooks to trigger events.
-
-**Authentication**: 
-
-1. Generate a SHA-256 hash of your password:
-   ```bash
-   echo -n "your_password" | shasum -a 256 | cut -d' ' -f1
-   ```
-
-2. Configure environment variables:
-   - `BASIC_AUTH_USERNAME=homeassistant`
-   - `BASIC_AUTH_PASSWORD_HASH=<generated_hash>`
-
-3. Use the original password (not the hash) in your requests:
+Home Assistant can trigger geofence events via the `/webhook/geofence-event` endpoint:
 
 ```bash
 # Example: User enters home location
-curl -X POST http://localhost:8200/webhook/geofence-event \
+curl -X POST http://localhost:8079/webhook/geofence-event \
   -u "homeassistant:your_password" \
   -H "Content-Type: application/json" \
   -d '{
@@ -287,7 +190,7 @@ curl -X POST http://localhost:8200/webhook/geofence-event \
   }'
 
 # Example: User leaves work location  
-curl -X POST http://localhost:8200/webhook/geofence-event \
+curl -X POST http://localhost:8079/webhook/geofence-event \
   -u "homeassistant:your_password" \
   -H "Content-Type: application/json" \
   -d '{
@@ -314,7 +217,7 @@ automation:
 
 rest_command:
   yume_geofence:
-    url: "http://your-yume-server:8200/webhook/geofence-event"
+    url: "http://your-yume-server:8079/webhook/geofence-event"
     method: POST
     headers:
       Authorization: "Basic {{ 'homeassistant:your_password' | base64_encode }}"
@@ -326,7 +229,7 @@ The API validates that `event_type` is either "enter" or "leave" and returns a r
 
 ### Vue.js Dashboard
 
-Access at `http://localhost:8200` to monitor:
+Access at `http://localhost:8079` to monitor:
 
 - **Memory Store**: All stored memories with type, timestamps, and reminder details
 - **Day Planner**: Calendar-based daily activity predictions with navigation
@@ -337,39 +240,53 @@ Access at `http://localhost:8200` to monitor:
 
 ### Docker Deployment
 
+The project includes a multi-stage Dockerfile that builds both the Vue.js frontend and Spring Boot backend:
+
 ```bash
 # Build the image
 docker build -t yume .
 
 # Run with automatic volume for data persistence
-docker run -d --name yume -p 8200:8200 --env-file .env yume
+docker run -d --name yume -p 8079:8079 --env-file .env yume
 
-# Or specify a named volume for easier management
-docker run -d --name yume -p 8200:8200 -v yume-data:/app/data --env-file .env yume
+# Or use docker-compose
+docker-compose up -d
 
 # View logs
 docker logs -f yume
-
-# Backup memory data
-docker run --rm -v yume-data:/data -v $(pwd):/backup alpine tar czf /backup/yume-data-backup.tar.gz -C /data .
 ```
 
-**Important**: The `/app/data` directory is configured as a Docker volume to persist memory data across container restarts. Without a named volume or bind mount, data will be lost when the container is removed.
+**Note**: MongoDB must be accessible from the container. Configure `SPRING_DATA_MONGODB_URI` to point to your MongoDB instance.
 
 ## Configuration
 
+### Spring Boot Properties
+
+Core Spring Boot configuration can be set via environment variables or `application.properties`:
+
+```properties
+# Server port (accessed through Nginx on 8079)
+server.port=8080
+server.servlet.context-path=/api
+
+# MongoDB
+spring.data.mongodb.uri=mongodb://localhost:27017/yume
+
+# Logging
+logging.level.eu.sendzik.yume=INFO
+logging.level.dev.langchain4j=INFO
+```
+
 ### AI Models
 
-Configure which AI models to use:
+langchain4j automatically configures OpenAI models via environment variables:
 
-- `AI_ASSISTANT_MODEL`: Main chat assistant (default: gpt-4o-mini)
-- `AI_SCHEDULER_MODEL`: Scheduling agent (default: gpt-5-mini)
-- `AI_MEMORY_MODEL`: Memory manager agent (default: gpt-5-mini)
+- `SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL`: Main chat model (default: gpt-4o-mini)
 
 ### Other Settings
 
 - `USER_LANGUAGE`: Language for AI responses (default: en)
-- Data directory: `./data` (contains memories and interactions)
+- MongoDB database: `yume` (configurable via `SPRING_DATA_MONGODB_DATABASE`)
 
 ## License
 
@@ -377,7 +294,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Built with the OpenAI Agents framework
-- Matrix SDK for Python
-- Litestar for web interface
-- APScheduler for background tasks
+- Built with Spring Boot 3.5+
+- langchain4j for AI agent orchestration
+- Trixnity for Matrix protocol support
+- Vue.js for the frontend dashboard
+- Nginx as reverse proxy and static file server
+- OpenWeatherMap for weather data

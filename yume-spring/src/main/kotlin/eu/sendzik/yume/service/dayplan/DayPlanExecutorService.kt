@@ -30,8 +30,9 @@ class DayPlanExecutorService(
                 YumeResource.CURRENT_DATE_TIME,
                 YumeResource.USER_LANGUAGE,
                 YumeResource.CALENDAR_NEXT_2_DAYS,
-                YumeResource.WEATHER_FORECAST
-                // TODO: Add memory entries related to day planning
+                YumeResource.WEATHER_FORECAST,
+                YumeResource.SUMMARIZED_PREFERENCES,
+                YumeResource.SUMMARIZED_OBSERVATIONS,
             ))
 
             dayPlanAgent.updateDayPlansWithTask(
