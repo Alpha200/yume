@@ -44,6 +44,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Set default port for Spring Boot
 ENV SERVER_PORT=8080
 
+# Set timezone
+ENV TZ=Europe/Berlin
+
 # Expose port for Nginx
 EXPOSE 8079
 
