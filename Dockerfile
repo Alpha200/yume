@@ -45,4 +45,4 @@ COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 8079
 
 # Run both Nginx and Spring Boot
-CMD sh -c 'java -jar app.jar &\nnginx -g "daemon off;"'
+CMD sh -c 'java -jar app.jar & nginx -g "daemon off;"'
