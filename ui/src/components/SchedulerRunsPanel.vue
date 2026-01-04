@@ -37,91 +37,6 @@
         />
       </template>
     </Section>
-
-    <!-- Statistics Section -->
-    <div class="stats-container" v-if="statistics">
-      <h3>Statistics (Last 7 Days)</h3>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-value">{{ statistics.total_runs }}</div>
-          <div class="stat-label">Total Runs</div>
-        </div>
-        <div class="stat-card success">
-          <div class="stat-value">{{ statistics.completed_runs }}</div>
-          <div class="stat-label">Completed</div>
-        </div>
-        <div class="stat-card error">
-          <div class="stat-value">{{ statistics.failed_runs }}</div>
-          <div class="stat-label">Failed</div>
-        </div>
-        <div class="stat-card warning">
-          <div class="stat-value">{{ statistics.success_rate.toFixed(1) }}%</div>
-          <div class="stat-label">Success Rate</div>
-        </div>
-        <div class="stat-card info">
-          <div class="stat-value">{{ statistics.average_execution_duration_ms }}ms</div>
-          <div class="stat-label">Avg Duration</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Run Detail Modal -->
-    <div v-if="selectedRun" class="modal-overlay" @click="closeRunDetail">
-      <div class="modal" @click.stop>
-        <button class="close-button" @click="closeRunDetail">✕</button>
-        <h2>Scheduler Run Details</h2>
-        <div class="run-details">
-          <div class="detail-row">
-            <strong>Run ID:</strong>
-            <code>{{ selectedRun.id }}</code>
-          </div>
-          <div class="detail-row">
-            <strong>Topic:</strong>
-            <span>{{ selectedRun.topic }}</span>
-          </div>
-          <div class="detail-row">
-            <strong>Status:</strong>
-            <span class="status-badge" :class="selectedRun.status">{{ formatStatus(selectedRun.status) }}</span>
-          </div>
-          <div class="detail-row">
-            <strong>Reason:</strong>
-            <span>{{ selectedRun.reason }}</span>
-          </div>
-          <div class="detail-row">
-            <strong>Scheduled Time:</strong>
-            <span>{{ formatDateTime(selectedRun.scheduled_time) }}</span>
-          </div>
-          <div v-if="selectedRun.actual_execution_time" class="detail-row">
-            <strong>Executed Time:</strong>
-            <span>{{ formatDateTime(selectedRun.actual_execution_time) }}</span>
-          </div>
-          <div v-if="selectedRun.execution_duration_ms" class="detail-row">
-            <strong>Duration:</strong>
-            <span>{{ selectedRun.execution_duration_ms }}ms</span>
-          </div>
-          <div v-if="selectedRun.details" class="detail-row">
-            <strong>Details:</strong>
-            <pre>{{ selectedRun.details }}</pre>
-          </div>
-          <div v-if="selectedRun.error_message" class="detail-row error">
-            <strong>Error Message:</strong>
-            <pre>{{ selectedRun.error_message }}</pre>
-          </div>
-          <div v-if="selectedRun.ai_response" class="detail-row">
-            <strong>AI Response:</strong>
-            <pre class="response-text">{{ selectedRun.ai_response }}</pre>
-          </div>
-          <div class="detail-row">
-            <strong>Created:</strong>
-            <span>{{ formatDateTime(selectedRun.created_at) }}</span>
-          </div>
-          <div class="detail-row">
-            <strong>Updated:</strong>
-            <span>{{ formatDateTime(selectedRun.updated_at) }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -140,11 +55,9 @@ export default {
     return {
       runs: [],
       failedRuns: [],
-      statistics: null,
       selectedRun: null,
       loadingRuns: false,
-      loadingFailedRuns: false,
-      loadingStatistics: false
+      loadingFailedRuns: false
     }
   },
   methods: {
@@ -166,16 +79,6 @@ export default {
         console.error('Error loading failed runs:', error)
       } finally {
         this.loadingFailedRuns = false
-      }
-    },
-    async loadStatistics() {
-      this.loadingStatistics = true
-      try {
-        this.statistics = await apiService.getSchedulerRunStatistics(7)
-      } catch (error) {
-        console.error('Error loading statistics:', error)
-      } finally {
-        this.loadingStatistics = false
       }
     },
     async showRunDetail(runId) {
@@ -200,7 +103,6 @@ export default {
   mounted() {
     this.loadRuns()
     this.loadFailedRuns()
-    this.loadStatistics()
   }
 }
 </script>
@@ -208,67 +110,6 @@ export default {
 <style scoped>
 .scheduler-runs-panel {
   width: 100%;
-}
-
-.stats-container {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #3f3f3f;
-}
-
-.stats-container h3 {
-  color: #e0e0e0;
-  margin: 0 0 16px 0;
-  font-size: 16px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
-}
-
-.stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 16px;
-  border-radius: 8px;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-}
-
-.stat-card.success {
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
-}
-
-.stat-card.error {
-  background: linear-gradient(135deg, #f44336 0%, #da190b 100%);
-}
-
-.stat-card.warning {
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-}
-
-.stat-card.info {
-  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 6px;
-}
-
-.stat-label {
-  font-size: 11px;
-  opacity: 0.9;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
 }
 
 .modal-overlay {

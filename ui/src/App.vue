@@ -40,13 +40,6 @@
       >
         📅 Day Planner
       </button>
-      <button
-        class="tab"
-        :class="{ active: activeTab === 'settings' }"
-        @click="switchTab('settings')"
-      >
-        ⚙️ Settings
-      </button>
     </div>
 
     <!-- Memory Section -->
@@ -90,9 +83,6 @@
     <!-- Day Planner Section -->
     <DayPlanner v-if="activeTab === 'planner'" />
 
-    <!-- Settings Section -->
-    <Settings v-if="activeTab === 'settings'" />
-
     <!-- Interaction Detail Modal -->
     <InteractionDetailModal
       v-if="selectedInteraction"
@@ -110,7 +100,6 @@ import ActionItem from './components/ActionItem.vue'
 import TaskItem from './components/TaskItem.vue'
 import InteractionItem from './components/InteractionItem.vue'
 import InteractionDetailModal from './components/InteractionDetailModal.vue'
-import Settings from './components/Settings.vue'
 import DayPlanner from './components/DayPlanner.vue'
 import SchedulerRunsPanel from './components/SchedulerRunsPanel.vue'
 
@@ -121,7 +110,6 @@ export default {
     MemoryItem,
     InteractionItem,
     InteractionDetailModal,
-    Settings,
     DayPlanner,
     SchedulerRunsPanel
   },

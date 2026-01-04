@@ -1,0 +1,10 @@
+Current date and time: {{currentDateTime}}
+These are all currently saved user memories:
+BEGIN OF MEMORIES
+{{memories}}
+END OF MEMORIES
+
+You got the following task from the chat component:
+{{task}}
+
+Please review the stored memories and take any necessary actions to keep the memory organized. Consider the current date / time when deciding whether reminders have passed, observations are outdated, or entries need updating. Provide a list of actions taken and a reasoning summary.
