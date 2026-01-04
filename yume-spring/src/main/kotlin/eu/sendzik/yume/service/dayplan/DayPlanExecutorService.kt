@@ -6,6 +6,7 @@ import eu.sendzik.yume.service.provider.model.YumeResource
 import eu.sendzik.yume.service.scheduler.SchedulerService
 import io.github.oshai.kotlinlogging.KLogger
 import jakarta.annotation.PostConstruct
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.scheduling.annotation.Async
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
@@ -15,7 +16,6 @@ import kotlin.concurrent.withLock
 @Service
 class DayPlanExecutorService(
     private val dayPlanAgent: DayPlanAgent,
-    private val schedulerService: SchedulerService,
     private val resourceProviderService: ResourceProviderService,
     private val logger: KLogger,
 ) {
@@ -23,7 +23,7 @@ class DayPlanExecutorService(
 
     @Scheduled(cron = "\${yume.day-plan.update-cron}")
     fun executeDayPlanUpdates() {
-        val agentResult = lock.withLock {
+        lock.withLock {
             logger.info { "Executing scheduled day plan update" }
 
             val additionalInformation = resourceProviderService.provideResources(listOf(
@@ -40,20 +40,11 @@ class DayPlanExecutorService(
                 additionalInformation
             )
         }
-
-        if (!agentResult.actionsTaken.isNullOrEmpty()) {
-            schedulerService.triggerRun()
-        }
-    }
-
-    @PostConstruct
-    fun initializeDayPlanUpdates() {
-        executeDayPlanUpdates()
     }
 
     @Async
     fun updateDayPlansWithTask(dayPlannerUpdateTask: String) {
-        val result = lock.withLock {
+        lock.withLock {
             logger.info { "Updating day plans with task: $dayPlannerUpdateTask" }
 
             val additionalInformation = resourceProviderService.provideResources(listOf(
@@ -71,9 +62,10 @@ class DayPlanExecutorService(
                 additionalInformation =  additionalInformation
             )
         }
+    }
 
-        if (!result.actionsTaken.isNullOrEmpty()) {
-            schedulerService.triggerRun()
-        }
+    @PostConstruct
+    fun initializeDayPlanUpdates() {
+        executeDayPlanUpdates()
     }
 }

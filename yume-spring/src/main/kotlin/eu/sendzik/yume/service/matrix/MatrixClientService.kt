@@ -1,7 +1,7 @@
 package eu.sendzik.yume.service.matrix
 
 import eu.sendzik.yume.configuration.MatrixConfiguration
-import eu.sendzik.yume.service.router.RequestRouterService
+import eu.sendzik.yume.service.matrix.model.UserMessageEvent
 import io.github.oshai.kotlinlogging.KLogger
 import io.ktor.http.Url
 import jakarta.annotation.PostConstruct
@@ -22,6 +22,7 @@ import net.folivo.trixnity.core.model.UserId
 import net.folivo.trixnity.core.model.events.ClientEvent
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import net.folivo.trixnity.core.subscribeEvent
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import java.time.Instant
 import java.time.LocalDateTime
@@ -29,11 +30,11 @@ import java.time.OffsetDateTime
 
 @Service
 class MatrixClientService(
-    val logger: KLogger,
-    val matrixConfiguration: MatrixConfiguration,
-    val requestRouterService: RequestRouterService,
+    private val logger: KLogger,
+    private val matrixConfiguration: MatrixConfiguration,
+    private val applicationEventPublisher: ApplicationEventPublisher,
 ) {
-    lateinit var matrixRestClient : MatrixClientServerApiClient
+    private lateinit var matrixRestClient : MatrixClientServerApiClient
 
     private val scopeJob: Job = SupervisorJob()
     private val scope = CoroutineScope(scopeJob + Dispatchers.IO)
@@ -59,6 +60,15 @@ class MatrixClientService(
             }
         }
         scopeJob.cancel()
+    }
+
+    suspend fun sendMessageToRoom(message: String) {
+        matrixRestClient.room.sendMessageEvent(
+            RoomId(matrixConfiguration.room),
+            RoomMessageEventContent.TextBased.Text(body = message)
+        ).getOrThrow()
+
+        matrixRestClient.room.setTyping(RoomId(matrixConfiguration.room), userId, false)
     }
 
     private suspend fun performLogin(): String {
@@ -106,28 +116,15 @@ class MatrixClientService(
         logger.debug {"Starting to process message with event id ${event.id}" }
 
         val body = event.content.body
-        matrixRestClient.room.setTyping(roomId, userId, true, timeout = 60000)
         val messageTimestamp = LocalDateTime.ofEpochSecond(event.originTimestamp / 1000, 0, OffsetDateTime.now().offset)
 
-        runCatching {
-            requestRouterService.handleMessage(body, messageTimestamp)
-        }.onSuccess {
-            if (it != null) {
-                matrixRestClient.room.sendMessageEvent(
-                    roomId,
-                    RoomMessageEventContent.TextBased.Text(body = it)
-                ).getOrThrow()
-            } else {
-                logger.warn {"Agent did not return any message!. Event id: ${event.id}" }
-            }
-        }.onFailure {
-            logger.error(it) { "Failure during agent execution: $it" }
-            matrixRestClient.room.sendMessageEvent(
-                roomId,
-                RoomMessageEventContent.TextBased.Notice(body = "Failure during agent execution")
-            )
-        }
+        matrixRestClient.room.setTyping(roomId, userId, true, timeout = 60000)
 
-        matrixRestClient.room.setTyping(roomId, userId, false)
+        applicationEventPublisher.publishEvent(
+            UserMessageEvent(
+                timestamp = messageTimestamp,
+                message = body
+            )
+        )
     }
 }

@@ -12,6 +12,8 @@ import eu.sendzik.yume.service.conversation.ConversationHistoryManagerService
 import eu.sendzik.yume.service.dayplan.DayPlanExecutorService
 import eu.sendzik.yume.service.location.model.GeofenceEventRequest
 import eu.sendzik.yume.service.location.model.GeofenceEventType
+import eu.sendzik.yume.service.matrix.MatrixClientService
+import eu.sendzik.yume.service.matrix.model.UserMessageEvent
 import eu.sendzik.yume.service.memory.MemoryManagerExecutorService
 import eu.sendzik.yume.service.memory.MemoryManagerService
 import eu.sendzik.yume.service.provider.ResourceProviderService
@@ -20,7 +22,9 @@ import eu.sendzik.yume.service.provider.model.toYumeResource
 import eu.sendzik.yume.service.scheduler.model.SchedulerRunDetails
 import eu.sendzik.yume.utils.formatTimestampForLLM
 import io.github.oshai.kotlinlogging.KLogger
+import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.event.EventListener
 import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -37,32 +41,36 @@ class RequestRouterService(
     private val kitchenOwlAgent: KitchenOwlAgent,
     private val efaAgent: EfaAgent,
     private val conversationSummarizerAgent: ConversationSummarizerAgent,
+    private val matrixClientService: MatrixClientService,
     private val logger: KLogger,
     @Value("classpath:prompt/default-preferences-prefix.txt")
     private val defaultPreferencesPrefixResource: Resource,
 ) {
-    fun handleMessage(message: String, messageTimestamp: LocalDateTime): String? {
+    @EventListener
+    fun handleMessage(userMessageEvent: UserMessageEvent) {
         val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
-        val conversationSummary = conversationSummarizerAgent.summarizeConversation(conversationHistory, message)
+        val conversationSummary = conversationSummarizerAgent.summarizeConversation(conversationHistory, userMessageEvent.message)
         val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(conversationSummary)
 
         logger.debug { "Summarized conversation history into: $conversationSummary" }
 
         val result = routerAgent.determineRequestRouting(
             conversationSummary = conversationSummary,
-            userMessage = message,
-            currentDateTime = formatTimestampForLLM(messageTimestamp),
+            userMessage = userMessageEvent.message,
+            currentDateTime = formatTimestampForLLM(userMessageEvent.timestamp),
             relevantMemories = relevantMemoryEntries,
         )
 
         logger.debug { "Routing decision: ${result.agent}. Resources: [${result.requiredResources.joinToString(", ")}] Reasoning: ${result.reasoning}" }
 
-        val response = executeAgent(result.agent, message, result.requiredResources, relevantMemoryEntries, conversationHistory)
+        val response = executeAgent(result.agent, userMessageEvent.message, result.requiredResources, relevantMemoryEntries, conversationHistory)
 
-        conversationHistoryManagerService.addEntry(message, ConversationHistoryEntryType.USER_MESSAGE, messageTimestamp)
+        conversationHistoryManagerService.addEntry(userMessageEvent.message, ConversationHistoryEntryType.USER_MESSAGE, userMessageEvent.timestamp)
         conversationHistoryManagerService.addEntry(response, ConversationHistoryEntryType.SYSTEM_MESSAGE)
 
-        return response
+        runBlocking {
+            matrixClientService.sendMessageToRoom(response)
+        }
     }
 
     fun executeAgent(agentType: YumeAgentType, message: String, resources: List<YumeChatResource>, relevantMemories: String, conversationHistory: String): String {
@@ -117,13 +125,19 @@ class RequestRouterService(
         val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
         val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(schedulerRunDetails.details)
 
-        routeAndExecuteEvent(
+        val message = routeAndExecuteEvent(
             eventMessage = schedulerMessage,
             messageContent = schedulerRunDetails.details,
             relevantMemories = relevantMemoryEntries,
             conversationHistory = conversationHistory,
             eventType = EventType.SCHEDULED,
         )
+
+        if (message != null) {
+            runBlocking {
+                matrixClientService.sendMessageToRoom(message)
+            }
+        }
     }
 
     fun handleGeofenceEvent(geofenceEvent: GeofenceEventRequest) {
@@ -141,13 +155,19 @@ class RequestRouterService(
         val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
         val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(geofenceEvent.geofenceName)
 
-        routeAndExecuteEvent(
+        val message = routeAndExecuteEvent(
             eventMessage = geofenceEventMessage,
             messageContent = geofenceEventMessage,
             relevantMemories = relevantMemoryEntries,
             conversationHistory = conversationHistory,
             eventType = EventType.GEOFENCE,
         )
+
+        if (message != null) {
+            runBlocking {
+                matrixClientService.sendMessageToRoom(message)
+            }
+        }
     }
 
     private enum class EventType {
@@ -160,7 +180,7 @@ class RequestRouterService(
         relevantMemories: String,
         conversationHistory: String,
         eventType: EventType,
-    ) {
+    ): String? {
         val routerResult = routerAgent.determineRequestRouting(
             conversationSummary = eventMessage,
             userMessage = messageContent,
@@ -190,13 +210,6 @@ class RequestRouterService(
             dayPlanExecutorService.updateDayPlansWithTask(agentResponse.dayPlannerUpdateTask)
         }
 
-        if (!agentResponse.messageToUser.isNullOrBlank()) {
-            conversationHistoryManagerService.addEntry(
-                agentResponse.messageToUser,
-                ConversationHistoryEntryType.SYSTEM_MESSAGE
-            )
-        }
-
         // Always add event message for geofence events; for scheduled events only if no message was already added
         if (eventType == EventType.GEOFENCE) {
             conversationHistoryManagerService.addEntry(
@@ -204,6 +217,17 @@ class RequestRouterService(
                 ConversationHistoryEntryType.SYSTEM_MESSAGE
             )
         }
+
+        if (!agentResponse.messageToUser.isNullOrBlank()) {
+            conversationHistoryManagerService.addEntry(
+                agentResponse.messageToUser,
+                ConversationHistoryEntryType.SYSTEM_MESSAGE
+            )
+
+            return agentResponse.messageToUser
+        }
+
+        return null
     }
 
     private fun executeScheduledAgent(

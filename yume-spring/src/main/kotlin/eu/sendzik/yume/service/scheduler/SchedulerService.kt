@@ -3,16 +3,20 @@ package eu.sendzik.yume.service.scheduler
 import eu.sendzik.yume.agent.SchedulerAgent
 import eu.sendzik.yume.agent.model.YumeChatResource
 import eu.sendzik.yume.configuration.SchedulerConfiguration
+import eu.sendzik.yume.service.dayplan.model.DayPlanUpdatedEvent
 import eu.sendzik.yume.service.provider.ResourceProviderService
 import eu.sendzik.yume.service.provider.model.YumeResource
+import eu.sendzik.yume.service.scheduler.model.SchedulerExecutedEvent
 import eu.sendzik.yume.service.scheduler.model.SchedulerRunDetails
 import eu.sendzik.yume.utils.formatTimestampForLLM
 import io.github.oshai.kotlinlogging.KLogger
 import jakarta.annotation.PostConstruct
+import org.springframework.context.event.EventListener
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Service
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.locks.ReentrantLock
@@ -50,6 +54,20 @@ class SchedulerService(
     @PostConstruct
     fun init() {
         triggerRun(Duration.ofSeconds(10))
+    }
+
+    @EventListener
+    fun dayPlanUpdatedEventListener(event: DayPlanUpdatedEvent) {
+        if (event.dayPlan.date == LocalDate.now() || event.dayPlan.date == LocalDateTime.now().plusDays(1)) {
+            logger.info { "Day plan updated event received for current or next day, triggering scheduler run." }
+            triggerRun()
+        }
+    }
+
+    @EventListener
+    fun schedulerExecutedEventListener(event: SchedulerExecutedEvent) {
+        logger.info { "Scheduler executed event received, triggering next scheduler run." }
+        triggerRun()
     }
 
     private fun executeScheduling() {

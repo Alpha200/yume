@@ -3,8 +3,10 @@ package eu.sendzik.yume.service.dayplan
 import eu.sendzik.yume.repository.dayplanner.DayPlanRepository
 import eu.sendzik.yume.repository.dayplanner.model.DayPlan
 import eu.sendzik.yume.repository.dayplanner.model.DayPlanItem
+import eu.sendzik.yume.service.dayplan.model.DayPlanUpdatedEvent
 import eu.sendzik.yume.utils.formatTimestampForLLM
 import io.github.oshai.kotlinlogging.KLogger
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -13,6 +15,7 @@ import java.util.*
 @Service
 class DayPlanService(
     private val dayPlanRepository: DayPlanRepository,
+    private val applicationEventPublisher: ApplicationEventPublisher,
     private val logger: KLogger,
 ) {
     /**
@@ -106,6 +109,7 @@ class DayPlanService(
 
         val savedPlan = dayPlanRepository.save(plan)
         logger.info { "Saved day plan for $date" }
+        applicationEventPublisher.publishEvent(DayPlanUpdatedEvent(savedPlan))
         return savedPlan.id
     }
 
