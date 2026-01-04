@@ -20,7 +20,6 @@
 - ⏰ **Intelligent AI Scheduler**: Context-aware scheduling with deferred execution and adaptive re-evaluation
 - 📊 **Vue.js Dashboard**: Real-time monitoring of memories, schedules, plans, and interactions
 - 🔐 **OpenID Connect Authentication**: Secure access to web interface
-- 🚀 **Async Processing**: Background operations for optimal performance
 
 ## Architecture
 
@@ -90,10 +89,8 @@ Yume tracks all AI agent interactions for debugging:
 - **Async Background Processing**: Memory updates, summarization, and scheduling run asynchronously using Spring's @Async
 - **Conversation Summarization**: Automatically condenses conversation history into optimized summaries after each update, reducing token usage while preserving critical details
 - **Efficient Memory Access**: Summarized memory retrieval with consistent formatting; falls back to full memory if summaries unavailable
-- **Smart Fallbacks**: Uses summarized memories when available, automatically falls back to full memory if needed
-- **In-Memory Caching**: Caffeine cache for frequently accessed data (memories, preferences, schedules)
+- **In-Memory Caching**: Caffeine cache for frequently accessed data
 - **Vector Search**: langchain4j pgvector integration for semantic search on memories and conversations
-- **Connection Pooling**: Optimized database connections with MongoDB
 
 ## Installation
 
@@ -103,7 +100,7 @@ Yume tracks all AI agent interactions for debugging:
 - Spring Boot 3.5+
 - MongoDB instance (local or cloud)
 - Matrix account and room
-- Home Assistant instance (optional)
+- Home Assistant instance
 - OpenAI API key
 
 ### Setup
@@ -152,7 +149,7 @@ docker-compose up
 ```
 
 The application will start:
-- Spring Boot server on `http://0.0.0.0:8079`
+- Spring Boot server on `http://0.0.0.0:8080`
 - Nginx on port 8079 serving the Vue.js frontend
 - Matrix bot connecting to your configured room
 - AI scheduler with automatic memory management
@@ -167,17 +164,15 @@ Yume uses OpenID Connect (OIDC) authentication to secure the web interface. Conf
 - **Automatic Categorization**: Messages analyzed and stored as preferences, observations, or reminders
 - **Intelligent Reminder Scheduling**: One-time, recurring, or location-based reminders with adaptive scheduling
 - **Adaptive Scheduling**: Re-evaluates when new interactions occur (chat, geofence, or reminder)
-- **Deferred Execution**: 60-second debounce consolidates multiple triggers
 - **Automatic Cleanup**: Memory Janitor runs once a day to archive and clean up old entries
 - **Conversation Summarization**: After each conversation update, an AI summarizer automatically:
   - Condenses conversation history into concise summaries
   - Preserves all critical details while removing redundancy
-  - Stores summaries in MongoDB for optimized context input
   - Reduces token usage by providing condensed conversation representations
 
 #### Geofence Webhook
 
-Home Assistant can trigger geofence events via the `/webhook/geofence-event` endpoint:
+Home Assistant can trigger geofence events via the `/api/webhook/geofence-event` endpoint:
 
 ```bash
 # Example: User enters home location
@@ -185,8 +180,8 @@ curl -X POST http://localhost:8079/webhook/geofence-event \
   -u "homeassistant:your_password" \
   -H "Content-Type: application/json" \
   -d '{
-    "geofence_name": "Home", 
-    "event_type": "enter"
+    "geofenceName": "Home", 
+    "eventType": "enter"
   }'
 
 # Example: User leaves work location  
@@ -194,8 +189,8 @@ curl -X POST http://localhost:8079/webhook/geofence-event \
   -u "homeassistant:your_password" \
   -H "Content-Type: application/json" \
   -d '{
-    "geofence_name": "Office", 
-    "event_type": "leave"
+    "geofenceName": "Office", 
+    "eventType": "leave"
   }'
 ```
 
@@ -217,15 +212,15 @@ automation:
 
 rest_command:
   yume_geofence:
-    url: "http://your-yume-server:8079/webhook/geofence-event"
+    url: "http://your-yume-server:8079/api/webhook/geofence-event"
     method: POST
     headers:
       Authorization: "Basic {{ 'homeassistant:your_password' | base64_encode }}"
       Content-Type: "application/json"
-    payload: '{"geofence_name": "{{ geofence_name }}", "event_type": "{{ event_type }}"}'
+    payload: '{"geofenceName": "{{ geofence_name }}", "eventType": "{{ event_type }}"}'
 ```
 
-The API validates that `event_type` is either "enter" or "leave" and returns a response indicating success or failure along with any AI-generated message.
+The API validates that `eventType` is either "enter" or "leave" and returns a response indicating success or failure along with any AI-generated message.
 
 ### Vue.js Dashboard
 
@@ -233,8 +228,7 @@ Access at `http://localhost:8079` to monitor:
 
 - **Memory Store**: All stored memories with type, timestamps, and reminder details
 - **Day Planner**: Calendar-based daily activity predictions with navigation
-- **AI Actions**: Recent actions taken by the AI
-- **Scheduled Tasks**: Next scheduled memory reminders and system tasks
+- **Scheduled Tasks**: Next scheduled memory reminders
 - **Interaction Details**: Debugging view of agent interactions with input/output/instructions
 - **System Logs**: Real-time logs with level filtering
 
@@ -260,33 +254,7 @@ docker logs -f yume
 
 ## Configuration
 
-### Spring Boot Properties
-
-Core Spring Boot configuration can be set via environment variables or `application.properties`:
-
-```properties
-# Server port (accessed through Nginx on 8079)
-server.port=8080
-server.servlet.context-path=/api
-
-# MongoDB
-spring.data.mongodb.uri=mongodb://localhost:27017/yume
-
-# Logging
-logging.level.eu.sendzik.yume=INFO
-logging.level.dev.langchain4j=INFO
-```
-
-### AI Models
-
-langchain4j automatically configures OpenAI models via environment variables:
-
-- `SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL`: Main chat model (default: gpt-4o-mini)
-
-### Other Settings
-
-- `USER_LANGUAGE`: Language for AI responses (default: en)
-- MongoDB database: `yume` (configurable via `SPRING_DATA_MONGODB_DATABASE`)
+Configuration can be set via environment variables or `application.properties`.
 
 ## License
 
