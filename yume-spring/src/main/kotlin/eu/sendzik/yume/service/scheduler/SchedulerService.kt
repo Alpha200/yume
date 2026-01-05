@@ -80,6 +80,8 @@ class SchedulerService(
             YumeResource.SUMMARIZED_REMINDERS,
             YumeResource.SUMMARIZED_OBSERVATIONS,
             YumeResource.SUMMARIZED_PREFERENCES,
+            YumeResource.RECENT_SCHEDULER_EXECUTIONS,
+            // TODO: Add summary of recent conversation
         ))
 
         val result = schedulerAgent.determineNextRun(

@@ -7,6 +7,7 @@ import eu.sendzik.yume.service.location.LocationService
 import eu.sendzik.yume.service.memory.MemorySummarizerService
 import eu.sendzik.yume.service.memory.model.MemoryType
 import eu.sendzik.yume.service.provider.model.YumeResource
+import eu.sendzik.yume.service.scheduler.SchedulerRunLogService
 import eu.sendzik.yume.service.weather.WeatherService
 import eu.sendzik.yume.utils.formatTimestampForLLM
 import org.springframework.stereotype.Service
@@ -21,12 +22,13 @@ class ResourceProviderService(
     private val agentConfiguration: AgentConfiguration,
     private val calendarService: CalendarService,
     private val memorySummarizerService: MemorySummarizerService,
+    private val schedulerRunLogService: SchedulerRunLogService,
 ) {
     fun provideResources(resources: List<YumeResource>): String = buildString {
         resources.forEach {
             when (it) {
                 YumeResource.WEATHER_FORECAST -> {
-                    weatherService.getWeatherForecast()?.let { appendLine(it) }
+                    weatherService.getWeatherForecast()?.let { forecast -> appendLine(forecast) }
                 }
                 YumeResource.DAY_PLAN_TODAY -> {
                     appendLine(dayPlanService.getFormattedPlan(LocalDate.now()))
@@ -55,15 +57,22 @@ class ResourceProviderService(
                     val summary = memorySummarizerService.getMemorySummary(MemoryType.REMINDER)
                     appendLine("Memorized reminders:\n$summary")
                 }
-
                 YumeResource.CALENDAR_NEXT_2_DAYS -> {
                     val start = LocalDate.now().atStartOfDay()
                     val end = start.plusDays(2)
                     val calendarEntries = calendarService.getFormattedCalendarEntries(start, end)
 
-                    appendLine("Upcoming calendar events for the next two days:\n${calendarEntries}")
+                    appendLine("Upcoming calendar events for the next two days:")
+                    appendLine(calendarEntries)
+                }
+                YumeResource.RECENT_SCHEDULER_EXECUTIONS -> {
+                    val executions = schedulerRunLogService.getRecentExecutedRunsFormatted(5)
+                    appendLine("Recently executed scheduler runs:")
+                    appendLine(executions)
                 }
             }
+
+            appendLine()
         }
     }
 }

@@ -2,8 +2,9 @@ package eu.sendzik.yume.service.scheduler
 
 import eu.sendzik.yume.repository.scheduler.SchedulerRunRepository
 import eu.sendzik.yume.repository.scheduler.model.SchedulerRun
+import eu.sendzik.yume.repository.scheduler.model.SchedulerRunStatus
 import eu.sendzik.yume.service.scheduler.model.SchedulerRunDetails
-import io.github.oshai.kotlinlogging.KLogger
+import eu.sendzik.yume.utils.formatTimestampForLLM
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -12,37 +13,30 @@ import java.util.UUID
 @Service
 class SchedulerRunLogService(
     private val schedulerRunRepository: SchedulerRunRepository,
-    private val logger: KLogger,
 ) {
 
     fun logScheduledRun(schedulerRunDetails: SchedulerRunDetails): SchedulerRun {
+        // Cancel all scheduled runs
+        schedulerRunRepository.cancelAllScheduledRuns()
+
+        // Create and save the new scheduled run
         val run = SchedulerRun(
             id = UUID.randomUUID().toString(),
             scheduledTime = schedulerRunDetails.nextRun,
             reason = schedulerRunDetails.reason,
             topic = schedulerRunDetails.topic,
             details = schedulerRunDetails.details,
-            status = "scheduled",
+            status = SchedulerRunStatus.SCHEDULED,
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
         return schedulerRunRepository.save(run)
     }
 
-    fun markAsExecuting(runId: String): SchedulerRun? {
-        val run = schedulerRunRepository.findById(runId).orElse(null) ?: return null
-        val updated = run.copy(
-            status = "executing",
-            actualExecutionTime = LocalDateTime.now(),
-            updatedAt = LocalDateTime.now()
-        )
-        return schedulerRunRepository.save(updated)
-    }
-
     fun markAsCompleted(runId: String, aiResponse: String? = null, executionDurationMs: Long? = null): SchedulerRun? {
         val run = schedulerRunRepository.findById(runId).orElse(null) ?: return null
         val updated = run.copy(
-            status = "completed",
+            status = SchedulerRunStatus.COMPLETED,
             aiResponse = aiResponse,
             executionDurationMs = executionDurationMs,
             updatedAt = LocalDateTime.now()
@@ -53,7 +47,7 @@ class SchedulerRunLogService(
     fun markAsFailed(runId: String, errorMessage: String, executionDurationMs: Long? = null): SchedulerRun? {
         val run = schedulerRunRepository.findById(runId).orElse(null) ?: return null
         val updated = run.copy(
-            status = "failed",
+            status = SchedulerRunStatus.FAILED,
             errorMessage = errorMessage,
             executionDurationMs = executionDurationMs,
             updatedAt = LocalDateTime.now()
@@ -61,7 +55,7 @@ class SchedulerRunLogService(
         return schedulerRunRepository.save(updated)
     }
 
-    fun getRecentRuns(limit: Int = 20, status: String? = null): List<SchedulerRun> {
+    fun getRecentRuns(limit: Int = 20, status: SchedulerRunStatus? = null): List<SchedulerRun> {
         val pageable = PageRequest.of(0, limit)
         return if (status != null) {
             schedulerRunRepository.findByStatusOrderByUpdatedAtDesc(status, pageable)
@@ -84,7 +78,11 @@ class SchedulerRunLogService(
         return schedulerRunRepository.findFailedRuns(pageable)
     }
 
-    fun getNextScheduledRun(): SchedulerRun? {
-        return schedulerRunRepository.findFirstByOrderByScheduledTimeDesc()
+    fun getRecentExecutedRunsFormatted(limit: Int) {
+        val recentRuns = getRecentRuns(limit, SchedulerRunStatus.COMPLETED)
+        recentRuns.joinToString {
+            "- Scheduled: ${formatTimestampForLLM(it.scheduledTime)} Topic: ${it.topic}"
+        }
     }
 }
+

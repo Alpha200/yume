@@ -3,6 +3,7 @@ package eu.sendzik.yume.controller
 import eu.sendzik.yume.repository.scheduler.model.SchedulerRun
 import eu.sendzik.yume.service.scheduler.SchedulerRunLogService
 import com.fasterxml.jackson.annotation.JsonProperty
+import eu.sendzik.yume.repository.scheduler.model.SchedulerRunStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -38,7 +39,7 @@ class SchedulerController(
             actualExecutionTime = run.actualExecutionTime?.toString(),
             reason = run.reason,
             topic = run.topic,
-            status = run.status,
+            status = run.status.value,
             errorMessage = run.errorMessage,
             executionDurationMs = run.executionDurationMs,
             aiResponse = run.aiResponse,
@@ -51,7 +52,7 @@ class SchedulerController(
     @GetMapping("/recent")
     fun getRecentRuns(
         @RequestParam(defaultValue = "20") limit: Int,
-        @RequestParam(required = false) status: String?
+        @RequestParam status: SchedulerRunStatus?
     ): List<SchedulerRunResponse> {
         return schedulerRunLogService.getRecentRuns(limit, status).map { toResponse(it) }
     }

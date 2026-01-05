@@ -1,13 +1,10 @@
 package eu.sendzik.yume.service.scheduler
 
-import eu.sendzik.yume.service.matrix.MatrixClientService
 import eu.sendzik.yume.service.router.RequestRouterService
 import eu.sendzik.yume.service.scheduler.model.SchedulerExecutedEvent
 import eu.sendzik.yume.service.scheduler.model.SchedulerRunDetails
 import io.github.oshai.kotlinlogging.KLogger
-import kotlinx.coroutines.runBlocking
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.context.annotation.Lazy
 import org.springframework.scheduling.TaskScheduler
 import org.springframework.stereotype.Service
 import java.time.ZoneId
@@ -45,7 +42,6 @@ class ScheduleExecutorService(
         }
 
         try {
-            schedulerRunLogService.markAsExecuting(runId)
             logger.info {"Executing scheduled run. Topic: ${schedulerRunDetails.topic}" }
             
             val startTime = System.currentTimeMillis()
