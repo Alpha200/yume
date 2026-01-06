@@ -13,13 +13,16 @@ RUN npm ci
 COPY ui/ ./
 RUN npm run build
 
-# Stage 2: Copy pre-built Spring Boot backend
-FROM alpine:latest AS backend-builder
+# Stage 2: Build Spring Boot backend
+FROM gradle:8.5-jdk21 AS backend-builder
 
 WORKDIR /app/backend
 
-# Copy Spring Boot project (needed for JAR to be available)
-COPY yume-spring/build/libs/*.jar ./
+# Copy Spring Boot project
+COPY yume-spring/ ./
+
+# Build the Spring Boot application
+RUN gradle bootJar --no-daemon
 
 # Stage 3: Runtime with Nginx, Spring Boot, and built frontend
 FROM eclipse-temurin:21-jre-alpine
@@ -30,7 +33,7 @@ RUN apk add --no-cache nginx bash tini
 WORKDIR /app
 
 # Copy Spring Boot JAR from builder
-COPY --from=backend-builder /app/backend/*.jar ./app.jar
+COPY --from=backend-builder /app/backend/build/libs/*.jar ./app.jar
 
 # Copy built frontend from frontend builder
 COPY --from=frontend-builder /app/ui/dist /usr/share/nginx/html
