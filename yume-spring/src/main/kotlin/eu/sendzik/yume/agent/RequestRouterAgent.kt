@@ -20,4 +20,22 @@ interface RequestRouterAgent {
         @V("userMessage") userMessage: String,
         @V("relevantMemories") relevantMemories: String
     ): RequestRouterAgentResult
+
+    @SystemMessage(fromResource = "prompt/request-router-system-message.txt")
+    @UserMessage("Current date and time: {{currentDateTime}}\n\nConversation summary:\n{{conversationSummary}}\n-------------\nRelevant memory entries: {{relevantMemories}}\n-------------\nTriggered geofence event:\n{{geofenceEvent}} ")
+    fun routeGeofenceEvent(
+        @V("currentDateTime") currentDateTime: String,
+        @V("conversationSummary") conversationSummary: String,
+        @V("geofenceEvent") geofenceEvent: String,
+        @V("relevantMemories") relevantMemories: String
+    ): RequestRouterAgentResult
+
+    @SystemMessage(fromResource = "prompt/request-router-system-message.txt")
+    @UserMessage("Current date and time: {{currentDateTime}}\n\nConversation summary:\n{{conversationSummary}}\n-------------\nRelevant memory entries: {{relevantMemories}}\n-------------\nTriggered scheduled event:\n{{scheduledEvent}} ")
+    fun routeScheduledEvent(
+        @V("currentDateTime") currentDateTime: String,
+        @V("conversationSummary") conversationSummary: String,
+        @V("scheduledEvent") scheduledEvent: String,
+        @V("relevantMemories") relevantMemories: String
+    ): RequestRouterAgentResult
 }

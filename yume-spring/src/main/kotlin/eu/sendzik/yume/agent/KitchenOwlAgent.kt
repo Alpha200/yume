@@ -26,4 +26,11 @@ interface KitchenOwlAgent {
         @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
         @V("additionalInformation") additionalInformation: String,
     ): BasicUserInteractionAgentResult
+
+    @SystemMessage(fromResource = "prompt/kitchenowl-scheduler-system-message.txt")
+    fun handleScheduledEvent(
+        @UserMessage query: String,
+        @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
+        @V("additionalInformation") additionalInformation: String,
+    ): BasicUserInteractionAgentResult
 }

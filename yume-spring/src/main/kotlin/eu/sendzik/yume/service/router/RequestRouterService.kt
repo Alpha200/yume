@@ -114,10 +114,8 @@ class RequestRouterService(
 
     fun runFromScheduler(schedulerRunDetails: SchedulerRunDetails) {
         val schedulerMessage = buildString {
-            append("Scheduled run: ")
-            append(schedulerRunDetails.reason)
-            append(". Topic: ")
-            append(schedulerRunDetails.topic)
+            appendLine("A scheduled run has been triggered with the topic '${schedulerRunDetails.topic}'")
+            appendLine("The scheduler agent provided the following details: ${schedulerRunDetails.details}")
         }
 
         logger.info { schedulerMessage }
@@ -127,7 +125,6 @@ class RequestRouterService(
 
         val message = routeAndExecuteEvent(
             eventMessage = schedulerMessage,
-            messageContent = schedulerRunDetails.details,
             relevantMemories = relevantMemoryEntries,
             conversationHistory = conversationHistory,
             eventType = EventType.SCHEDULED,
@@ -157,7 +154,6 @@ class RequestRouterService(
 
         val message = routeAndExecuteEvent(
             eventMessage = geofenceEventMessage,
-            messageContent = geofenceEventMessage,
             relevantMemories = relevantMemoryEntries,
             conversationHistory = conversationHistory,
             eventType = EventType.GEOFENCE,
@@ -176,17 +172,24 @@ class RequestRouterService(
 
     private fun routeAndExecuteEvent(
         eventMessage: String,
-        messageContent: String,
         relevantMemories: String,
         conversationHistory: String,
         eventType: EventType,
     ): String? {
-        val routerResult = routerAgent.determineRequestRouting(
-            conversationSummary = eventMessage,
-            userMessage = messageContent,
-            currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
-            relevantMemories = relevantMemories,
-        )
+        val routerResult = when (eventType) {
+            EventType.GEOFENCE -> routerAgent.routeGeofenceEvent(
+                conversationSummary = eventMessage,
+                geofenceEvent = eventMessage,
+                currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
+                relevantMemories = relevantMemories,
+            )
+            EventType.SCHEDULED -> routerAgent.routeScheduledEvent(
+                conversationSummary = eventMessage,
+                scheduledEvent = eventMessage,
+                currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
+                relevantMemories = relevantMemories,
+            )
+        }
 
         logger.debug { "Routing ${eventType.name.lowercase()} event to agent: ${routerResult.agent}. Reasoning: ${routerResult.reasoning}" }
 
@@ -198,8 +201,8 @@ class RequestRouterService(
         )
 
         val agentResponse = when (eventType) {
-            EventType.GEOFENCE -> executeGeofenceAgent(routerResult.agent, messageContent, defaultPreferencesPrefix, additionalInformation)
-            EventType.SCHEDULED -> executeScheduledAgent(routerResult.agent, messageContent, defaultPreferencesPrefix, additionalInformation)
+            EventType.GEOFENCE -> executeGeofenceAgent(routerResult.agent, eventMessage, defaultPreferencesPrefix, additionalInformation)
+            EventType.SCHEDULED -> executeScheduledAgent(routerResult.agent, eventMessage, defaultPreferencesPrefix, additionalInformation)
         }
 
         if (!agentResponse.memoryUpdateTask.isNullOrBlank()) {
@@ -232,27 +235,27 @@ class RequestRouterService(
 
     private fun executeScheduledAgent(
         agentType: YumeAgentType,
-        message: String,
+        eventMessage: String,
         systemPromptPrefix: String,
         additionalInformation: String,
     ): eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult {
         return when (agentType) {
-            YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleUserMessage(message, systemPromptPrefix, additionalInformation)
-            YumeAgentType.GENERIC -> genericAgent.handleUserMessage(message, systemPromptPrefix, additionalInformation)
-            YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleUserMessage(message, systemPromptPrefix, additionalInformation)
+            YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
+            YumeAgentType.GENERIC -> genericAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
+            YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
         }
     }
 
     private fun executeGeofenceAgent(
         agentType: YumeAgentType,
-        message: String,
+        eventMessage: String,
         systemPromptPrefix: String,
         additionalInformation: String,
     ): eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult {
         return when (agentType) {
-            YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleGeofenceEvent(message, systemPromptPrefix, additionalInformation)
-            YumeAgentType.GENERIC -> genericAgent.handleGeofenceEvent(message, systemPromptPrefix, additionalInformation)
-            YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleGeofenceEvent(message, systemPromptPrefix, additionalInformation)
+            YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
+            YumeAgentType.GENERIC -> genericAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
+            YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
         }
     }
 

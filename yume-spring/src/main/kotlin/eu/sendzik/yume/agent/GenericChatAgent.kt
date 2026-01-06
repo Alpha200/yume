@@ -26,4 +26,11 @@ interface GenericChatAgent {
         @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
         @V("additionalInformation") additionalInformation: String,
     ): BasicUserInteractionAgentResult
+
+    @SystemMessage(fromResource = "prompt/chat-interaction-scheduler-system-message.txt")
+    fun handleScheduledEvent(
+        @UserMessage query: String,
+        @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
+        @V("additionalInformation") additionalInformation: String,
+    ): BasicUserInteractionAgentResult
 }
