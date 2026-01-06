@@ -53,7 +53,7 @@ class SchedulerService(
 
     @PostConstruct
     fun init() {
-        triggerRun(Duration.ofSeconds(10))
+        triggerRun(Duration.ofMinutes(1))
     }
 
     @EventListener

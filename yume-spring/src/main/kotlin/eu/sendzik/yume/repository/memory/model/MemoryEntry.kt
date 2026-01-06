@@ -5,11 +5,19 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.TypeAlias
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.core.mapping.Field
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonSubTypes
 
 /**
  * Base class for all memory entries
  */
 @Document(collection = "memories")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonSubTypes(
+    JsonSubTypes.Type(value = UserPreferenceEntry::class, name = "user_preference"),
+    JsonSubTypes.Type(value = UserObservationEntry::class, name = "user_observation"),
+    JsonSubTypes.Type(value = ReminderEntry::class, name = "reminder")
+)
 sealed class MemoryEntry {
     abstract val id: String
     abstract val content: String

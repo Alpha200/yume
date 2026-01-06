@@ -78,9 +78,9 @@ class SchedulerRunLogService(
         return schedulerRunRepository.findFailedRuns(pageable)
     }
 
-    fun getRecentExecutedRunsFormatted(limit: Int) {
+    fun getRecentExecutedRunsFormatted(limit: Int): String {
         val recentRuns = getRecentRuns(limit, SchedulerRunStatus.COMPLETED)
-        recentRuns.joinToString {
+        return recentRuns.joinToString {
             "- Scheduled: ${formatTimestampForLLM(it.scheduledTime)} Topic: ${it.topic}"
         }
     }
