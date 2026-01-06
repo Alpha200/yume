@@ -50,35 +50,22 @@ class DayPlanTools(
             throw IllegalArgumentException("activities must contain at least one activity")
         }
 
-        val items = activities.mapIndexed { idx, activity ->
-            try {
-                val source = try {
-                    DayPlanItem.Source.valueOf(activity.source.uppercase())
-                } catch (_: Exception) {
-                    throw IllegalArgumentException("Invalid source '${activity.source}' in activity $idx. Must be one of: memory, calendar, user_input")
-                }
+        val items = activities.map { activity ->
+            val source = DayPlanItem.Source.valueOf(activity.source.uppercase())
+            val confidence = DayPlanItem.Confidence.valueOf(activity.confidence.uppercase())
 
-                val confidence = try {
-                    DayPlanItem.Confidence.valueOf(activity.confidence.uppercase())
-                } catch (_: Exception) {
-                    throw IllegalArgumentException("Invalid confidence '${activity.confidence}' in activity $idx. Must be one of: low, medium, high")
-                }
-
-                DayPlanItem(
-                    id = UUID.randomUUID().toString(),
-                    title = activity.title,
-                    description = activity.description,
-                    startTime = activity.startTime,
-                    endTime = activity.endTime,
-                    source = source,
-                    confidence = confidence,
-                    location = activity.location,
-                    tags = activity.tags,
-                    metadata = activity.metadata,
-                )
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Error processing activity at index $idx: ${e.message}")
-            }
+            DayPlanItem(
+                id = UUID.randomUUID().toString(),
+                title = activity.title,
+                description = activity.description,
+                startTime = activity.startTime,
+                endTime = activity.endTime,
+                source = source,
+                confidence = confidence,
+                location = activity.location,
+                tags = activity.tags,
+                metadata = activity.metadata,
+            )
         }
 
         val planId = dayPlanService.createOrUpdatePlan(date = planDate, items = items, summary = summary)

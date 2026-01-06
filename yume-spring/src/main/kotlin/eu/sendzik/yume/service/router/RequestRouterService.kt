@@ -214,7 +214,7 @@ class RequestRouterService(
         if (eventType == EventType.GEOFENCE) {
             conversationHistoryManagerService.addEntry(
                 eventMessage,
-                ConversationHistoryEntryType.SYSTEM_MESSAGE
+                ConversationHistoryEntryType.GEOFENCE_ACTION
             )
         }
 

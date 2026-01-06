@@ -17,6 +17,7 @@ class EfaTools(
      * Get upcoming departures for a public transport station.
      * Supports filtering by line number/name and destination direction.
      */
+    // TODO: Remove this tool as it is unreliable with agent usage
     @Suppress("UNUSED")
     @Tool("Get upcoming departures for a public transport station with optional filtering by line and direction")
     fun getStationDepartures(
