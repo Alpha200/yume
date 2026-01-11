@@ -26,6 +26,7 @@ import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.event.EventListener
 import org.springframework.core.io.Resource
+import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 
@@ -36,37 +37,55 @@ class RequestRouterService(
     private val memoryManagerService: MemoryManagerService,
     private val dayPlanExecutorService: DayPlanExecutorService,
     private val memoryManagerExecutorService: MemoryManagerExecutorService,
+    private val matrixClientService: MatrixClientService,
     private val routerAgent: RequestRouterAgent,
     private val genericAgent: GenericChatAgent,
     private val kitchenOwlAgent: KitchenOwlAgent,
     private val efaAgent: EfaAgent,
     private val conversationSummarizerAgent: ConversationSummarizerAgent,
-    private val matrixClientService: MatrixClientService,
     private val logger: KLogger,
     @Value("classpath:prompt/default-preferences-prefix.txt")
     private val defaultPreferencesPrefixResource: Resource,
 ) {
     @EventListener
+    @Async
     fun handleMessage(userMessageEvent: UserMessageEvent) {
-        val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
-        val conversationSummary = conversationSummarizerAgent.summarizeConversation(conversationHistory, userMessageEvent.message)
-        val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(conversationSummary)
+        val response = runCatching {
+            val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
+            val conversationSummary =
+                conversationSummarizerAgent.summarizeConversation(conversationHistory, userMessageEvent.message)
+            val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(conversationSummary)
 
-        logger.debug { "Summarized conversation history into: $conversationSummary" }
+            logger.debug { "Summarized conversation history into: $conversationSummary" }
 
-        val result = routerAgent.determineRequestRouting(
-            conversationSummary = conversationSummary,
-            userMessage = userMessageEvent.message,
-            currentDateTime = formatTimestampForLLM(userMessageEvent.timestamp),
-            relevantMemories = relevantMemoryEntries,
-        )
+            val result = routerAgent.determineRequestRouting(
+                conversationSummary = conversationSummary,
+                userMessage = userMessageEvent.message,
+                currentDateTime = formatTimestampForLLM(userMessageEvent.timestamp),
+                relevantMemories = relevantMemoryEntries,
+            )
 
-        logger.debug { "Routing decision: ${result.agent}. Resources: [${result.requiredResources.joinToString(", ")}] Reasoning: ${result.reasoning}" }
+            logger.debug { "Routing decision: ${result.agent}. Resources: [${result.requiredResources.joinToString(", ")}] Reasoning: ${result.reasoning}" }
 
-        val response = executeAgent(result.agent, userMessageEvent.message, result.requiredResources, relevantMemoryEntries, conversationHistory)
+            val response = executeAgent(
+                result.agent,
+                userMessageEvent.message,
+                result.requiredResources,
+                relevantMemoryEntries,
+                conversationHistory
+            )
 
-        conversationHistoryManagerService.addEntry(userMessageEvent.message, ConversationHistoryEntryType.USER_MESSAGE, userMessageEvent.timestamp)
-        conversationHistoryManagerService.addEntry(response, ConversationHistoryEntryType.SYSTEM_MESSAGE)
+            conversationHistoryManagerService.addEntry(
+                userMessageEvent.message,
+                ConversationHistoryEntryType.USER_MESSAGE,
+                userMessageEvent.timestamp
+            )
+            conversationHistoryManagerService.addEntry(response, ConversationHistoryEntryType.SYSTEM_MESSAGE)
+
+            response
+        }.onFailure {
+            logger.error(it) { "Failure in message processing" }
+        }.getOrDefault("There was an error processing your message. Please try again later.")
 
         runBlocking {
             matrixClientService.sendMessageToRoom(response)
