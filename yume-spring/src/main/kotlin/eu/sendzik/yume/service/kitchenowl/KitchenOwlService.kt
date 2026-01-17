@@ -21,19 +21,9 @@ class KitchenOwlService(
      *
      * @return ShoppingList if found, null otherwise
      */
-    fun fetchShoppingList(): ShoppingList? {
-        return try {
-            val shoppingLists = kitchenOwlClient.fetchShoppingLists(householdId)
-            if (!shoppingLists.isNullOrEmpty()) {
-                // Return the first (default) shopping list
-                shoppingLists.first()
-            } else {
-                logger.warn { "No shopping lists found" }
-                null
-            }
-        } catch (e: Exception) {
-            logger.error(e) { "Error fetching shopping list" }
-            null
+    fun fetchShoppingList(): Result<ShoppingList?> {
+        return runCatching {
+            kitchenOwlClient.fetchShoppingLists(householdId).firstOrNull()
         }
     }
 
@@ -47,16 +37,13 @@ class KitchenOwlService(
     fun createShoppingListEntry(
         name: String,
         description: String? = null
-    ): ShoppingListEntry? {
-        return try {
+    ): Result<ShoppingListEntry> {
+        return runCatching {
             val request = KitchenOwlClient.CreateShoppingListEntryRequest(
                 name = name,
                 description = description ?: ""
             )
             kitchenOwlClient.createShoppingListEntry(householdId, request)
-        } catch (e: Exception) {
-            logger.error(e) { "Error creating shopping list entry" }
-            null
         }
     }
 
@@ -70,15 +57,12 @@ class KitchenOwlService(
     fun updateShoppingListEntry(
         entryId: String,
         description: String
-    ): ShoppingListEntry? {
-        return try {
+    ): Result<ShoppingListEntry> {
+        return runCatching {
             val request = KitchenOwlClient.UpdateShoppingListEntryRequest(
                 description = description
             )
             kitchenOwlClient.updateShoppingListEntry(householdId, entryId, request)
-        } catch (e: Exception) {
-            logger.error(e) { "Error updating shopping list entry" }
-            null
         }
     }
 
@@ -86,15 +70,10 @@ class KitchenOwlService(
      * Remove a shopping list entry
      *
      * @param entryId ID of the entry to remove
-     * @return True if successful, False otherwise
      */
-    fun removeShoppingListEntry(entryId: String): Boolean {
-        return try {
+    fun removeShoppingListEntry(entryId: String): Result<Unit> {
+        return runCatching {
             kitchenOwlClient.removeShoppingListEntry(entryId)
-            true
-        } catch (e: Exception) {
-            logger.error(e) { "Error removing shopping list entry" }
-            false
         }
     }
 
@@ -113,10 +92,10 @@ class KitchenOwlService(
                 name = item["name"] ?: "",
                 description = item["description"]
             )
-            if (entry != null) {
-                createdEntries.add(entry)
-            } else {
-                logger.warn { "Failed to create entry: $item" }
+            entry.onSuccess {
+                createdEntries.add(it)
+            }.onFailure {
+                logger.error(it) { "Error creating entry: $item" }
             }
         }
         return createdEntries
@@ -145,11 +124,10 @@ class KitchenOwlService(
                 continue
             }
 
-            val entry = updateShoppingListEntry(entryId, description)
-            if (entry != null) {
-                updatedEntries.add(entry)
-            } else {
-                logger.warn { "Failed to update entry: $update" }
+            updateShoppingListEntry(entryId, description).onSuccess {
+                updatedEntries.add(it)
+            }.onFailure {
+                logger.error(it) { "Error updating entry: $update" }
             }
         }
         return updatedEntries
@@ -160,18 +138,16 @@ class KitchenOwlService(
      *
      * @return List of maps with recipe id and name
      */
-    fun fetchRecipeNames(): List<Map<String, Any>> {
-        return try {
-            val recipes = kitchenOwlClient.fetchRecipes(householdId)
-            recipes?.map { recipe ->
+    fun fetchRecipeNames(): Result<List<Map<String, Any>>> {
+        return runCatching {
+            kitchenOwlClient.fetchRecipes(householdId)
+        }.map {
+            it.map { recipe ->
                 mapOf(
                     "id" to recipe.id,
                     "name" to recipe.name
                 )
-            } ?: emptyList()
-        } catch (e: Exception) {
-            logger.error(e) { "Error fetching recipe names" }
-            emptyList()
+            }
         }
     }
 
@@ -181,17 +157,11 @@ class KitchenOwlService(
      * @param recipeId ID of the recipe to fetch
      * @return Recipe object if found, null otherwise
      */
-    fun fetchRecipe(recipeId: Int): Recipe? {
-        return try {
-            val recipes = kitchenOwlClient.fetchRecipes(householdId)
-            recipes?.find { it.id == recipeId }.also {
-                if (it == null) {
-                    logger.warn { "Recipe with ID $recipeId not found" }
-                }
-            }
-        } catch (e: Exception) {
-            logger.error(e) { "Error fetching recipe" }
-            null
+    fun fetchRecipe(recipeId: Int): Result<Recipe?> {
+        return runCatching {
+            kitchenOwlClient.fetchRecipes(householdId)
+        }.map {
+            it.find { recipe -> recipe.id == recipeId }
         }
     }
 }
