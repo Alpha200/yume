@@ -77,6 +77,13 @@ class ChatModelConfiguration(
         jsonOutput = false
     )
 
+    @Bean
+    fun eInkChatModel() = buildYumeChatModel(
+        agentName = "EInkDisplay",
+        modelName = agentConfiguration.model.eInkChatModel,
+        jsonOutput = false
+    )
+
     private fun buildYumeChatModel(
         agentName: String,
         modelName: String,

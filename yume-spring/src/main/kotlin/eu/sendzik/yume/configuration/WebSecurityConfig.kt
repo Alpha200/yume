@@ -36,9 +36,10 @@ class WebSecurityConfig {
 
     @Bean
     @Order(1)
-    fun webhookFilterChain(http: HttpSecurity): SecurityFilterChain {
+    fun systemApiFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .securityMatcher("/webhook/**")
+            .securityMatcher("/e-ink-display/**")
             .authorizeHttpRequests { authorize ->
                 authorize.anyRequest().authenticated()
             }

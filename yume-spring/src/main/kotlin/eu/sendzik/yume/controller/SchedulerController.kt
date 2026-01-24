@@ -2,7 +2,7 @@ package eu.sendzik.yume.controller
 
 import eu.sendzik.yume.repository.scheduler.model.SchedulerRun
 import eu.sendzik.yume.service.scheduler.SchedulerRunLogService
-import com.fasterxml.jackson.annotation.JsonProperty
+import eu.sendzik.yume.controller.dto.SchedulerRunResponse
 import eu.sendzik.yume.repository.scheduler.model.SchedulerRunStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -10,21 +10,6 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
-
-data class SchedulerRunResponse(
-    val id: String,
-    val scheduledTime: String,
-    val actualExecutionTime: String? = null,
-    val reason: String,
-    val topic: String,
-    val status: String,
-    val errorMessage: String? = null,
-    val executionDurationMs: Long? = null,
-    val aiResponse: String? = null,
-    val details: String? = null,
-    val createdAt: String,
-    val updatedAt: String,
-)
 
 @RestController
 @RequestMapping("scheduler-runs")

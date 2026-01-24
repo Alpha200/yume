@@ -14,6 +14,7 @@ services:
     command: mongod --wiredTigerCacheSizeGB=0.25 --logpath=/dev/null
   pgvector:
     image: pgvector/pgvector:pg18-trixie
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:

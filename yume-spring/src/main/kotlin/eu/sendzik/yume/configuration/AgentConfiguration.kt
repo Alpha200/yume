@@ -18,6 +18,7 @@ class AgentConfiguration(
         val routerAgentModel: String,
         val conversationSummarizerModel: String,
         val memorySummarizerModel: String,
+        val eInkChatModel: String,
     )
 
     class Preferences(
