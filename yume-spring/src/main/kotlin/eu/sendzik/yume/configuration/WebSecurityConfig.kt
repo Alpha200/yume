@@ -38,8 +38,7 @@ class WebSecurityConfig {
     @Order(1)
     fun systemApiFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
-            .securityMatcher("/webhook/**")
-            .securityMatcher("/e-ink-display/**")
+            .securityMatcher("/webhook/**", "/e-ink-display/**")
             .authorizeHttpRequests { authorize ->
                 authorize.anyRequest().authenticated()
             }
