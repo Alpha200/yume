@@ -10,15 +10,17 @@ import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 @Service
 class EfaService(
     private val efaClient: EfaClient,
-    @Value("\${yume.efa.client-id:CLIENTID}")
+    @Value("\${yume.efa.client-id}")
     private val efaClientId: String,
-    @Value("\${yume.efa.client-name:yume}")
+    @Value("\${yume.efa.client-name}")
     private val efaClientName: String,
     private val logger: KLogger,
 ) {
@@ -264,30 +266,6 @@ class EfaService(
         }
     }
 
-    /**
-     * Get departures in a map format suitable for serialization.
-     *
-     * @param stationId EFA station ID
-     * @param stationName Station name
-     * @param limit Maximum number of departures
-     * @param lineQuery Optional line search query
-     * @param directionQuery Optional direction search query
-     * @return Map with departure information
-     */
-    fun getDeparturesJson(
-        stationId: String? = null,
-        stationName: String? = null,
-        limit: Int = 10,
-        lineQuery: String? = null,
-        directionQuery: String? = null
-    ): Map<String, Any> {
-        val departures = getDepartures(stationId, stationName, limit, lineQuery, directionQuery)
-        return mapOf(
-            "status" to (if (departures.isNotEmpty()) "success" else "no_departures"),
-            "departures" to departures,
-            "count" to departures.size
-        )
-    }
 
     /**
      * Search for full journeys between two points.
@@ -505,8 +483,10 @@ class EfaService(
     private fun parseDepartureTimeIso(timeStr: String?): String? {
         if (timeStr == null) return null
         return try {
-            val dtUtc = LocalDateTime.parse(timeStr.replace('Z', ' ').trim(), DateTimeFormatter.ISO_DATE_TIME)
-            dtUtc.format(DateTimeFormatter.ofPattern("HH:mm"))
+            val zonedDateTimeUtc = ZonedDateTime.parse(timeStr, DateTimeFormatter.ISO_ZONED_DATE_TIME)
+            val localZoneId = ZoneId.of("Europe/Berlin")
+            val localDateTime = zonedDateTimeUtc.withZoneSameInstant(localZoneId).toLocalDateTime()
+            localDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
         } catch (e: Exception) {
             logger.debug(e) { "Failed to parse time: $timeStr" }
             null

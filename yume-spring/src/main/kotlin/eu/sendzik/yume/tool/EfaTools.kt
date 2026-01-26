@@ -17,7 +17,6 @@ class EfaTools(
      * Get upcoming departures for a public transport station.
      * Supports filtering by line number/name and destination direction.
      */
-    // TODO: Remove this tool as it is unreliable with agent usage
     @Suppress("UNUSED")
     @Tool("Get upcoming departures for a public transport station with optional filtering by line and direction")
     fun getStationDepartures(
@@ -30,18 +29,14 @@ class EfaTools(
         @P("Optional filter by destination (e.g., 'Berlin', 'Köln'). Substring match.")
         directionQuery: String? = null
     ): String = runCatching {
-        val result = efaService.getDeparturesJson(
+        val departures = efaService.getDepartures(
             stationName = stationName,
             limit = limit,
             lineQuery = lineQuery,
             directionQuery = directionQuery
         )
 
-        @Suppress("UNCHECKED_CAST")
-        val departures = result["departures"] as? List<Any> ?: emptyList()
-        val status = result["status"] as? String
-
-        if (status == "no_departures" || departures.isEmpty()) {
+        if (departures.isEmpty()) {
             val filters = mutableListOf<String>()
             if (!lineQuery.isNullOrBlank()) {
                 filters.add("line '$lineQuery'")
@@ -58,8 +53,7 @@ class EfaTools(
         }
 
         // Format the departures
-        var formatted = "Departures from $stationName:\n"
-
+        var formatted = "Departures from $stationName"
         if (!lineQuery.isNullOrBlank() || !directionQuery.isNullOrBlank()) {
             val filters = mutableListOf<String>()
             if (!lineQuery.isNullOrBlank()) {
@@ -68,21 +62,19 @@ class EfaTools(
             if (!directionQuery.isNullOrBlank()) {
                 filters.add("to $directionQuery")
             }
-            formatted = "Departures from $stationName (${filters.joinToString(", ")}):\n"
+            formatted += " ${filters.joinToString(", ")}"
         }
+        formatted += ":\n"
 
-        departures.forEachIndexed { index, depObj ->
-            @Suppress("UNCHECKED_CAST")
-            val dep = depObj as? Map<String, Any> ?: return@forEachIndexed
-
-            val line = dep["line"] as? String ?: "N/A"
-            val destination = dep["destination"] as? String ?: "Unknown"
-            val plannedTime = dep["planned_time"] as? String ?: "N/A"
-            val estimatedTime = dep["estimated_time"] as? String
-            val delay = (dep["delay_minutes"] as? Number)?.toInt() ?: 0
-            val platform = dep["platform"] as? String ?: "—"
-            val realtime = dep["realtime"] as? Boolean ?: false
-            val transportType = dep["transport_type"] as? String ?: ""
+        departures.forEachIndexed { index, departure ->
+            val line = departure.line
+            val destination = departure.destination
+            val plannedTime = departure.plannedTime
+            val estimatedTime = departure.estimatedTime
+            val delay = departure.delayMinutes ?: 0
+            val platform = departure.platform ?: "—"
+            val realtime = departure.realtime
+            val transportType = departure.transportType
 
             val realtimeStatus = if (realtime) "realtime" else "timetable"
 
