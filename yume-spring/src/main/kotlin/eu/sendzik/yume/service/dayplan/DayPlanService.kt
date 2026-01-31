@@ -25,39 +25,48 @@ class DayPlanService(
      */
     fun getFormattedPlan(date: LocalDate): String {
         val plan = dayPlanRepository.findByDate(date)
-            ?: return "No plan found for ${formatTimestampForLLM(date)}"
+            ?: return "No day plan found for ${formatTimestampForLLM(date)}"
 
         if (plan.items.isEmpty()) {
             return "Day plan for $date is empty.\n"
         }
 
-        val output = StringBuilder()
-        output.append("Day Plan for ${formatTimestampForLLM(date)}:\n\n")
+        return buildString {
+            appendLine("Day plan for ${formatTimestampForLLM(date)}:")
+            appendLine()
 
-        // Sort items by start time
-        val sortedItems = plan.items.sortedWith(compareBy { it.startTime ?: LocalDateTime.MAX })
+            // Sort items by start time
+            val sortedItems = plan.items.sortedWith(compareBy { it.startTime ?: LocalDateTime.MAX })
 
-        for (item in sortedItems) {
-            var timeStr = ""
-            if (item.startTime != null) {
-                timeStr = formatTimestampForLLM(item.startTime, true)
-                if (item.endTime != null) {
-                    timeStr += " - ${formatTimestampForLLM(item.endTime, true)}"
+            for (item in sortedItems) {
+                var timeStr = ""
+
+                if (item.startTime != null) {
+                    timeStr = formatTimestampForLLM(item.startTime, true)
+                    if (item.endTime != null) {
+                        timeStr += " - ${formatTimestampForLLM(item.endTime, true)}"
+                    }
+                    timeStr = " ($timeStr)"
                 }
-                timeStr = " ($timeStr)"
-            }
 
-            output.append("* ${item.title}$timeStr\n")
-            if (item.description != null) {
-                output.append("${item.description}\n")
+                appendLine("* ${item.title}$timeStr")
+
+                if (item.description != null) {
+                    appendLine(item.description)
+                }
+
+                append("[")
+
+                if (item.location != null) {
+                    append("Location: ${item.location} | ")
+                }
+
+                append("Source: ${item.source.name.lowercase()} | ")
+                append("Confidence: ${item.confidence.name.lowercase()}")
+
+                appendLine("]")
             }
-            if (item.location != null) {
-                output.append("Location: ${item.location}\n")
-            }
-            output.append("[${item.source.name.lowercase()} | confidence: ${item.confidence.name.lowercase()}]\n")
         }
-
-        return output.toString()
     }
 
     /**

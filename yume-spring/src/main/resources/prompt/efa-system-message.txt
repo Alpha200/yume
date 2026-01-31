@@ -25,9 +25,7 @@ Rules for Journeys:
   * Include platform information if available, omit if not provided
   * For steps where origin and destination are the same station, explain: "Walk to platform [X] or another platform in [Station Name]"
   * Show total duration and number of changes
-- Do not be too brief; provide enough detail for the user to understand the full journey
-
-Note: You may be triggered by a scheduled event related to public transport (e.g., a commute reminder). Use the context of the scheduled event to determine if public transport information is relevant and helpful.
+- Do not be too brief; provide enough detail for the user to understand the full journey but only if the user is not already familiar with it.
 
 {{additionalInformation}}
 

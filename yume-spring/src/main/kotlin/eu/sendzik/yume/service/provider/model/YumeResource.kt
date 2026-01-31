@@ -17,6 +17,7 @@ enum class YumeResource {
     SUMMARIZED_OBSERVATIONS,
     SUMMARIZED_REMINDERS,
     RECENT_SCHEDULER_EXECUTIONS,
+    RECENT_USER_INTERACTION,
 }
 
 fun YumeChatResource.toYumeResource(): YumeResource {

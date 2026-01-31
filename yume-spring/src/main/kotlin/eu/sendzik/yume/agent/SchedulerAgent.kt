@@ -14,7 +14,7 @@ import eu.sendzik.yume.agent.model.SchedulerAgentResult
 )
 interface SchedulerAgent {
     @SystemMessage(fromResource = "prompt/scheduler-system-message.txt")
-    @UserMessage("Determine the next optimal run time. Additional information:\n {{additionalInformation}}")
+    @UserMessage("Determine the next optimal run. Additional information:\n\n{{additionalInformation}}")
     fun determineNextRun(
         @V("additionalInformation") additionalInformation: String
     ): SchedulerAgentResult

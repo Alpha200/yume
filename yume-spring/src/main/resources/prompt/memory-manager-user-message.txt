@@ -1,5 +1,5 @@
-Current date and time: {{currentDateTime}}
-These are all currently saved user memories:
+Current date and time: {{currentDateTime}}. These are all currently saved user memories:
+
 BEGIN OF MEMORIES
 {{memories}}
 END OF MEMORIES

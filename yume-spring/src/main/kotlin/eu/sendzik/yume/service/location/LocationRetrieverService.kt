@@ -10,32 +10,27 @@ import org.springframework.stereotype.Service
 @Service
 class LocationRetrieverService(
     private val homeAssistantClient: HomeAssistantClient,
-    private val logger: KLogger,
     @Value("\${yume.home-assistant.person.entity-id}")
     private val userEntityId: String,
 ) {
-    @Cacheable("UserLocation", unless = "#result == null")
-    fun getCurrentLocationCoordinates(): UserLocation? {
-        try {
-            val location = homeAssistantClient.getStateForEntity(userEntityId)
-
+    @Cacheable("UserLocation", unless = "#result.isFailure")
+    fun getCurrentLocationCoordinates(): Result<UserLocation> {
+        return runCatching {
+            homeAssistantClient.getStateForEntity(userEntityId)
+        }.mapCatching { location ->
             val latitude = location.attributes["latitude"] as? Double
             val longitude = location.attributes["longitude"] as? Double
             val geofence = location.state
 
             if (latitude == null || longitude == null) {
-                logger.warn { "Location attributes are missing latitude or longitude!" }
-                return null
+                throw RuntimeException("Location attributes are missing latitude or longitude.")
             } else {
-                return UserLocation(
+                UserLocation(
                     geofence = geofence,
                     latitude = latitude,
                     longitude = longitude,
                 )
             }
-        } catch (ex: RuntimeException) {
-            logger.error { "Failed to fetch user location: ${ex.message}" }
-            return null
         }
     }
 }

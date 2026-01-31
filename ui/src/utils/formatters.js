@@ -49,6 +49,50 @@ export function formatTime(timestamp) {
 }
 
 /**
+ * Format a timestamp with date and time for memory entries
+ * @param {string|Date} timestamp - The timestamp to format
+ * @returns {string} Formatted date and time
+ */
+export function formatMemoryDateTime(timestamp) {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffMs = Math.abs(now - date)
+  const diffHours = diffMs / (1000 * 60 * 60)
+  const diffDays = diffMs / (1000 * 60 * 60 * 24)
+  const isFuture = date > now
+
+  // Format the date and time
+  const dateStr = date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+  })
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+
+  // Show relative time followed by actual date/time
+  let relativeStr = ''
+  if (diffHours < 1) {
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    if (diffMinutes < 1) {
+      relativeStr = isFuture ? 'Starting soon' : 'Just now'
+    } else {
+      relativeStr = isFuture ? `in ${diffMinutes}m` : `${diffMinutes}m ago`
+    }
+  } else if (diffHours < 24) {
+    const hours = Math.floor(diffHours)
+    relativeStr = isFuture ? `in ${hours}h` : `${hours}h ago`
+  } else if (diffDays < 7) {
+    const days = Math.floor(diffDays)
+    relativeStr = isFuture ? `in ${days}d` : `${days}d ago`
+  }
+
+  return relativeStr ? `${relativeStr} (${dateStr} ${timeStr})` : `${dateStr} ${timeStr}`
+}
+
+/**
  * Format memory type to display name
  * @param {string} type - The memory type
  * @returns {string} Formatted display name

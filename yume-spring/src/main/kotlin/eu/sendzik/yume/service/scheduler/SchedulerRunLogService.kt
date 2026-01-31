@@ -80,7 +80,7 @@ class SchedulerRunLogService(
 
     fun getRecentExecutedRunsFormatted(limit: Int): String {
         val recentRuns = getRecentRuns(limit, SchedulerRunStatus.COMPLETED)
-        return recentRuns.joinToString {
+        return recentRuns.joinToString("\n---\n") {
             "- Scheduled: ${formatTimestampForLLM(it.scheduledTime)} Topic: ${it.topic}"
         }
     }

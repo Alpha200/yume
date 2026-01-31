@@ -8,8 +8,9 @@
     </div>
     <div class="memory-meta">
       <div v-if="memory.place">📍 {{ memory.place }}</div>
-      <div>🕒 Created: {{ formatTime(memory.createdAt) }}</div>
-      <div v-if="memory.observationDate">👁️ Observed: {{ formatTime(memory.observationDate) }}</div>
+      <div>✨ Created: {{ formatMemoryDateTime(memory.createdAt) }}</div>
+      <div>🕒 Updated: {{ formatMemoryDateTime(memory.modified_at) }}</div>
+      <div v-if="memory.observationDate">👁️ Observed: {{ formatMemoryDateTime(memory.observationDate) }}</div>
       <div v-if="memory.reminderOptions">
         🔔
         <span v-if="memory.reminderOptions.datetimeValue">
@@ -27,7 +28,7 @@
 </template>
 
 <script>
-import { formatTime, formatMemoryType } from '../utils/formatters'
+import { formatMemoryDateTime, formatMemoryType } from '../utils/formatters'
 
 export default {
   name: 'MemoryItem',
@@ -38,7 +39,7 @@ export default {
     }
   },
   methods: {
-    formatTime,
+    formatMemoryDateTime,
     formatMemoryType,
     getMemoryTypeClass(type) {
       const classMap = {
