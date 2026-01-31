@@ -4,6 +4,7 @@ import eu.sendzik.yume.configuration.AgentConfiguration
 import eu.sendzik.yume.service.calendar.CalendarService
 import eu.sendzik.yume.service.conversation.ConversationHistoryManagerService
 import eu.sendzik.yume.service.dayplan.DayPlanService
+import eu.sendzik.yume.service.location.GeofenceEventLogService
 import eu.sendzik.yume.service.location.LocationService
 import eu.sendzik.yume.service.memory.MemorySummarizerService
 import eu.sendzik.yume.service.memory.model.MemoryType
@@ -25,6 +26,7 @@ class ResourceProviderService(
     private val calendarService: CalendarService,
     private val memorySummarizerService: MemorySummarizerService,
     private val schedulerRunLogService: SchedulerRunLogService,
+    private val geofenceEventLogService: GeofenceEventLogService,
     private val conversationHistoryManagerService: ConversationHistoryManagerService,
     private val logger: KLogger,
 ) {
@@ -95,6 +97,13 @@ class ResourceProviderService(
                     appendLine("<SchedulerExecutions>")
                     appendLine(executions)
                     appendLine("</SchedulerExecutions>")
+                }
+                YumeResource.RECENT_GEOFENCE_EVENTS -> {
+                    val events = geofenceEventLogService.getRecentEventsFormatted(5)
+                    appendLine("Recent geofence events (location-based triggers):")
+                    appendLine("<GeofenceEvents>")
+                    appendLine(events)
+                    appendLine("</GeofenceEvents>")
                 }
                 YumeResource.RECENT_USER_INTERACTION -> {
                     val interactions = conversationHistoryManagerService.getRecentHistoryFormatted()

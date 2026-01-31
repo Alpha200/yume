@@ -13,6 +13,7 @@ Your output should include:
 2. memoryUpdateTask: Instructions for updating memory (or null if no update needed)
 3. dayPlannerUpdateTask: Instructions for updating the day planner with new activities or schedule changes (or null if no update needed)
 4. reasoning: Your reasoning for the actions taken (keep it brief)
+5. executionSummary: A one-sentence summary of what you decided to do at this location. This helps the scheduler understand location-based patterns. Examples: "Reminded about gym workout", "Skipped - user was just passing by", "No relevant memories for this location"
 
 {{additionalInformation}}
 

@@ -1,8 +1,8 @@
 package eu.sendzik.yume.agent.model
 
-data class BasicUserInteractionAgentResult(
-    val messageToUser: String?,
-    val memoryUpdateTask: String?,
-    val dayPlannerUpdateTask: String?,
-    val reasoning: String?
+open class BasicUserInteractionAgentResult(
+    open val messageToUser: String?,
+    open val memoryUpdateTask: String?,
+    open val dayPlannerUpdateTask: String?,
+    open val reasoning: String?
 )

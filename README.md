@@ -42,9 +42,11 @@ Yume is built with a modular architecture consisting of several key components:
 - **MemoryManagerAgent** (`agent/MemoryManagerAgent.kt`): Handles memory operations including intelligent cleanup and archival
 - **ConversationSummarizerAgent** (`agent/ConversationSummarizerAgent.kt`): Condenses conversation history into concise, detail-preserving summaries for optimized AI context
 - **DayPlanAgent** (`agent/DayPlanAgent.kt`): AI agent that creates daily activity predictions using calendar, memories, and context. Makes high-confidence updates to plans via tools.
-- **SchedulerAgent** (`agent/SchedulerAgent.kt`): Intelligent scheduling with deferred execution, automatic re-evaluation, and dual-approach timing optimization (deterministic + AI-powered)
+- **SchedulerAgent** (`agent/SchedulerAgent.kt`): Intelligent scheduling with deferred execution, automatic re-evaluation, and dual-approach timing optimization (deterministic + AI-powered). Receives execution summaries from scheduled/geofence events for improved future scheduling decisions.
 - **EfaAgent** (`agent/EfaAgent.kt`): Specialized agent for querying public transport departures. Parses natural language queries to extract station names, line numbers, and destination directions.
 - **KitchenOwlAgent** (`agent/KitchenOwlAgent.kt`): Manages shopping lists and recipes with autonomous decision-making. Intelligently handles duplicate items by checking the list before adding.
+
+Event-triggered agent methods (`handleScheduledEvent`, `handleGeofenceEvent`) re-evaluate current context before acting, ensuring actions remain relevant and avoiding unnecessary messages.
 
 ### Memory System
 
@@ -66,7 +68,7 @@ langchain4j-powered tools for AI agents:
 
 ### Data Management
 
-- **MongoDB Storage**: Persistent storage for memories, conversations, and interactions
+- **MongoDB Storage**: Persistent storage for memories, conversations, interactions, scheduler runs, and geofence events
 - **Spring Cache (Caffeine)**: In-memory caching for frequently accessed data
 - **Vector Embeddings**: langchain4j with pgvector for semantic search capabilities
 
@@ -78,10 +80,12 @@ langchain4j-powered tools for AI agents:
 
 ### Interaction Tracking
 
-Yume tracks all AI agent interactions for debugging:
+Yume tracks all AI agent interactions and events for debugging:
 - **Agent Type**: Records which agent executed the interaction
 - **Input/Output**: Stores full data for each interaction
 - **Metadata**: Captures scheduling information, topic, and system instructions
+- **Scheduler Runs**: Logs scheduled task executions with outcomes for scheduler feedback
+- **Geofence Events**: Tracks location-based triggers with execution summaries
 - **Storage**: Persisted in MongoDB
 
 ## Performance Optimizations

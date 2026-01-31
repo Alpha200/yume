@@ -19,7 +19,9 @@ class WeatherService(
     private val appId: String,
 ) {
     fun getWeatherForecast(maxHourlyForecasts: Int = 24): Result<String> {
-        return locationRetrieverService.getCurrentLocationCoordinates().onFailure {
+        return runCatching {
+            locationRetrieverService.getCurrentLocationCoordinates()
+        }.onFailure {
             logger.error(it) { "Failed to retrieve user location for weather forecast." }
         }.mapCatching { location ->
             openWeatherMapClient.oneCall(

@@ -6,6 +6,7 @@ import dev.langchain4j.service.V
 import dev.langchain4j.service.spring.AiService
 import dev.langchain4j.service.spring.AiServiceWiringMode
 import eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult
+import eu.sendzik.yume.agent.model.EventTriggeredAgentResult
 
 @AiService(
     wiringMode = AiServiceWiringMode.EXPLICIT,
@@ -25,12 +26,12 @@ interface GenericChatAgent {
         @UserMessage query: String,
         @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
         @V("additionalInformation") additionalInformation: String,
-    ): BasicUserInteractionAgentResult
+    ): EventTriggeredAgentResult
 
     @SystemMessage(fromResource = "prompt/chat-interaction-scheduler-system-message.txt")
     fun handleScheduledEvent(
         @UserMessage query: String,
         @V("systemPromptPrefix") yumeSystemPromptPrefix: String,
         @V("additionalInformation") additionalInformation: String,
-    ): BasicUserInteractionAgentResult
+    ): EventTriggeredAgentResult
 }

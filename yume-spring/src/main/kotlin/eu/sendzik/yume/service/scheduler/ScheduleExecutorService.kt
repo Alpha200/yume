@@ -45,10 +45,10 @@ class ScheduleExecutorService(
             logger.info {"Executing scheduled run. Topic: ${schedulerRunDetails.topic}" }
             
             val startTime = System.currentTimeMillis()
-            requestRouterService.runFromScheduler(schedulerRunDetails)
+            val executionSummary = requestRouterService.runFromScheduler(schedulerRunDetails)
             val duration = System.currentTimeMillis() - startTime
             
-            schedulerRunLogService.markAsCompleted(runId, executionDurationMs = duration)
+            schedulerRunLogService.markAsCompleted(runId, aiResponse = executionSummary, executionDurationMs = duration)
         } catch (e: Exception) {
             logger.error(e) { "Error executing scheduled run: ${e.message}" }
             schedulerRunLogService.markAsFailed(runId, e.message ?: "Unknown error")

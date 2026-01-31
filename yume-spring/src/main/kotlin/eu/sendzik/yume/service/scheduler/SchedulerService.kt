@@ -81,6 +81,7 @@ class SchedulerService(
             YumeResource.SUMMARIZED_OBSERVATIONS,
             YumeResource.SUMMARIZED_PREFERENCES,
             YumeResource.RECENT_SCHEDULER_EXECUTIONS,
+            YumeResource.RECENT_GEOFENCE_EVENTS,
             YumeResource.RECENT_USER_INTERACTION,
         ))
 

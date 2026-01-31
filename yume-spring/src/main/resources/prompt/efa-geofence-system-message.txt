@@ -29,4 +29,6 @@ Rules for Journeys:
 
 Note: You may be triggered by a geofence event (user entering or leaving a location). Use the location context to determine if public transport information is relevant and helpful for that location.
 
+For geofence events, include an executionSummary field in your output: A one-sentence summary of what you decided to do. This helps the scheduler understand location-based transport patterns. Examples: "Provided departure times from station", "Skipped - user already has journey info", "No transport action needed"
+
 {{additionalInformation}}

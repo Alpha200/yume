@@ -1,6 +1,7 @@
 package eu.sendzik.yume.service.location
 
 import eu.sendzik.yume.configuration.HomeLocationConfiguration
+import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.stereotype.Service
 import kotlin.math.*
 
@@ -9,9 +10,12 @@ class LocationService(
     private val reverseGeocodingService: ReverseGeocodingService,
     private val locationRetrieverService: LocationRetrieverService,
     private val homeLocationConfiguration: HomeLocationConfiguration,
+    private val logger: KLogger,
 ) {
-    fun getCurrentLocationFormatted(): Result<String> {
-        return locationRetrieverService.getCurrentLocationCoordinates().mapCatching { userLocation ->
+    fun getCurrentLocationFormatted(): String {
+        return runCatching {
+            locationRetrieverService.getCurrentLocationCoordinates()
+        }.mapCatching { userLocation ->
             val place = reverseGeocodingService.reverseGeocode(
                 userLocation.latitude,
                 userLocation.longitude
@@ -29,6 +33,10 @@ class LocationService(
                     }
                 }
             }
+        }.onFailure {
+            logger.error(it) { "Failed to get users location!" }
+        }.getOrElse {
+            "Unable to retrieve current location."
         }
     }
 

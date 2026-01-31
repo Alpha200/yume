@@ -50,5 +50,6 @@ Provide:
 - actionsTaken: List of what you actually did (e.g., "Added 2 new items to shopping list", "Updated milk to 1 liter", "Item cheese already existed, not duplicated")
 - reasoningSummary: Brief explanation of the task, how you completed it, and any intelligent decisions you made (e.g., duplicates avoided, items updated instead)
 - userMessage: A natural language message to the user summarizing what you did
+- executionSummary: A one-sentence summary for the scheduler about this location event. Examples: "Sent shopping list reminder at store", "Skipped - user not shopping", "Added groceries to list for home location"
 
 {{additionalInformation}}

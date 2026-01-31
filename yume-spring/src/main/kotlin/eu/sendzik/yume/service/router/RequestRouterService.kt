@@ -43,6 +43,7 @@ class RequestRouterService(
     private val kitchenOwlAgent: KitchenOwlAgent,
     private val efaAgent: EfaAgent,
     private val conversationSummarizerAgent: ConversationSummarizerAgent,
+    private val geofenceEventLogService: eu.sendzik.yume.service.location.GeofenceEventLogService,
     private val logger: KLogger,
     @Value("classpath:prompt/default-preferences-prefix.txt")
     private val defaultPreferencesPrefixResource: Resource,
@@ -120,18 +121,22 @@ class RequestRouterService(
             }
         }
 
-        if (!result.memoryUpdateTask.isNullOrBlank()) {
-            memoryManagerExecutorService.updateMemoryWithTask(result.memoryUpdateTask)
+        result.memoryUpdateTask?.let {
+            if (!it.isBlank()) {
+                memoryManagerExecutorService.updateMemoryWithTask(it)
+            }
         }
 
-        if (!result.dayPlannerUpdateTask.isNullOrBlank()) {
-            dayPlanExecutorService.updateDayPlansWithTask(result.dayPlannerUpdateTask)
+        result.dayPlannerUpdateTask?.let {
+            if (!it.isBlank()) {
+                dayPlanExecutorService.updateDayPlansWithTask(it)
+            }
         }
 
         return result.messageToUser ?: "Failed to generate a response."
     }
 
-    fun runFromScheduler(schedulerRunDetails: SchedulerRunDetails) {
+    fun runFromScheduler(schedulerRunDetails: SchedulerRunDetails): String {
         val schedulerMessage = buildString {
             appendLine("A scheduled run has been triggered with the topic '${schedulerRunDetails.topic}'")
             appendLine("The scheduler agent provided the following details: ${schedulerRunDetails.details}")
@@ -142,7 +147,7 @@ class RequestRouterService(
         val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
         val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(schedulerRunDetails.details)
 
-        val message = routeAndExecuteEvent(
+        val (message, executionSummary) = routeAndExecuteEvent(
             eventMessage = schedulerMessage,
             relevantMemories = relevantMemoryEntries,
             conversationHistory = conversationHistory,
@@ -154,6 +159,8 @@ class RequestRouterService(
                 matrixClientService.sendMessageToRoom(message)
             }
         }
+        
+        return executionSummary
     }
 
     fun handleGeofenceEvent(geofenceEvent: GeofenceEventRequest) {
@@ -171,11 +178,18 @@ class RequestRouterService(
         val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
         val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(geofenceEvent.geofenceName)
 
-        val message = routeAndExecuteEvent(
+        val (message, executionSummary) = routeAndExecuteEvent(
             eventMessage = geofenceEventMessage,
             relevantMemories = relevantMemoryEntries,
             conversationHistory = conversationHistory,
             eventType = EventType.GEOFENCE,
+        )
+        
+        // Log geofence event with execution summary for scheduler feedback
+        geofenceEventLogService.logGeofenceEvent(
+            geofenceName = geofenceEvent.geofenceName,
+            eventType = geofenceEvent.eventType.name.lowercase(),
+            executionSummary = executionSummary
         )
 
         if (message != null) {
@@ -194,7 +208,7 @@ class RequestRouterService(
         relevantMemories: String,
         conversationHistory: String,
         eventType: EventType,
-    ): String? {
+    ): Pair<String?, String> {
         val routerResult = when (eventType) {
             EventType.GEOFENCE -> routerAgent.routeGeofenceEvent(
                 conversationSummary = eventMessage,
@@ -245,11 +259,18 @@ class RequestRouterService(
                 agentResponse.messageToUser,
                 ConversationHistoryEntryType.SYSTEM_MESSAGE
             )
-
-            return agentResponse.messageToUser
+        }
+        
+        // Extract execution summary from EventTriggeredAgentResult or derive from response
+        val executionSummary = agentResponse.executionSummary ?: run {
+            if (!agentResponse.messageToUser.isNullOrBlank()) {
+                "Sent message to user"
+            } else {
+                "No action taken"
+            }
         }
 
-        return null
+        return Pair(agentResponse.messageToUser, executionSummary)
     }
 
     private fun executeScheduledAgent(
@@ -257,7 +278,7 @@ class RequestRouterService(
         eventMessage: String,
         systemPromptPrefix: String,
         additionalInformation: String,
-    ): eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult {
+    ): eu.sendzik.yume.agent.model.EventTriggeredAgentResult {
         return when (agentType) {
             YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.GENERIC -> genericAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
@@ -270,7 +291,7 @@ class RequestRouterService(
         eventMessage: String,
         systemPromptPrefix: String,
         additionalInformation: String,
-    ): eu.sendzik.yume.agent.model.BasicUserInteractionAgentResult {
+    ): eu.sendzik.yume.agent.model.EventTriggeredAgentResult {
         return when (agentType) {
             YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.GENERIC -> genericAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
