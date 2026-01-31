@@ -1,8 +1,8 @@
 Current date and time: {{currentDateTime}}
 
-BEGIN OF MEMORIES
+<Memories>
 {{memories}}
-END OF MEMORIES
+</Memories>
 
 Review the stored memories and ensure they are up to date. Consider the current date/time when:
 - Removing past non-recurring reminders

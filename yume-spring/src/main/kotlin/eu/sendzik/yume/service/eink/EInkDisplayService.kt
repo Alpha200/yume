@@ -23,9 +23,9 @@ class EInkDisplayService(
 
         val input = buildString {
             appendLine("Information to consider:")
-            appendLine("BEGIN OF INFORMATION")
+            appendLine("<Information>")
             appendLine(resources)
-            appendLine("END OF INFORMATION")
+            appendLine("</Information>")
             appendLine("Based on the above information, generate the content to be displayed on the e-ink display for the next hours.")
         }
 

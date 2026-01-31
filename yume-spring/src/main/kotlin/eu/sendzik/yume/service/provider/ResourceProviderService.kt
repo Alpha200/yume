@@ -32,9 +32,11 @@ class ResourceProviderService(
         resources.forEach {
             when (it) {
                 YumeResource.WEATHER_FORECAST -> {
-                    appendLine("Weather forecast for current location:")
                     weatherService.getWeatherForecast().onSuccess { weather ->
+                        appendLine("Weather forecast for current location:")
+                        appendLine("<WeatherForecast>")
                         appendLine(weather)
+                        appendLine("</WeatherForecast>")
                     }.onFailure { err ->
                         logger.error(err) { "Failed to fetch weather forecast" }
                         appendLine("Unable to fetch weather forecast")
@@ -59,17 +61,23 @@ class ResourceProviderService(
                 YumeResource.SUMMARIZED_PREFERENCES -> {
                     val summary = memorySummarizerService.getMemorySummary(MemoryType.PREFERENCE)
                     appendLine("Memorized user preferences:")
+                    appendLine("<Preferences>")
                     appendLine(summary)
+                    appendLine("</Preferences>")
                 }
                 YumeResource.SUMMARIZED_OBSERVATIONS -> {
                     val summary = memorySummarizerService.getMemorySummary(MemoryType.OBSERVATION)
                     appendLine("Memorized user observations:")
+                    appendLine("<Observations>")
                     appendLine(summary)
+                    appendLine("</Observations>")
                 }
                 YumeResource.SUMMARIZED_REMINDERS -> {
                     val summary = memorySummarizerService.getMemorySummary(MemoryType.REMINDER)
                     appendLine("Memorized reminders:")
+                    appendLine("<Reminders>")
                     appendLine(summary)
+                    appendLine("</Reminders>")
                 }
                 YumeResource.CALENDAR_NEXT_2_DAYS -> {
                     val start = LocalDate.now().atStartOfDay()
@@ -77,23 +85,23 @@ class ResourceProviderService(
                     val calendarEntries = calendarService.getFormattedCalendarEntries(start, end)
 
                     appendLine("Upcoming calendar events for the next two days:")
-                    appendLine("=== BEGIN CALENDAR ENTRIES ===")
+                    appendLine("<CalendarEntries>")
                     appendLine(calendarEntries)
-                    appendLine("=== END CALENDAR ENTRIES ===")
+                    appendLine("</CalendarEntries>")
                 }
                 YumeResource.RECENT_SCHEDULER_EXECUTIONS -> {
                     val executions = schedulerRunLogService.getRecentExecutedRunsFormatted(5)
                     appendLine("Recently executed scheduler runs:")
-                    appendLine("=== BEGIN SCHEDULER EXECUTIONS ===")
+                    appendLine("<SchedulerExecutions>")
                     appendLine(executions)
-                    appendLine("=== END SCHEDULER EXECUTIONS ===")
+                    appendLine("</SchedulerExecutions>")
                 }
                 YumeResource.RECENT_USER_INTERACTION -> {
                     val interactions = conversationHistoryManagerService.getRecentHistoryFormatted()
                     appendLine("Recent user interactions:")
-                    appendLine("=== BEGIN USER INTERACTIONS ===")
+                    appendLine("<UserInteractions>")
                     appendLine(interactions)
-                    appendLine("=== END USER INTERACTIONS ===")
+                    appendLine("</UserInteractions>")
                 }
             }
 

@@ -33,7 +33,7 @@ class DayPlanService(
 
         return buildString {
             appendLine("Day plan for ${formatTimestampForLLM(date)}:")
-            appendLine()
+            appendLine("<DayPlan>")
 
             // Sort items by start time
             val sortedItems = plan.items.sortedWith(compareBy { it.startTime ?: LocalDateTime.MAX })
@@ -66,6 +66,8 @@ class DayPlanService(
 
                 appendLine("]")
             }
+
+            appendLine("</DayPlan>")
         }
     }
 
