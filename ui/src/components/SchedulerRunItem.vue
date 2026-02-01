@@ -12,7 +12,6 @@
       <p v-if="run.errorMessage" class="error-message"><strong>Error:</strong> {{ run.errorMessage }}</p>
       <p v-if="run.aiResponse" class="response"><strong>Response:</strong> {{ truncateResponse(run.aiResponse) }}</p>
     </div>
-    <button v-if="run.id" @click="showDetails" class="details-button">View Details</button>
   </div>
 </template>
 
@@ -41,11 +40,7 @@ export default {
     },
     truncateResponse(response) {
       if (!response) return 'N/A'
-      const str = typeof response === 'string' ? response : JSON.stringify(response)
-      return str.length > 100 ? str.substring(0, 100) + '...' : str
-    },
-    showDetails() {
-      this.$emit('select', this.run.id)
+      return typeof response === 'string' ? response : JSON.stringify(response)
     }
   }
 }
@@ -170,24 +165,5 @@ export default {
   font-size: 12px;
   overflow-x: auto;
   color: #b0b0b0;
-}
-
-.details-button {
-  background-color: #2196f3;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s ease;
-}
-
-.details-button:hover {
-  background-color: #1976d2;
-}
-
-.details-button:active {
-  background-color: #1565c0;
 }
 </style>

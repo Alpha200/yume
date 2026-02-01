@@ -37,6 +37,7 @@ class SchedulerRunLogService(
         val run = schedulerRunRepository.findById(runId).orElse(null) ?: return null
         val updated = run.copy(
             status = SchedulerRunStatus.COMPLETED,
+            actualExecutionTime = LocalDateTime.now(),
             aiResponse = aiResponse,
             executionDurationMs = executionDurationMs,
             updatedAt = LocalDateTime.now()
@@ -48,6 +49,7 @@ class SchedulerRunLogService(
         val run = schedulerRunRepository.findById(runId).orElse(null) ?: return null
         val updated = run.copy(
             status = SchedulerRunStatus.FAILED,
+            actualExecutionTime = LocalDateTime.now(),
             errorMessage = errorMessage,
             executionDurationMs = executionDurationMs,
             updatedAt = LocalDateTime.now()
