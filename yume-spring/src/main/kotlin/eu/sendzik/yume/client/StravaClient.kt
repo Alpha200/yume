@@ -4,16 +4,30 @@ import eu.sendzik.yume.service.strava.model.StravaActivity
 import eu.sendzik.yume.service.strava.model.StravaTokenResponse
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.service.annotation.DeleteExchange
 import org.springframework.web.service.annotation.GetExchange
 import org.springframework.web.service.annotation.PostExchange
 
 interface StravaClient {
-    @PostExchange("/push/subscriptions")
+    @PostExchange("/push_subscriptions")
     fun registerWebhookSubscription(
         @RequestParam("client_id") clientId: String,
         @RequestParam("client_secret") clientSecret: String,
         @RequestParam("callback_url") callbackUrl: String,
         @RequestParam("verify_token") verifyToken: String,
+    ): Map<String, Any>?
+
+    @GetExchange("/push_subscriptions")
+    fun viewWebhookSubscriptions(
+        @RequestParam("client_id") clientId: String,
+        @RequestParam("client_secret") clientSecret: String,
+    ): List<Map<String, Any>>
+
+    @DeleteExchange("/push_subscriptions/{id}")
+    fun deleteWebhookSubscription(
+        @PathVariable id: Long,
+        @RequestParam("client_id") clientId: String,
+        @RequestParam("client_secret") clientSecret: String,
     ): Map<String, Any>?
 
     @PostExchange("/oauth/token")

@@ -39,6 +39,27 @@ class StravaWebhookService(
         }
 
         return runCatching {
+            // First, check if there are existing subscriptions
+            logger.debug { "Checking for existing Strava webhook subscriptions" }
+            val existingSubscriptions = stravaClient.viewWebhookSubscriptions(
+                clientId = clientId,
+                clientSecret = clientSecret,
+            )
+
+            // Delete any existing subscriptions
+            existingSubscriptions.forEach { subscription ->
+                val subscriptionId = (subscription["id"] as? Number)?.toLong()
+                if (subscriptionId != null) {
+                    logger.info { "Deleting existing webhook subscription with ID: $subscriptionId" }
+                    stravaClient.deleteWebhookSubscription(
+                        id = subscriptionId,
+                        clientId = clientId,
+                        clientSecret = clientSecret,
+                    )
+                }
+            }
+
+            // Now register the new webhook
             logger.info { "Registering Strava webhook with callback URL: $webhookUrl" }
             stravaClient.registerWebhookSubscription(
                 clientId = clientId,
