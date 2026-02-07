@@ -19,12 +19,17 @@ class ConversationHistoryManagerService(
         }
     }
 
-    fun addEntry(content: String, type: ConversationHistoryEntryType, timestamp: LocalDateTime? = null) {
+    fun addEntry(content: String, type: ConversationHistoryEntryType, timestamp: LocalDateTime? = null, eventId: String? = null) {
         val entry = ConversationHistoryEntry(
             content = content,
             type = type,
-            timestamp = timestamp ?: LocalDateTime.now()
+            timestamp = timestamp ?: LocalDateTime.now(),
+            eventId = eventId
         )
         conversationHistoryRepository.save(entry)
+    }
+
+    fun findByEventId(eventId: String): ConversationHistoryEntry? {
+        return conversationHistoryRepository.findByEventId(eventId)
     }
 }

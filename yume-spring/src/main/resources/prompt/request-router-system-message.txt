@@ -16,8 +16,8 @@ Also try to identify which resources the chosen agent will likely need to fulfil
 If you are unsure if a specific resource is needed, better include it. Don't include resources that are clearly not needed.
 
 You will receive the following input:
-- The user message that triggered this request
+- A user message or reaction (user reactions are indicated by "User reacted with '[emoji]' to: [message]")
 - A short conversation summary providing context about recent interactions
 - Relevant memories about the user
 
-Base your decision on the current user message but also consider the conversation history for context and any relevant memories.
+Base your decision on the current user message but also consider the conversation history for context and any relevant memories. When handling reactions, consider the context of the original message being reacted to and determine if any special agent handling is needed.

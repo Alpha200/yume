@@ -15,6 +15,7 @@ import eu.sendzik.yume.service.location.model.GeofenceEventRequest
 import eu.sendzik.yume.service.location.model.GeofenceEventType
 import eu.sendzik.yume.service.matrix.MatrixClientService
 import eu.sendzik.yume.service.matrix.model.UserMessageEvent
+import eu.sendzik.yume.service.matrix.model.UserReactionEvent
 import eu.sendzik.yume.service.memory.MemoryManagerExecutorService
 import eu.sendzik.yume.service.memory.MemoryManagerService
 import eu.sendzik.yume.service.provider.ResourceProviderService
@@ -78,17 +79,54 @@ class RequestRouterService(
                 conversationHistory
             )
 
-            conversationHistoryManagerService.addEntry(
-                userMessageEvent.message,
-                ConversationHistoryEntryType.USER_MESSAGE,
-                userMessageEvent.timestamp
-            )
-            conversationHistoryManagerService.addEntry(response, ConversationHistoryEntryType.SYSTEM_MESSAGE)
 
             response
         }.onFailure {
             logger.error(it) { "Failure in message processing" }
         }.getOrDefault("There was an error processing your message. Please try again later.")
+
+        runBlocking {
+            matrixClientService.sendMessageToRoom(response)
+        }
+    }
+
+    @EventListener
+    @Async
+    fun handleReaction(userReactionEvent: UserReactionEvent) {
+        logger.debug { "Processing reaction: ${userReactionEvent.reaction} on message: ${userReactionEvent.relatedMessage}" }
+
+        val response = runCatching {
+            val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
+            // Format the reaction input similar to a user message but with context about what was reacted to
+            val reactionMessage = "User reacted with '${userReactionEvent.reaction}' to: \"${userReactionEvent.relatedMessage}\""
+
+            val conversationSummary =
+                conversationSummarizerAgent.summarizeConversation(conversationHistory, reactionMessage)
+            val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(conversationSummary)
+
+            logger.debug { "Summarized reaction context into: $conversationSummary" }
+
+            val result = routerAgent.determineRequestRouting(
+                conversationSummary = conversationSummary,
+                userMessage = reactionMessage,
+                currentDateTime = formatTimestampForLLM(userReactionEvent.timestamp),
+                relevantMemories = relevantMemoryEntries,
+            )
+
+            logger.debug { "Routing decision for reaction: ${result.agent}. Resources: [${result.requiredResources.joinToString(", ")}] Reasoning: ${result.reasoning}" }
+
+            val response = executeAgent(
+                result.agent,
+                reactionMessage,
+                result.requiredResources,
+                relevantMemoryEntries,
+                conversationHistory
+            )
+
+            response
+        }.onFailure {
+            logger.error(it) { "Failure in reaction processing" }
+        }.getOrDefault("There was an error processing your reaction. Please try again later.")
 
         runBlocking {
             matrixClientService.sendMessageToRoom(response)
@@ -299,13 +337,6 @@ class RequestRouterService(
             )
         }
 
-        if (!agentResponse.messageToUser.isNullOrBlank()) {
-            conversationHistoryManagerService.addEntry(
-                agentResponse.messageToUser,
-                ConversationHistoryEntryType.SYSTEM_MESSAGE
-            )
-        }
-        
         // Extract execution summary
         val executionSummary = agentResponse.executionSummary ?: run {
             if (!agentResponse.messageToUser.isNullOrBlank()) {

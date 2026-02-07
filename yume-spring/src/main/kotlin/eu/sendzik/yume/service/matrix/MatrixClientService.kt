@@ -1,7 +1,10 @@
 package eu.sendzik.yume.service.matrix
 
 import eu.sendzik.yume.configuration.MatrixConfiguration
+import eu.sendzik.yume.repository.conversation.model.ConversationHistoryEntryType
+import eu.sendzik.yume.service.conversation.ConversationHistoryManagerService
 import eu.sendzik.yume.service.matrix.model.UserMessageEvent
+import eu.sendzik.yume.service.matrix.model.UserReactionEvent
 import io.github.oshai.kotlinlogging.KLogger
 import io.ktor.http.Url
 import jakarta.annotation.PostConstruct
@@ -20,6 +23,7 @@ import net.folivo.trixnity.clientserverapi.model.authentication.IdentifierType
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.UserId
 import net.folivo.trixnity.core.model.events.ClientEvent
+import net.folivo.trixnity.core.model.events.m.ReactionEventContent
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import net.folivo.trixnity.core.subscribeEvent
 import org.springframework.context.ApplicationEventPublisher
@@ -33,6 +37,7 @@ class MatrixClientService(
     private val logger: KLogger,
     private val matrixConfiguration: MatrixConfiguration,
     private val applicationEventPublisher: ApplicationEventPublisher,
+    private val conversationHistoryManagerService: ConversationHistoryManagerService,
 ) {
     private lateinit var matrixRestClient : MatrixClientServerApiClient
 
@@ -102,28 +107,84 @@ class MatrixClientService(
                 handleRoomMessage(event, roomId)
             }
         }
+
+        matrixRestClient.sync.subscribeEvent<ReactionEventContent, ClientEvent.RoomEvent<ReactionEventContent>> { event ->
+            if (event.roomId == roomId && Instant.ofEpochMilli(event.originTimestamp) > startTime) {
+                handleReactionEvent(event, roomId)
+            }
+        }
+    }
+
+    private suspend fun handleReactionEvent(event: ClientEvent.RoomEvent<ReactionEventContent>, roomId: RoomId) {
+        if (event.sender == userId) {
+            logger.debug {"Received own reaction, ignoring. Event id: ${event.id}" }
+            return
+        }
+
+        val reaction = event.content.relatesTo?.key
+        val relatedEventId = event.content.relatesTo?.eventId
+
+        if (reaction == null || relatedEventId == null) {
+            logger.warn { "Received reaction event with missing data. Event id: ${event.id}" }
+            return
+        }
+
+        logger.debug { "Processing reaction '$reaction' for event $relatedEventId" }
+
+        // Look up the original message from the database
+        val historyEntry = conversationHistoryManagerService.findByEventId(relatedEventId.full)
+
+        if (historyEntry == null) {
+            logger.warn { "Could not find related message for event $relatedEventId in database. Reaction will be ignored." }
+            return
+        }
+
+        val reactionTimestamp = LocalDateTime.ofEpochSecond(
+            event.originTimestamp / 1000,
+            0,
+            OffsetDateTime.now().offset
+        )
+
+        logger.debug { "Publishing UserReactionEvent for reaction '$reaction' on message: ${historyEntry.content}" }
+
+        applicationEventPublisher.publishEvent(
+            UserReactionEvent(
+                timestamp = reactionTimestamp,
+                reaction = reaction,
+                relatedMessage = historyEntry.content,
+                relatedEventId = relatedEventId.full
+            )
+        )
     }
 
     private suspend fun handleRoomMessage(
         event: ClientEvent.RoomEvent<RoomMessageEventContent.TextBased.Text>,
         roomId: RoomId
     ) {
+        val body = event.content.body
+        val messageTimestamp = LocalDateTime.ofEpochSecond(event.originTimestamp / 1000, 0, OffsetDateTime.now().offset)
+
         if (event.sender == userId) {
-            logger.debug {"Received own message, ignoring. Event id: ${event.id}" }
+            // Save bot's own messages (system messages) to conversation history with event ID
+            logger.debug {"Received own message, saving to history. Event id: ${event.id}" }
+            conversationHistoryManagerService.addEntry(
+                body,
+                ConversationHistoryEntryType.SYSTEM_MESSAGE,
+                messageTimestamp,
+                event.id.full
+            )
             return
         }
 
-        logger.debug {"Starting to process message with event id ${event.id}" }
-
-        val body = event.content.body
-        val messageTimestamp = LocalDateTime.ofEpochSecond(event.originTimestamp / 1000, 0, OffsetDateTime.now().offset)
+        logger.debug {"Starting to process user message with event id ${event.id}" }
 
         matrixRestClient.room.setTyping(roomId, userId, true, timeout = 60000)
 
         applicationEventPublisher.publishEvent(
             UserMessageEvent(
                 timestamp = messageTimestamp,
-                message = body
+                message = body,
+                eventId = event.id.full
             )
         )
     }

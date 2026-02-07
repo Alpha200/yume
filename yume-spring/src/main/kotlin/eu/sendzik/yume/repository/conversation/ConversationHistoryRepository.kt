@@ -9,4 +9,6 @@ interface ConversationHistoryRepository : MongoRepository<ConversationHistoryEnt
 
     @Query(value = "{}", sort = "{ 'timestamp': -1 }")
     fun findAllOrderByTimestampDesc(limit: Limit): List<ConversationHistoryEntry>
+
+    fun findByEventId(eventId: String): ConversationHistoryEntry?
 }

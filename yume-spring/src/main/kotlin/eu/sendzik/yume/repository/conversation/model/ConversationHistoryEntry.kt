@@ -9,5 +9,6 @@ import java.time.LocalDateTime
 data class ConversationHistoryEntry(
     val timestamp: LocalDateTime,
     val content: String,
-    val type: ConversationHistoryEntryType
+    val type: ConversationHistoryEntryType,
+    val eventId: String? = null
 )
