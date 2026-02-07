@@ -5,6 +5,7 @@ import eu.sendzik.yume.agent.EfaAgent
 import eu.sendzik.yume.agent.GenericChatAgent
 import eu.sendzik.yume.agent.KitchenOwlAgent
 import eu.sendzik.yume.agent.RequestRouterAgent
+import eu.sendzik.yume.agent.SportsActivityAgent
 import eu.sendzik.yume.agent.model.YumeChatResource
 import eu.sendzik.yume.agent.model.YumeAgentType
 import eu.sendzik.yume.repository.conversation.model.ConversationHistoryEntryType
@@ -42,6 +43,7 @@ class RequestRouterService(
     private val genericAgent: GenericChatAgent,
     private val kitchenOwlAgent: KitchenOwlAgent,
     private val efaAgent: EfaAgent,
+    private val sportsActivityAgent: SportsActivityAgent,
     private val conversationSummarizerAgent: ConversationSummarizerAgent,
     private val geofenceEventLogService: eu.sendzik.yume.service.location.GeofenceEventLogService,
     private val logger: KLogger,
@@ -114,6 +116,13 @@ class RequestRouterService(
             }
             YumeAgentType.PUBLIC_TRANSPORT -> {
                 efaAgent.handleUserMessage(
+                    message,
+                    defaultPreferencesPrefix,
+                    additionalInformation,
+                )
+            }
+            YumeAgentType.SPORTS -> {
+                sportsActivityAgent.handleUserMessage(
                     message,
                     defaultPreferencesPrefix,
                     additionalInformation,
@@ -199,8 +208,30 @@ class RequestRouterService(
         }
     }
 
+    fun handleSportsActivity(activityDetails: String) {
+        logger.info { "Processing sports activity" }
+
+        val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
+        val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories("sports activities fitness cycling")
+
+        val (message, executionSummary) = routeAndExecuteEvent(
+            eventMessage = activityDetails,
+            relevantMemories = relevantMemoryEntries,
+            conversationHistory = conversationHistory,
+            eventType = EventType.SPORTS_ACTIVITY,
+        )
+
+        if (message != null) {
+            runBlocking {
+                matrixClientService.sendMessageToRoom(message)
+            }
+        }
+
+        logger.info { "Sports activity processed: $executionSummary" }
+    }
+
     private enum class EventType {
-        GEOFENCE, SCHEDULED
+        GEOFENCE, SCHEDULED, SPORTS_ACTIVITY
     }
 
     private fun routeAndExecuteEvent(
@@ -209,35 +240,49 @@ class RequestRouterService(
         conversationHistory: String,
         eventType: EventType,
     ): Pair<String?, String> {
-        val routerResult = when (eventType) {
-            EventType.GEOFENCE -> routerAgent.routeGeofenceEvent(
-                conversationSummary = eventMessage,
-                geofenceEvent = eventMessage,
-                currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
-                relevantMemories = relevantMemories,
-            )
-            EventType.SCHEDULED -> routerAgent.routeScheduledEvent(
-                conversationSummary = eventMessage,
-                scheduledEvent = eventMessage,
-                currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
-                relevantMemories = relevantMemories,
-            )
-        }
-
-        logger.debug { "Routing ${eventType.name.lowercase()} event to agent: ${routerResult.agent}. Reasoning: ${routerResult.reasoning}" }
-
         val defaultPreferencesPrefix = defaultPreferencesPrefixResource.getContentAsString(Charsets.UTF_8)
         val additionalInformation = provideAdditionalResources(
-            resources = routerResult.requiredResources,
+            resources = emptyList(),
             relevantMemories = relevantMemories,
             conversationHistory = conversationHistory
         )
 
-        val agentResponse = when (eventType) {
-            EventType.GEOFENCE -> executeGeofenceAgent(routerResult.agent, eventMessage, defaultPreferencesPrefix, additionalInformation)
-            EventType.SCHEDULED -> executeScheduledAgent(routerResult.agent, eventMessage, defaultPreferencesPrefix, additionalInformation)
+        // Get the agent response based on event type
+        val agentResponse = if (eventType == EventType.SPORTS_ACTIVITY) {
+            // For sports activities, directly use the Sports agent without routing
+            sportsActivityAgent.handleSportsActivity(
+                activityDetails = eventMessage,
+                yumeSystemPromptPrefix = defaultPreferencesPrefix,
+                additionalInformation = additionalInformation
+            )
+        } else {
+            // For geofence and scheduled events, use the router
+            val routerResult = when (eventType) {
+                EventType.GEOFENCE -> routerAgent.routeGeofenceEvent(
+                    conversationSummary = eventMessage,
+                    geofenceEvent = eventMessage,
+                    currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
+                    relevantMemories = relevantMemories,
+                )
+                EventType.SCHEDULED -> routerAgent.routeScheduledEvent(
+                    conversationSummary = eventMessage,
+                    scheduledEvent = eventMessage,
+                    currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
+                    relevantMemories = relevantMemories,
+                )
+                EventType.SPORTS_ACTIVITY -> throw IllegalStateException("Should not reach here")
+            }
+
+            logger.debug { "Routing ${eventType.name.lowercase()} event to agent: ${routerResult.agent}. Reasoning: ${routerResult.reasoning}" }
+
+            when (eventType) {
+                EventType.GEOFENCE -> executeGeofenceAgent(routerResult.agent, eventMessage, defaultPreferencesPrefix, additionalInformation)
+                EventType.SCHEDULED -> executeScheduledAgent(routerResult.agent, eventMessage, defaultPreferencesPrefix, additionalInformation)
+                EventType.SPORTS_ACTIVITY -> throw IllegalStateException("Should not reach here")
+            }
         }
 
+        // Process agent response (common logic for all event types)
         if (!agentResponse.memoryUpdateTask.isNullOrBlank()) {
             memoryManagerExecutorService.updateMemoryWithTask(agentResponse.memoryUpdateTask)
         }
@@ -246,7 +291,7 @@ class RequestRouterService(
             dayPlanExecutorService.updateDayPlansWithTask(agentResponse.dayPlannerUpdateTask)
         }
 
-        // Always add event message for geofence events; for scheduled events only if no message was already added
+        // Add to conversation history
         if (eventType == EventType.GEOFENCE) {
             conversationHistoryManagerService.addEntry(
                 eventMessage,
@@ -261,7 +306,7 @@ class RequestRouterService(
             )
         }
         
-        // Extract execution summary from EventTriggeredAgentResult or derive from response
+        // Extract execution summary
         val executionSummary = agentResponse.executionSummary ?: run {
             if (!agentResponse.messageToUser.isNullOrBlank()) {
                 "Sent message to user"
@@ -283,6 +328,7 @@ class RequestRouterService(
             YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.GENERIC -> genericAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
+            YumeAgentType.SPORTS -> sportsActivityAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
         }
     }
 
@@ -296,6 +342,7 @@ class RequestRouterService(
             YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.GENERIC -> genericAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
+            YumeAgentType.SPORTS -> sportsActivityAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
         }
     }
 

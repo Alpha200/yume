@@ -320,5 +320,29 @@ export const apiService = {
     params.append('days', days)
     const response = await api.get(`/scheduler-runs/statistics?${params}`)
     return response.data
+  },
+
+  /**
+   * Get Strava connection status
+   */
+  async getStravaStatus() {
+    const response = await api.get('/strava/status')
+    return response.data
+  },
+
+  /**
+   * Get Strava authorization URL
+   */
+  async getStravaAuthorizeUrl() {
+    const response = await api.get('/strava/oauth/authorize-url')
+    return response.data
+  },
+
+  /**
+   * Disconnect Strava account
+   */
+  async disconnectStrava() {
+    const response = await api.post('/strava/disconnect')
+    return response.data
   }
 }

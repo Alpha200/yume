@@ -62,6 +62,8 @@ class WebSecurityConfig {
             .authorizeHttpRequests { authorize ->
                 authorize
                     .requestMatchers("/auth/config").permitAll()
+                    .requestMatchers("/strava/oauth/callback").permitAll()
+                    .requestMatchers("/strava/webhook").permitAll()
                     .anyRequest().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->

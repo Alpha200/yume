@@ -84,6 +84,12 @@ class ChatModelConfiguration(
         jsonOutput = false
     )
 
+    @Bean
+    fun sportsChatModel() = buildYumeChatModel(
+        agentName = "Sports",
+        modelName = agentConfiguration.model.sportsAgentModel,
+    )
+
     private fun buildYumeChatModel(
         agentName: String,
         modelName: String,

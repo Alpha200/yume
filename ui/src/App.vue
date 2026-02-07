@@ -40,6 +40,13 @@
       >
         📅 Day Planner
       </button>
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'preferences' }"
+        @click="switchTab('preferences')"
+      >
+        ⚙️ Preferences
+      </button>
     </div>
 
     <!-- Memory Section -->
@@ -83,6 +90,9 @@
     <!-- Day Planner Section -->
     <DayPlanner v-if="activeTab === 'planner'" />
 
+    <!-- Preferences Section -->
+    <PreferencesPane v-if="activeTab === 'preferences'" />
+
     <!-- Interaction Detail Modal -->
     <InteractionDetailModal
       v-if="selectedInteraction"
@@ -101,6 +111,7 @@ import TaskItem from './components/TaskItem.vue'
 import InteractionItem from './components/InteractionItem.vue'
 import InteractionDetailModal from './components/InteractionDetailModal.vue'
 import DayPlanner from './components/DayPlanner.vue'
+import PreferencesPane from './components/PreferencesPane.vue'
 import SchedulerRunsPanel from './components/SchedulerRunsPanel.vue'
 
 export default {
@@ -111,6 +122,7 @@ export default {
     InteractionItem,
     InteractionDetailModal,
     DayPlanner,
+    PreferencesPane,
     SchedulerRunsPanel
   },
   data() {
@@ -219,11 +231,21 @@ export default {
       } else if (tab === 'interactions' && this.interactions.length === 0) {
         this.loadInteractions()
       }
+    },
+    handleTabFromUrl() {
+      const urlParams = new URLSearchParams(window.location.search)
+      const tab = urlParams.get('tab')
+      if (tab) {
+        this.activeTab = tab
+      }
     }
   },
   async mounted() {
     // Check if we're returning from OAuth callback
     const hasCallback = this.handleOAuthCallback()
+    
+    // Check for tab parameter in URL
+    this.handleTabFromUrl()
     
     // Check authentication status
     this.isAuthenticated = apiService.isAuthenticated()

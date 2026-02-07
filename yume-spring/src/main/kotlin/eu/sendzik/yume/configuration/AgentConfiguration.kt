@@ -19,6 +19,7 @@ class AgentConfiguration(
         val conversationSummarizerModel: String,
         val memorySummarizerModel: String,
         val eInkChatModel: String,
+        val sportsAgentModel: String,
     )
 
     class Preferences(

@@ -283,6 +283,14 @@ docker run -d --name yume -p 8079:8079 --env-file .env yume
 - Vue.js: Follow Vue 3 Composition API conventions
 - Indentation: Use IDE defaults (IntelliJ IDEA for Kotlin, VS Code for Vue.js)
 
+**Kotlin Best Practices**:
+- **Use `runCatching` for Result types**: Never manually wrap try-catch with Result.success/failure. Use `runCatching { ... }` which directly returns `Result<T>`
+  - ❌ Wrong: `try { Result.success(doSomething()) } catch (e: Exception) { Result.failure(e) }`
+  - ✅ Correct: `runCatching { doSomething() }`
+- **Use Result combinators**: Chain operations with `onSuccess`, `onFailure`, `fold`, `getOrNull`, etc. instead of calling `result.isSuccess`
+- **Early returns in functions**: Use guard clauses to exit early, especially for validation and disabled features
+- **Leverage HTTP client exceptions**: Spring's RestClient throws exceptions for non-2xx responses, use runCatching to capture them
+
 ## Important Notes for Agents
 
 1. **Trust these instructions**: Only search for additional information if these instructions are incomplete or incorrect
