@@ -30,7 +30,7 @@ class RagMemoryRepository (
     }
 
     override fun <S : MemoryEntry> saveAll(entities: Iterable<S>): Iterable<S> = lock.withLock {
-        val savedEntities = saveAll(entities)
+        val savedEntities = mongoRepository.saveAll(entities)
         val embeddings = embeddingModel.embedAll(entities.map { textSegment(it.formatForRAG()) }).content()
         embeddingStore.addAll(
             savedEntities.map { it.id },
@@ -41,7 +41,7 @@ class RagMemoryRepository (
     }
 
     override fun findById(id: String): Optional<MemoryEntry> {
-        return findById(id)
+        return mongoRepository.findById(id)
     }
 
     override fun existsById(id: String): Boolean {

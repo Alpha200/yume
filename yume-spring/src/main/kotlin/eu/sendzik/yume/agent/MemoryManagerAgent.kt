@@ -21,7 +21,7 @@ interface MemoryManagerAgent {
         @V("task") task: String,
     ): MemoryManagerAgentResult
 
-    @SystemMessage(fromResource = "prompt/memory-manager-system-message.txt")
+    @SystemMessage(fromResource = "prompt/memory-janitor-system-message.txt")
     @UserMessage(fromResource = "prompt/memory-janitor-user-message.txt")
     fun runMemoryJanitor(
         @V("currentDateTime") currentDateTime: String,
