@@ -217,13 +217,13 @@ class RequestRouterService(
                 GeofenceEventType.ENTER -> "entered"
                 GeofenceEventType.LEAVE -> "left"
             })
-            append(" geofence '${geofenceEvent.geofenceName}'")
+            append(" the place '${geofenceEvent.geofenceName}'")
         }
 
         logger.info { geofenceEventMessage }
 
         val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
-        val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(geofenceEvent.geofenceName)
+        val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(geofenceEventMessage)
 
         val (message, executionSummary) = routeAndExecuteEvent(
             eventMessage = geofenceEventMessage,
