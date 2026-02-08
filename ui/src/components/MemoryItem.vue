@@ -9,7 +9,7 @@
     <div class="memory-meta">
       <div v-if="memory.place">📍 {{ memory.place }}</div>
       <div>✨ Created: {{ formatMemoryDateTime(memory.createdAt) }}</div>
-      <div>🕒 Updated: {{ formatMemoryDateTime(memory.modified_at) }}</div>
+      <div>🕒 Updated: {{ formatMemoryDateTime(memory.modifiedAt) }}</div>
       <div v-if="memory.observationDate">👁️ Observed: {{ formatMemoryDateTime(memory.observationDate) }}</div>
       <div v-if="memory.reminderOptions">
         🔔
@@ -43,9 +43,9 @@ export default {
     formatMemoryType,
     getMemoryTypeClass(type) {
       const classMap = {
-        'USER_PREFERENCE': 'preference',
-        'USER_OBSERVATION': 'observation',
-        'REMINDER': 'reminder'
+        'user_preference': 'preference',
+        'user_observation': 'observation',
+        'reminder': 'reminder'
       }
       return classMap[type] || 'default'
     }

@@ -99,9 +99,9 @@ export function formatMemoryDateTime(timestamp) {
  */
 export function formatMemoryType(type) {
   const typeMap = {
-    'USER_PREFERENCE': 'Preference',
-    'USER_OBSERVATION': 'Observation',
-    'REMINDER': 'Reminder'
+    'user_preference': 'Preference',
+    'user_observation': 'Observation',
+    'reminder': 'Reminder'
   }
   return typeMap[type] || type
 }
