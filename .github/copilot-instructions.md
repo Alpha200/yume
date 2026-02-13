@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Yume** (夢 - "dream" in Japanese) is an AI-powered personal assistant that integrates Matrix chat, Home Assistant, calendar events, public transport, and shopping list management. It features advanced memory management, intelligent scheduling, location-based triggers, and an AI agent architecture powered by langchain4j.
+**Yume** (夢 - "dream" in Japanese) is an AI-powered personal assistant that integrates Matrix chat, Home Assistant, calendar events, public transport, sports activities (Strava), health data (Garmin Connect), and shopping list management. It features advanced memory management, intelligent scheduling, location-based triggers, e-ink display support, and an AI agent architecture powered by langchain4j.
 
 **Project Type**: Full-stack application (Spring Boot backend + Vue.js frontend)
 **Size**: Medium (~3K lines Kotlin, ~500 lines Vue.js)
@@ -132,23 +132,24 @@ docker run -d --name yume -p 8079:8079 --env-file .env yume
 - See lines 1-101 for complete list of required settings
 
 **Package Structure**:
-- `agent/` - AI agents (RequestRouterAgent, GenericChatAgent, MemoryManagerAgent, SchedulerAgent, DayPlanAgent, EfaAgent, KitchenOwlAgent, ConversationSummarizerAgent, MemorySummarizerAgent, EInkDisplayAgent)
-- `service/` - Business logic (matrix/, memory/, scheduler/, dayplan/, conversation/, calendar/, weather/, efa/, kitchenowl/, provider/, interaction/, location/, router/, eink/)
-- `tool/` - langchain4j tools (MemoryManagerTools, DayPlanTools, EfaTools, KitchenOwlTools, KitchenOwlReadTools)
+- `agent/` - AI agents (RequestRouterAgent, GenericChatAgent, MemoryManagerAgent, SchedulerAgent, DayPlanAgent, EfaAgent, KitchenOwlAgent, ConversationSummarizerAgent, MemorySummarizerAgent, EInkDisplayAgent, SportsActivityAgent)
+- `service/` - Business logic (matrix/, memory/, scheduler/, dayplan/, conversation/, calendar/, weather/, efa/, kitchenowl/, provider/, interaction/, location/, router/, eink/, strava/, garminconnect/)
+- `tool/` - langchain4j tools (MemoryManagerTools, DayPlanTools, EfaTools, KitchenOwlTools, KitchenOwlReadTools, StravaActivityTools)
 - `component/` - Data models (conversation/, calendar/, weather/)
-- `controller/` - REST endpoints (webhook handlers)
-- `repository/` - MongoDB repositories (memory/)
+- `controller/` - REST endpoints (webhook handlers, EInkDisplayController, StravaWebhookController)
+- `repository/` - MongoDB repositories (memory/, strava/)
 - `configuration/` - Spring configuration classes
 - `converter/` - Data converters
-- `client/` - External API clients
+- `client/` - External API clients (StravaClient)
 - `utils/` - Utility classes (timezone handling)
 
 **Key Dependencies** (from `build.gradle.kts`):
 - Spring Boot 3.5.9 (web, data-mongodb, oauth2-resource-server, cache)
 - Kotlin 2.2.21 (with serialization)
 - langchain4j 1.10.0-beta18 (OpenAI, pgvector, Kotlin extensions)
+- Model Context Protocol (MCP) SDK (Garmin Connect integration)
 - Trixnity 4.22.7 (Matrix client)
-- Ktor 3.3.3 (HTTP client for Matrix)
+- Ktor 3.3.3 (HTTP client for Matrix and Strava)
 - caldav4j 1.0.5 (calendar integration)
 - Caffeine 3.2.3 (caching)
 - MockK 1.14.7 (testing)
@@ -224,6 +225,9 @@ docker run -d --name yume -p 8079:8079 --env-file .env yume
 - OpenWeatherMap (API key)
 - EFA public transport (API URL)
 - Location coordinates (home latitude/longitude)
+- **Strava Integration** (`yume.strava.client-id`, `yume.strava.client-secret`, `yume.strava.webhook-verify-token`, `yume.strava.webhook-url`)
+- **Garmin Connect** (`yume.garmin-connect.mcp-server-url` - MCP server must be running separately)
+- **E-Ink Display** (configured via resource provider - no additional config needed)
 
 ## Known Issues & Workarounds
 

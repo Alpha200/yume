@@ -1,9 +1,6 @@
 package eu.sendzik.yume.service.provider.model
 
 import eu.sendzik.yume.agent.model.YumeChatResource
-import eu.sendzik.yume.service.provider.model.YumeResource.DAY_PLAN_TODAY
-import eu.sendzik.yume.service.provider.model.YumeResource.DAY_PLAN_TOMORROW
-import eu.sendzik.yume.service.provider.model.YumeResource.WEATHER_FORECAST
 
 enum class YumeResource {
     LOCATION,
@@ -19,12 +16,14 @@ enum class YumeResource {
     RECENT_SCHEDULER_EXECUTIONS,
     RECENT_GEOFENCE_EVENTS,
     RECENT_USER_INTERACTION,
+    USER_HEALTH_SNAPSHOT,
 }
 
 fun YumeChatResource.toYumeResource(): YumeResource {
     return when (this) {
-        YumeChatResource.WEATHER_FORECAST -> WEATHER_FORECAST
-        YumeChatResource.DAY_PLAN_TODAY -> DAY_PLAN_TODAY
-        YumeChatResource.DAY_PLAN_TOMORROW -> DAY_PLAN_TOMORROW
+        YumeChatResource.WEATHER_FORECAST -> YumeResource.WEATHER_FORECAST
+        YumeChatResource.DAY_PLAN_TODAY -> YumeResource.DAY_PLAN_TODAY
+        YumeChatResource.DAY_PLAN_TOMORROW -> YumeResource.DAY_PLAN_TOMORROW
+        YumeChatResource.USER_HEALTH_SNAPSHOT -> YumeResource.USER_HEALTH_SNAPSHOT
     }
 }

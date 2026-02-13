@@ -13,10 +13,21 @@ import java.util.concurrent.TimeUnit
 class CacheConfiguration {
     @Bean
     fun cacheManager(): CacheManager {
-        return CaffeineCacheManager().apply {
-            setCaffeine(
-                Caffeine.newBuilder().expireAfterWrite(30, TimeUnit.SECONDS)
-            )
-        }
+        val cacheManager = CaffeineCacheManager()
+
+        // Register garmin_snapshot cache with 10-minute TTL
+        cacheManager.registerCustomCache(
+            "garmin_snapshot",
+            Caffeine.newBuilder()
+                .expireAfterWrite(10, TimeUnit.MINUTES)
+                .build()
+        )
+
+        // Set default TTL for other caches
+        cacheManager.setCaffeine(
+            Caffeine.newBuilder().expireAfterWrite(30, TimeUnit.SECONDS)
+        )
+
+        return cacheManager
     }
 }

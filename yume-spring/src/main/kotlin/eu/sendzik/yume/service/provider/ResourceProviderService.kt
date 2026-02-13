@@ -4,6 +4,7 @@ import eu.sendzik.yume.configuration.AgentConfiguration
 import eu.sendzik.yume.service.calendar.CalendarService
 import eu.sendzik.yume.service.conversation.ConversationHistoryManagerService
 import eu.sendzik.yume.service.dayplan.DayPlanService
+import eu.sendzik.yume.service.garminconnect.GarminConnectService
 import eu.sendzik.yume.service.location.GeofenceEventLogService
 import eu.sendzik.yume.service.location.LocationService
 import eu.sendzik.yume.service.memory.MemorySummarizerService
@@ -28,6 +29,7 @@ class ResourceProviderService(
     private val schedulerRunLogService: SchedulerRunLogService,
     private val geofenceEventLogService: GeofenceEventLogService,
     private val conversationHistoryManagerService: ConversationHistoryManagerService,
+    private val garminConnectService: GarminConnectService,
     private val logger: KLogger,
 ) {
     fun provideResources(resources: List<YumeResource>): String = buildString {
@@ -111,6 +113,17 @@ class ResourceProviderService(
                     appendLine("<UserInteractions>")
                     appendLine(interactions)
                     appendLine("</UserInteractions>")
+                }
+                YumeResource.USER_HEALTH_SNAPSHOT -> {
+                    garminConnectService.getFormattedHealthSnapshot().onSuccess { formattedData ->
+                        appendLine("User health snapshot from Garmin Connect:")
+                        appendLine("<HealthSnapshot>")
+                        appendLine(formattedData)
+                        appendLine("</HealthSnapshot>")
+                    }.onFailure { err ->
+                        logger.error(err) { "Failed to fetch health snapshot" }
+                        appendLine("Unable to fetch health snapshot")
+                    }
                 }
             }
 

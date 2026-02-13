@@ -31,6 +31,7 @@ val calDav4jVersion = "1.0.5"
 val chromaClientVersion = "1.1.0"
 val caffeineCacheVersion = "3.2.3"
 val mockkVersion = "1.14.7"
+val mcpVersion = "0.4.0"
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
@@ -61,7 +62,6 @@ dependencies {
 	// Kotlin logging
 	implementation("io.github.oshai:kotlin-logging-jvm:$kotlinLoggingVersion")
 
-
 	// Spring data
 	implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
 
@@ -71,6 +71,9 @@ dependencies {
 	// Spring Boot Caching
 	implementation("org.springframework.boot:spring-boot-starter-cache")
 	implementation("com.github.ben-manes.caffeine:caffeine:$caffeineCacheVersion")
+
+	// MCP Client
+	implementation("io.modelcontextprotocol:kotlin-sdk:${mcpVersion}")
 
 	// Observability (Spring Boot 4)
 	//implementation("org.springframework.boot:spring-boot-starter-actuator")

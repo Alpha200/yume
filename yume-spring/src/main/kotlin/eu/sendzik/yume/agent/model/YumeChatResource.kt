@@ -4,4 +4,5 @@ enum class YumeChatResource {
     WEATHER_FORECAST,
     DAY_PLAN_TODAY,
     DAY_PLAN_TOMORROW,
+    USER_HEALTH_SNAPSHOT,
 }

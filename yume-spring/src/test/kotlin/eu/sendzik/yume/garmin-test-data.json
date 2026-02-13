@@ -1,0 +1,1341 @@
+{
+  "result": {
+    "SnapshotFitnessDetails": {
+      "requestUrl": "/activitylist-service/activities/list/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": {
+        "activityList": [],
+        "filter": {
+          "userProfileId": 123456789,
+          "includedPrivacyList": [],
+          "excludeUntitled": false,
+          "includeFollowed": false
+        },
+        "requestorRelationship": "SELF"
+      },
+      "successful": true
+    },
+    "SnapshotWeeklyMetrics": {
+      "requestUrl": "/userstats-service/wellness/weekly/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": {
+        "userProfileId": 123456789,
+        "statisticsStartDate": "2026-02-13",
+        "statisticsEndDate": "2026-02-14",
+        "allMetrics": {
+          "metricsMap": {
+            "WELLNESS_MODERATE_INTENSITY_MINUTES": [
+              {
+                "value": 68,
+                "startDateOfWeek": "2026-02-09"
+              }
+            ],
+            "WELLNESS_VIGOROUS_INTENSITY_MINUTES": [
+              {
+                "value": 6,
+                "startDateOfWeek": "2026-02-09"
+              }
+            ],
+            "WELLNESS_USER_INTENSITY_MINUTES_GOAL": [
+              {
+                "value": 210,
+                "startDateOfWeek": "2026-02-09"
+              }
+            ]
+          }
+        },
+        "groupedMetrics": null
+      },
+      "successful": true
+    },
+    "CalendarEventsMyDayCard": {
+      "requestUrl": "/calendar-service/events/mydaycard?userCurrentDate=2026-02-13",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": [],
+      "successful": true
+    },
+    "HrvStatusSummary": {
+      "requestUrl": "/hrv-service/hrv/daily/2026-02-13/2026-02-14",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": {
+        "hrvSummaries": [
+          {
+            "calendarDate": "2026-02-13",
+            "weeklyAvg": 56,
+            "lastNightAvg": 62,
+            "lastNight5MinHigh": 88,
+            "baseline": {
+              "lowUpper": 47,
+              "balancedLow": 52,
+              "balancedUpper": 75,
+              "markerValue": 0.33694458
+            },
+            "status": "BALANCED",
+            "feedbackPhrase": "HRV_BALANCED_2",
+            "createTimeStamp": "2026-02-13T05:51:50.847"
+          }
+        ],
+        "userProfilePk": 123456789
+      },
+      "successful": true
+    },
+    "WeightServiceSummary": {
+      "requestUrl": "/weight-service/weight/daterangesnapshot",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": {
+        "startDate": "2026-02-13",
+        "endDate": "2026-02-13",
+        "dateWeightList": [],
+        "totalAverage": {
+          "from": 1770940800000,
+          "until": 1771027199999,
+          "weight": null,
+          "bmi": null,
+          "bodyFat": null,
+          "bodyWater": null,
+          "boneMass": null,
+          "muscleMass": null,
+          "physiqueRating": null,
+          "visceralFat": null,
+          "metabolicAge": null
+        }
+      },
+      "successful": true
+    },
+    "UserDailySummaryList": {
+      "requestUrl": "/usersummary-service/usersummary/dailysummaries",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": [
+        {
+          "userProfileId": 123456789,
+          "totalKilocalories": 1999,
+          "activeKilocalories": 101,
+          "bmrKilocalories": 1898,
+          "wellnessKilocalories": 1999,
+          "burnedKilocalories": null,
+          "consumedKilocalories": null,
+          "remainingKilocalories": null,
+          "totalSteps": 1628,
+          "netCalorieGoal": null,
+          "totalDistanceMeters": 1496,
+          "wellnessDistanceMeters": 1496,
+          "wellnessActiveKilocalories": 101,
+          "netRemainingKilocalories": 101,
+          "userDailySummaryId": 123456789,
+          "calendarDate": "2026-02-13",
+          "rule": {
+            "typeId": 2,
+            "typeKey": "private"
+          },
+          "uuid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          "dailyStepGoal": 6840,
+          "wellnessStartTimeGmt": "2026-02-12T23:00:00.0",
+          "wellnessStartTimeLocal": "2026-02-13T00:00:00.0",
+          "wellnessEndTimeGmt": "2026-02-13T17:09:00.0",
+          "wellnessEndTimeLocal": "2026-02-13T18:09:00.0",
+          "durationInMilliseconds": 65340000,
+          "wellnessDescription": null,
+          "highlyActiveSeconds": 187,
+          "activeSeconds": 1024,
+          "sedentarySeconds": null,
+          "sleepingSeconds": null,
+          "includesWellnessData": true,
+          "includesActivityData": false,
+          "includesCalorieConsumedData": false,
+          "privacyProtected": false,
+          "moderateIntensityMinutes": 0,
+          "vigorousIntensityMinutes": 1,
+          "floorsAscendedInMeters": 2.36,
+          "floorsDescendedInMeters": 0,
+          "floorsAscended": 0.77428,
+          "floorsDescended": 0,
+          "intensityMinutesGoal": 210,
+          "userFloorsAscendedGoal": 10,
+          "minHeartRate": 53,
+          "maxHeartRate": 136,
+          "restingHeartRate": 55,
+          "lastSevenDaysAvgRestingHeartRate": 57,
+          "source": "GARMIN",
+          "averageStressLevel": 25,
+          "maxStressLevel": 96,
+          "stressDuration": 22380,
+          "restStressDuration": 36180,
+          "activityStressDuration": 4560,
+          "uncategorizedStressDuration": 2220,
+          "totalStressDuration": 65340,
+          "lowStressDuration": 15660,
+          "mediumStressDuration": 5520,
+          "highStressDuration": 1200,
+          "stressPercentage": 34.25,
+          "restStressPercentage": 55.37,
+          "activityStressPercentage": 6.98,
+          "uncategorizedStressPercentage": 3.4,
+          "lowStressPercentage": 23.97,
+          "mediumStressPercentage": 8.45,
+          "highStressPercentage": 1.84,
+          "stressQualifier": "BALANCED",
+          "measurableAwakeDuration": 40080,
+          "measurableAsleepDuration": 23040,
+          "lastSyncTimestampGMT": null,
+          "minAvgHeartRate": 53,
+          "maxAvgHeartRate": 121,
+          "bodyBatteryChargedValue": 77,
+          "bodyBatteryDrainedValue": 41,
+          "bodyBatteryHighestValue": 68,
+          "bodyBatteryLowestValue": 5,
+          "bodyBatteryMostRecentValue": 41,
+          "bodyBatteryDuringSleep": 63,
+          "bodyBatteryAtWakeTime": 68,
+          "bodyBatteryVersion": 3,
+          "abnormalHeartRateAlertsCount": null,
+          "averageSpo2": null,
+          "lowestSpo2": null,
+          "latestSpo2": null,
+          "latestSpo2ReadingTimeGmt": null,
+          "latestSpo2ReadingTimeLocal": null,
+          "averageMonitoringEnvironmentAltitude": 104,
+          "restingCaloriesFromActivity": null,
+          "bodyBatteryDynamicFeedbackEvent": {
+            "eventTimestampGmt": "2026-02-13T16:42:51",
+            "bodyBatteryLevel": "HIGH",
+            "feedbackShortType": "DAY_BALANCED_AND_INACTIVE",
+            "feedbackLongType": "DAY_BALANCED_AND_INACTIVE"
+          },
+          "endOfDayBodyBatteryDynamicFeedbackEvent": {
+            "eventTimestampGmt": "2026-02-13T01:02:37",
+            "bodyBatteryLevel": "HIGH",
+            "feedbackShortType": "SLEEP_TIME_PASSED_STRESSFUL_AND_ACTIVE_AND_EXERCISE",
+            "feedbackLongType": "SLEEP_TIME_PASSED_STRESSFUL_AND_ACTIVE_AND_EXERCISE"
+          },
+          "bodyBatteryActivityEventList": [
+            {
+              "eventType": "SLEEP",
+              "eventStartTimeGmt": "2026-02-12T22:06:57",
+              "timezoneOffset": 3600000,
+              "durationInMilliseconds": 26280000,
+              "bodyBatteryImpact": 63,
+              "feedbackType": "NONE",
+              "shortFeedback": "NONE",
+              "deviceId": 1234567890,
+              "activityName": null,
+              "activityType": null,
+              "activityId": null,
+              "eventUpdateTimeGmt": "2026-02-13T05:51:38"
+            }
+          ],
+          "avgWakingRespirationValue": 15,
+          "highestRespirationValue": 23,
+          "lowestRespirationValue": 8,
+          "latestRespirationValue": 13,
+          "latestRespirationTimeGMT": "2026-02-13T17:09:00.0",
+          "respirationAlgorithmVersion": 200
+        }
+      ],
+      "successful": true
+    },
+    "HRZones": {
+      "requestUrl": "/biometric-service/heartRateZones/",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": {
+        "userId": null,
+        "sport": "ALL",
+        "restingHeartRate": 74,
+        "zone0Ceiling": 95,
+        "zone1Ceiling": 114,
+        "zone2Ceiling": 133,
+        "zone3Ceiling": 152,
+        "zone4Ceiling": 171,
+        "zone5Ceiling": 190,
+        "custom": true
+      },
+      "successful": true
+    },
+    "DailySleeps": {
+      "requestUrl": "/sleep-service/sleep/dailySleepSummariesByDate",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": [
+        {
+          "id": 1700000000000,
+          "userProfilePK": 123456789,
+          "calendarDate": "2026-02-13",
+          "sleepTimeSeconds": 24120,
+          "napTimeSeconds": 4380,
+          "sleepWindowConfirmed": true,
+          "sleepWindowConfirmationType": "enhanced_confirmed_final",
+          "sleepStartTimestampGMT": 1700000000000,
+          "sleepEndTimestampGMT": 1700100000000,
+          "sleepStartTimestampLocal": 1700100000000,
+          "sleepEndTimestampLocal": 1700200000000,
+          "autoSleepStartTimestampGMT": null,
+          "autoSleepEndTimestampGMT": null,
+          "sleepQualityTypePK": null,
+          "sleepResultTypePK": null,
+          "unmeasurableSleepSeconds": 0,
+          "deepSleepSeconds": 5280,
+          "lightSleepSeconds": 16860,
+          "remSleepSeconds": 1980,
+          "awakeSleepSeconds": 2160,
+          "deviceRemCapable": true,
+          "retro": false,
+          "sleepFromDevice": true,
+          "averageRespirationValue": 13,
+          "lowestRespirationValue": 8,
+          "highestRespirationValue": 21,
+          "awakeCount": 1,
+          "avgSleepStress": 12,
+          "ageGroup": "ADULT",
+          "avgHeartRate": 62,
+          "sleepScoreFeedback": "NEGATIVE_NOT_ENOUGH_REM",
+          "sleepScoreInsight": "NEGATIVE_STRESSFUL_DAY",
+          "sleepScorePersonalizedInsight": "STRESS_NEG_FAIR_OR_POOR_SLEEP_STRESSFUL_DAY_POOR_HISTORY",
+          "sleepScores": {
+            "totalDuration": {
+              "qualifierKey": "FAIR",
+              "optimalStart": 28800,
+              "optimalEnd": 28800
+            },
+            "stress": {
+              "qualifierKey": "EXCELLENT",
+              "optimalStart": 0,
+              "optimalEnd": 15
+            },
+            "awakeCount": {
+              "qualifierKey": "FAIR",
+              "optimalStart": 0,
+              "optimalEnd": 1
+            },
+            "overall": {
+              "value": 72,
+              "qualifierKey": "FAIR"
+            },
+            "remPercentage": {
+              "value": 8,
+              "qualifierKey": "POOR",
+              "optimalStart": 21,
+              "optimalEnd": 31,
+              "idealStartInSeconds": 5065.2,
+              "idealEndInSeconds": 7477.2
+            },
+            "restlessness": {
+              "qualifierKey": "FAIR",
+              "optimalStart": 0,
+              "optimalEnd": 5
+            },
+            "lightPercentage": {
+              "value": 70,
+              "qualifierKey": "FAIR",
+              "optimalStart": 30,
+              "optimalEnd": 64,
+              "idealStartInSeconds": 7236,
+              "idealEndInSeconds": 15436.8
+            },
+            "deepPercentage": {
+              "value": 22,
+              "qualifierKey": "EXCELLENT",
+              "optimalStart": 16,
+              "optimalEnd": 33,
+              "idealStartInSeconds": 3859.2,
+              "idealEndInSeconds": 7959.6
+            }
+          },
+          "sleepVersion": 2,
+          "sleepNeed": {
+            "userProfilePk": 123456789,
+            "calendarDate": "2026-02-13",
+            "deviceId": 1234567890,
+            "timestampGmt": "2026-02-12T18:37:09",
+            "baseline": 480,
+            "actual": 530,
+            "feedback": "HIGHLY_INCREASED",
+            "trainingFeedback": "DAILY_ACTIVITY_AND_HIGH_ACWR",
+            "sleepHistoryAdjustment": "INCREASING",
+            "hrvAdjustment": "NO_CHANGE",
+            "napAdjustment": "NO_CHANGE",
+            "displayedForTheDay": true,
+            "preferredActivityTracker": true
+          },
+          "nextSleepNeed": {
+            "userProfilePk": 123456789,
+            "calendarDate": "2026-02-14",
+            "deviceId": 1234567890,
+            "timestampGmt": "2026-02-13T17:13:51",
+            "baseline": 480,
+            "actual": 450,
+            "feedback": "DECREASED",
+            "trainingFeedback": "NO_CHANGE",
+            "sleepHistoryAdjustment": "INCREASING",
+            "hrvAdjustment": "NO_CHANGE",
+            "napAdjustment": "DECREASING",
+            "displayedForTheDay": true,
+            "preferredActivityTracker": true
+          },
+          "dailyNapDTOS": [
+            {
+              "userProfilePK": 123456789,
+              "deviceId": 1234567890,
+              "calendarDate": "2026-02-13",
+              "napTimeSec": 4380,
+              "napStartTimestampGMT": "2026-02-13T15:51:38",
+              "napEndTimestampGMT": "2026-02-13T17:04:38",
+              "napFeedback": "LONG_DURATION_LOW_NEED",
+              "napSource": 0,
+              "napStartTimeOffset": 60,
+              "napEndTimeOffset": 60,
+              "createTimestampGMT": null,
+              "updateTimestampGMT": null
+            }
+          ]
+        },
+        {
+          "id": null,
+          "userProfilePK": null,
+          "calendarDate": null,
+          "sleepTimeSeconds": null,
+          "napTimeSeconds": null,
+          "sleepWindowConfirmed": null,
+          "sleepWindowConfirmationType": null,
+          "sleepStartTimestampGMT": null,
+          "sleepEndTimestampGMT": null,
+          "sleepStartTimestampLocal": null,
+          "sleepEndTimestampLocal": null,
+          "autoSleepStartTimestampGMT": null,
+          "autoSleepEndTimestampGMT": null,
+          "sleepQualityTypePK": null,
+          "sleepResultTypePK": null,
+          "unmeasurableSleepSeconds": null,
+          "deepSleepSeconds": null,
+          "lightSleepSeconds": null,
+          "remSleepSeconds": null,
+          "awakeSleepSeconds": null,
+          "deviceRemCapable": false,
+          "retro": false,
+          "sleepNeed": {
+            "userProfilePk": 123456789,
+            "calendarDate": "2026-02-14",
+            "deviceId": 1234567890,
+            "timestampGmt": "2026-02-13T17:13:51",
+            "baseline": 480,
+            "actual": 450,
+            "feedback": "DECREASED",
+            "trainingFeedback": "NO_CHANGE",
+            "sleepHistoryAdjustment": "INCREASING",
+            "hrvAdjustment": "NO_CHANGE",
+            "napAdjustment": "DECREASING",
+            "displayedForTheDay": true,
+            "preferredActivityTracker": true
+          }
+        }
+      ],
+      "successful": true
+    },
+    "WorkoutScheduleSummary": {
+      "requestUrl": "/workout-service/schedule/summary/start/2026-02-13/end/2026-02-14",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": [],
+      "successful": true
+    },
+    "WellnessActivitySummariesForRange": {
+      "requestUrl": "/wellnessactivity-service/activity/summary/range/2026-02-13/2026-02-13",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": [],
+      "successful": true
+    },
+    "myDayTrainingStatus": {
+      "requestUrl": "/metrics-service/metrics/trainingstatus/aggregated/2026-02-13",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": {
+        "userId": 123456789,
+        "mostRecentVO2Max": {
+          "userId": 123456789,
+          "generic": null,
+          "cycling": null,
+          "heatAltitudeAcclimation": {
+            "calendarDate": "2026-02-07",
+            "altitudeAcclimationDate": "2026-02-07",
+            "previousAltitudeAcclimationDate": "2026-02-07",
+            "heatAcclimationDate": "2026-02-07",
+            "previousHeatAcclimationDate": "2026-02-07",
+            "altitudeAcclimation": 0,
+            "previousAltitudeAcclimation": 0,
+            "heatAcclimationPercentage": 0,
+            "previousHeatAcclimationPercentage": 0,
+            "heatTrend": null,
+            "altitudeTrend": null,
+            "currentAltitude": 0,
+            "previousAltitude": 0,
+            "acclimationPercentage": 0,
+            "previousAcclimationPercentage": 0,
+            "altitudeAcclimationLocalTimestamp": "2026-02-07T17:59:55.0"
+          }
+        },
+        "mostRecentTrainingLoadBalance": {
+          "userId": 123456789,
+          "metricsTrainingLoadBalanceDTOMap": {
+            "1234567890": {
+              "calendarDate": "2026-02-13",
+              "deviceId": 1234567890,
+              "monthlyLoadAerobicLow": 119.228195,
+              "monthlyLoadAerobicHigh": 572.94965,
+              "monthlyLoadAnaerobic": 189.54507,
+              "monthlyLoadAerobicLowTargetMin": 95,
+              "monthlyLoadAerobicLowTargetMax": 260,
+              "monthlyLoadAerobicHighTargetMin": 205,
+              "monthlyLoadAerobicHighTargetMax": 369,
+              "monthlyLoadAnaerobicTargetMin": 0,
+              "monthlyLoadAnaerobicTargetMax": 164,
+              "trainingBalanceFeedbackPhrase": "ABOVE_TARGETS",
+              "primaryTrainingDevice": true
+            }
+          },
+          "recordedDevices": [
+            {
+              "deviceId": 1234567890,
+              "imageURL": "https://res.garmin.com/en/products/010-02641-30/v/c1_01_md.png",
+              "deviceName": "Forerunner 255 Music",
+              "category": 0
+            }
+          ]
+        },
+        "mostRecentTrainingStatus": {
+          "userId": 123456789,
+          "latestTrainingStatusData": {
+            "1234567890": {
+              "calendarDate": "2026-02-13",
+              "sinceDate": "2026-02-13",
+              "weeklyTrainingLoad": null,
+              "trainingStatus": 4,
+              "timestamp": 1700000000000,
+              "deviceId": 1234567890,
+              "loadTunnelMin": null,
+              "loadTunnelMax": null,
+              "loadLevelTrend": null,
+              "sport": null,
+              "subSport": null,
+              "fitnessTrendSport": "NONE",
+              "fitnessTrend": 0,
+              "trainingStatusFeedbackPhrase": "MAINTAINING_1",
+              "trainingPaused": false,
+              "acuteTrainingLoadDTO": {
+                "acwrPercent": 33,
+                "acwrStatus": "OPTIMAL",
+                "acwrStatusFeedback": "FEEDBACK_2",
+                "dailyTrainingLoadAcute": 197,
+                "maxTrainingLoadChronic": 336,
+                "minTrainingLoadChronic": 179.20000000000002,
+                "dailyTrainingLoadChronic": 224,
+                "dailyAcuteChronicWorkloadRatio": 0.8
+              },
+              "primaryTrainingDevice": true
+            }
+          },
+          "recordedDevices": [
+            {
+              "deviceId": 1234567890,
+              "imageURL": "https://res.garmin.com/en/products/010-02641-30/v/c1_01_md.png",
+              "deviceName": "Forerunner 255 Music",
+              "category": 0
+            }
+          ],
+          "showSelector": false,
+          "lastPrimarySyncDate": "2026-02-13"
+        },
+        "heatAltitudeAcclimationDTO": null
+      },
+      "successful": true
+    },
+    "GolfScorecard": {
+      "requestUrl": "http://golf.garmin.com/gcs-golfcommunity/api/v2/scorecard/thin-summary",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": {},
+      "successful": true
+    },
+    "Spo2DailyAcclimation": {
+      "requestUrl": "/wellness-service/wellness/daily/acclimation/2026-02-13",
+      "statusCode": 200,
+      "headers": {},
+      "errorMessage": null,
+      "payload": {
+        "userProfilePk": 123456789,
+        "calendarDate": "2026-02-13",
+        "startTimestampGMT": "2026-02-12T23:00:00.0",
+        "endTimestampGMT": "2026-02-13T17:09:00.0",
+        "startTimestampLocal": "2026-02-13T00:00:00.0",
+        "endTimestampLocal": "2026-02-13T18:09:00.0",
+        "latestSpo2Value": null,
+        "latestSpo2ValueReadingTimeGmt": null,
+        "latestSpo2ValueReadingTimeLocal": null,
+        "averageSpo2Value": null,
+        "spo2AccValueDescriptorList": null,
+        "spo2ValuesArray": null,
+        "monitoringEnvironmentValueDescriptorList": [
+          {
+            "monEnvValueDescIndex": 0,
+            "monEnvValueDescKey": "timestamp"
+          },
+          {
+            "monEnvValueDescIndex": 1,
+            "monEnvValueDescKey": "monitoringEnvironmentLevel"
+          }
+        ],
+        "monitoringEnvironmentValuesArray": [
+          [
+            1770937200000,
+            162
+          ],
+          [
+            1770937560000,
+            162
+          ],
+          [
+            1770937920000,
+            162
+          ],
+          [
+            1770938280000,
+            162
+          ],
+          [
+            1770938640000,
+            162
+          ],
+          [
+            1770939000000,
+            162
+          ],
+          [
+            1770939360000,
+            162
+          ],
+          [
+            1770939720000,
+            162
+          ],
+          [
+            1770940080000,
+            162
+          ],
+          [
+            1770940440000,
+            162
+          ],
+          [
+            1770940800000,
+            162
+          ],
+          [
+            1770941160000,
+            162
+          ],
+          [
+            1770941520000,
+            162
+          ],
+          [
+            1770941880000,
+            162
+          ],
+          [
+            1770942240000,
+            162
+          ],
+          [
+            1770942600000,
+            162
+          ],
+          [
+            1770942960000,
+            162
+          ],
+          [
+            1770943320000,
+            162
+          ],
+          [
+            1770943680000,
+            162
+          ],
+          [
+            1770944040000,
+            162
+          ],
+          [
+            1770944400000,
+            162
+          ],
+          [
+            1770944760000,
+            162
+          ],
+          [
+            1770945120000,
+            162
+          ],
+          [
+            1770945480000,
+            162
+          ],
+          [
+            1770945840000,
+            162
+          ],
+          [
+            1770946200000,
+            103
+          ],
+          [
+            1770946560000,
+            103
+          ],
+          [
+            1770946920000,
+            103
+          ],
+          [
+            1770947280000,
+            103
+          ],
+          [
+            1770947640000,
+            103
+          ],
+          [
+            1770948000000,
+            103
+          ],
+          [
+            1770948360000,
+            103
+          ],
+          [
+            1770948720000,
+            103
+          ],
+          [
+            1770949080000,
+            103
+          ],
+          [
+            1770949440000,
+            103
+          ],
+          [
+            1770949800000,
+            103
+          ],
+          [
+            1770950160000,
+            103
+          ],
+          [
+            1770950520000,
+            103
+          ],
+          [
+            1770950880000,
+            103
+          ],
+          [
+            1770951240000,
+            103
+          ],
+          [
+            1770951600000,
+            103
+          ],
+          [
+            1770951960000,
+            103
+          ],
+          [
+            1770952320000,
+            103
+          ],
+          [
+            1770952680000,
+            103
+          ],
+          [
+            1770953040000,
+            103
+          ],
+          [
+            1770953400000,
+            103
+          ],
+          [
+            1770953760000,
+            103
+          ],
+          [
+            1770954120000,
+            103
+          ],
+          [
+            1770954480000,
+            103
+          ],
+          [
+            1770954840000,
+            103
+          ],
+          [
+            1770955200000,
+            103
+          ],
+          [
+            1770955560000,
+            103
+          ],
+          [
+            1770955920000,
+            103
+          ],
+          [
+            1770956280000,
+            103
+          ],
+          [
+            1770956640000,
+            103
+          ],
+          [
+            1770957000000,
+            103
+          ],
+          [
+            1770957360000,
+            103
+          ],
+          [
+            1770957720000,
+            103
+          ],
+          [
+            1770958080000,
+            103
+          ],
+          [
+            1770958440000,
+            103
+          ],
+          [
+            1770958800000,
+            103
+          ],
+          [
+            1770959160000,
+            103
+          ],
+          [
+            1770959520000,
+            103
+          ],
+          [
+            1770959880000,
+            103
+          ],
+          [
+            1770960240000,
+            103
+          ],
+          [
+            1770960600000,
+            103
+          ],
+          [
+            1770960960000,
+            103
+          ],
+          [
+            1770961320000,
+            103
+          ],
+          [
+            1770961680000,
+            103
+          ],
+          [
+            1770962040000,
+            103
+          ],
+          [
+            1770962400000,
+            98
+          ],
+          [
+            1770962760000,
+            79
+          ],
+          [
+            1770963120000,
+            81
+          ],
+          [
+            1770963480000,
+            81
+          ],
+          [
+            1770963840000,
+            81
+          ],
+          [
+            1770964200000,
+            81
+          ],
+          [
+            1770964560000,
+            81
+          ],
+          [
+            1770964920000,
+            81
+          ],
+          [
+            1770965280000,
+            81
+          ],
+          [
+            1770965640000,
+            81
+          ],
+          [
+            1770966000000,
+            81
+          ],
+          [
+            1770966360000,
+            81
+          ],
+          [
+            1770966720000,
+            81
+          ],
+          [
+            1770967080000,
+            81
+          ],
+          [
+            1770967440000,
+            81
+          ],
+          [
+            1770967800000,
+            81
+          ],
+          [
+            1770968160000,
+            81
+          ],
+          [
+            1770968520000,
+            81
+          ],
+          [
+            1770968880000,
+            81
+          ],
+          [
+            1770969240000,
+            81
+          ],
+          [
+            1770969600000,
+            81
+          ],
+          [
+            1770969960000,
+            81
+          ],
+          [
+            1770970320000,
+            81
+          ],
+          [
+            1770970680000,
+            81
+          ],
+          [
+            1770971040000,
+            81
+          ],
+          [
+            1770971400000,
+            81
+          ],
+          [
+            1770971760000,
+            81
+          ],
+          [
+            1770972120000,
+            81
+          ],
+          [
+            1770972480000,
+            81
+          ],
+          [
+            1770972840000,
+            81
+          ],
+          [
+            1770973200000,
+            82
+          ],
+          [
+            1770973560000,
+            93
+          ],
+          [
+            1770973920000,
+            94
+          ],
+          [
+            1770974280000,
+            94
+          ],
+          [
+            1770974640000,
+            94
+          ],
+          [
+            1770975000000,
+            94
+          ],
+          [
+            1770975360000,
+            94
+          ],
+          [
+            1770975720000,
+            94
+          ],
+          [
+            1770976080000,
+            94
+          ],
+          [
+            1770976440000,
+            94
+          ],
+          [
+            1770976800000,
+            94
+          ],
+          [
+            1770977160000,
+            94
+          ],
+          [
+            1770977520000,
+            94
+          ],
+          [
+            1770977880000,
+            94
+          ],
+          [
+            1770978240000,
+            94
+          ],
+          [
+            1770978600000,
+            94
+          ],
+          [
+            1770978960000,
+            94
+          ],
+          [
+            1770979320000,
+            94
+          ],
+          [
+            1770979680000,
+            94
+          ],
+          [
+            1770980040000,
+            94
+          ],
+          [
+            1770980400000,
+            94
+          ],
+          [
+            1770980760000,
+            94
+          ],
+          [
+            1770981120000,
+            94
+          ],
+          [
+            1770981480000,
+            94
+          ],
+          [
+            1770981840000,
+            94
+          ],
+          [
+            1770982200000,
+            94
+          ],
+          [
+            1770982560000,
+            94
+          ],
+          [
+            1770982920000,
+            94
+          ],
+          [
+            1770983280000,
+            94
+          ],
+          [
+            1770983640000,
+            94
+          ],
+          [
+            1770984000000,
+            94
+          ],
+          [
+            1770984360000,
+            94
+          ],
+          [
+            1770984720000,
+            94
+          ],
+          [
+            1770985080000,
+            94
+          ],
+          [
+            1770985440000,
+            94
+          ],
+          [
+            1770985800000,
+            94
+          ],
+          [
+            1770986160000,
+            94
+          ],
+          [
+            1770986520000,
+            94
+          ],
+          [
+            1770986880000,
+            94
+          ],
+          [
+            1770987240000,
+            94
+          ],
+          [
+            1770987600000,
+            94
+          ],
+          [
+            1770987960000,
+            94
+          ],
+          [
+            1770988320000,
+            94
+          ],
+          [
+            1770988680000,
+            94
+          ],
+          [
+            1770989040000,
+            94
+          ],
+          [
+            1770989400000,
+            94
+          ],
+          [
+            1770989760000,
+            94
+          ],
+          [
+            1770990120000,
+            94
+          ],
+          [
+            1770990480000,
+            94
+          ],
+          [
+            1770990840000,
+            94
+          ],
+          [
+            1770991200000,
+            94
+          ],
+          [
+            1770991560000,
+            94
+          ],
+          [
+            1770991920000,
+            94
+          ],
+          [
+            1770992280000,
+            94
+          ],
+          [
+            1770992640000,
+            94
+          ],
+          [
+            1770993000000,
+            94
+          ],
+          [
+            1770993360000,
+            94
+          ],
+          [
+            1770993720000,
+            94
+          ],
+          [
+            1770994080000,
+            94
+          ],
+          [
+            1770994440000,
+            94
+          ],
+          [
+            1770994800000,
+            94
+          ],
+          [
+            1770995160000,
+            94
+          ],
+          [
+            1770995520000,
+            94
+          ],
+          [
+            1770995880000,
+            94
+          ],
+          [
+            1770996240000,
+            94
+          ],
+          [
+            1770996600000,
+            94
+          ],
+          [
+            1770996960000,
+            94
+          ],
+          [
+            1770997320000,
+            94
+          ],
+          [
+            1770997680000,
+            94
+          ],
+          [
+            1770998040000,
+            94
+          ],
+          [
+            1770998400000,
+            94
+          ],
+          [
+            1770998760000,
+            94
+          ],
+          [
+            1770999120000,
+            94
+          ],
+          [
+            1770999480000,
+            94
+          ],
+          [
+            1770999840000,
+            94
+          ],
+          [
+            1771000200000,
+            94
+          ],
+          [
+            1771000560000,
+            94
+          ],
+          [
+            1771000920000,
+            94
+          ],
+          [
+            1771001280000,
+            94
+          ],
+          [
+            1771001640000,
+            94
+          ],
+          [
+            1771002000000,
+            94
+          ],
+          [
+            1771002360000,
+            94
+          ]
+        ],
+        "spO2ValueDescriptors": null,
+        "spO2SingleValues": null,
+        "continuousReadingDTOS": null
+      },
+      "successful": true
+    }
+  }
+}

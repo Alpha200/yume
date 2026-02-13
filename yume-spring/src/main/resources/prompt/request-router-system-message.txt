@@ -12,6 +12,7 @@ Also try to identify which resources the chosen agent will likely need to fulfil
 
 - Weather (Weather forecast for the next 12 hours and current conditions)
 - Day plan of the current or next day (A day plan includes predicted activities for the day based on the user's habits, calendar, and stated plans)
+- User's health data (Includes activity tracking, sleep data, and other health-related metrics, always provide this for sports-related queries)
 
 If you are unsure if a specific resource is needed, better include it. Don't include resources that are clearly not needed.
 
