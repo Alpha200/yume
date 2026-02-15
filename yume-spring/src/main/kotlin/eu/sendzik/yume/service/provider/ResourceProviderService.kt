@@ -11,6 +11,7 @@ import eu.sendzik.yume.service.memory.MemorySummarizerService
 import eu.sendzik.yume.service.memory.model.MemoryType
 import eu.sendzik.yume.service.provider.model.YumeResource
 import eu.sendzik.yume.service.scheduler.SchedulerRunLogService
+import eu.sendzik.yume.service.strava.StravaActivityService
 import eu.sendzik.yume.service.weather.WeatherService
 import eu.sendzik.yume.utils.formatTimestampForLLM
 import io.github.oshai.kotlinlogging.KLogger
@@ -31,6 +32,7 @@ class ResourceProviderService(
     private val conversationHistoryManagerService: ConversationHistoryManagerService,
     private val garminConnectService: GarminConnectService,
     private val logger: KLogger,
+    private val stravaActivityService: StravaActivityService,
 ) {
     fun provideResources(resources: List<YumeResource>): String = buildString {
         resources.forEach {
@@ -123,6 +125,17 @@ class ResourceProviderService(
                     }.onFailure { err ->
                         logger.error(err) { "Failed to fetch health snapshot" }
                         appendLine("Unable to fetch health snapshot")
+                    }
+                }
+                YumeResource.RECENT_SPORT_ACTIVITIES -> {
+                    stravaActivityService.getRecentActivities(limit = 3).onSuccess { activities ->
+                        appendLine("Recent sports activities:")
+                        appendLine("<SportActivities>")
+                        appendLine(activities)
+                        appendLine("</SportActivities>")
+                    }.onFailure { err ->
+                        logger.error(err) { "Failed to fetch recent sport activities" }
+                        appendLine("Unable to fetch recent sport activities")
                     }
                 }
             }

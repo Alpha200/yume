@@ -2,8 +2,10 @@ package eu.sendzik.yume.service.strava
 
 import eu.sendzik.yume.client.StravaClient
 import eu.sendzik.yume.service.strava.model.StravaActivity
+import eu.sendzik.yume.utils.formatTimestampForLLM
 import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.stereotype.Service
+import java.time.ZoneId
 
 @Service
 class StravaActivityService(
@@ -49,7 +51,9 @@ class StravaActivityService(
                 "No recent activities found"
             } else {
                 logger.info { "Found ${activities.size} recent activities" }
-                formatActivitiesForAgent(activities)
+                val activities = formatActivitiesForAgent(activities)
+                logger.info { "Formatted recent activities for agent" }
+                activities
             }
         }.onFailure { e ->
             logger.error(e) { "Failed to fetch recent activities: ${e.message}" }
@@ -75,18 +79,25 @@ class StravaActivityService(
 
     private fun formatActivitiesForAgent(activities: List<StravaActivity>): String {
         return buildString {
-            appendLine("Recent activities:")
-            appendLine()
             activities.forEachIndexed { index, activity ->
                 appendLine("${index + 1}. ${activity.name}")
                 appendLine("   Type: ${activity.type}")
-                appendLine("   Distance: ${activity.getDistanceInKm()}km")
-                appendLine("   Duration: ${activity.getDurationInMinutes()}min")
-                appendLine("   Avg Speed: ${String.format("%.1f", activity.getAverageSpeedInKmh())}km/h")
-                appendLine("   Elevation: ${activity.elevationGain.toInt()}m")
-                appendLine("   Date: ${activity.startDate}")
+                if (activity.getDistanceInKm() > 0) {
+                    appendLine("   Distance: ${activity.getDistanceInKm()}km")
+                }
+                if (activity.getDurationInMinutes() > 0) {
+                    appendLine("   Duration: ${activity.getDurationInMinutes()}min")
+                }
+                if (activity.averageSpeed > 0) {
+                    appendLine("   Avg Speed: ${String.format("%.1f", activity.getAverageSpeedInKmh())}km/h")
+                }
+                val localStartDate = activity.startDate.atZone(ZoneId.systemDefault()).toLocalDateTime()
+                appendLine("   Date: ${formatTimestampForLLM(localStartDate)}")
                 if (activity.averageHeartrate != null) {
                     appendLine("   Avg HR: ${activity.averageHeartrate.toInt()}bpm")
+                }
+                if (activity.averageCadence != null && activity.averageCadence > 0) {
+                    appendLine("   Avg Cadence: ${activity.averageCadence.toInt()}")
                 }
                 appendLine()
             }

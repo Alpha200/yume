@@ -82,6 +82,8 @@ class SchedulerService(
             YumeResource.SUMMARIZED_PREFERENCES,
             YumeResource.RECENT_SCHEDULER_EXECUTIONS,
             YumeResource.RECENT_GEOFENCE_EVENTS,
+            YumeResource.USER_HEALTH_SNAPSHOT,
+            YumeResource.RECENT_SPORT_ACTIVITIES,
             YumeResource.RECENT_USER_INTERACTION,
         ))
 

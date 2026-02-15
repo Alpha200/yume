@@ -33,6 +33,7 @@ class DayPlanExecutorService(
                 YumeResource.WEATHER_FORECAST,
                 YumeResource.SUMMARIZED_PREFERENCES,
                 YumeResource.SUMMARIZED_OBSERVATIONS,
+                YumeResource.RECENT_SPORT_ACTIVITIES,
             ))
 
             dayPlanAgent.updateDayPlansWithTask(
@@ -54,7 +55,7 @@ class DayPlanExecutorService(
                 YumeResource.WEATHER_FORECAST,
                 YumeResource.SUMMARIZED_PREFERENCES,
                 YumeResource.SUMMARIZED_OBSERVATIONS,
-                // TODO: Weather forecast for the specific days? Maybe via tool?
+                YumeResource.RECENT_SPORT_ACTIVITIES,
             ))
 
             dayPlanAgent.updateDayPlansWithTask(
