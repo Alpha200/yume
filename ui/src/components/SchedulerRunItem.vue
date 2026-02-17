@@ -7,7 +7,6 @@
           {{ formatStatus(run.status) }}
         </div>
       </div>
-      <div class="divider my-0"></div>
       <div class="space-y-2 text-sm">
         <p><strong>Scheduled:</strong> {{ formatDateTime(run.scheduledTime) }}</p>
         <p v-if="run.actualExecutionTime"><strong>Executed:</strong> {{ formatDateTime(run.actualExecutionTime) }}</p>

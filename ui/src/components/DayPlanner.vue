@@ -4,18 +4,15 @@
       <div class="card-body">
         <h2 class="card-title">Day Planner</h2>
         <div class="flex items-center gap-3">
-          <button @click="previousDay" class="btn btn-neutral btn-sm" title="Previous Day">
+          <button @click="previousDay" class="btn btn-square btn-sm" title="Previous Day">
             ‹
           </button>
           <div class="flex-1 text-center">
             <div class="text-lg font-semibold">{{ formattedDate }}</div>
             <div class="text-sm text-base-content/60">{{ formattedDayOfWeek }}</div>
           </div>
-          <button @click="nextDay" class="btn btn-neutral btn-sm" title="Next Day">
+          <button @click="nextDay" class="btn btn-square btn-sm" title="Next Day">
             ›
-          </button>
-          <button @click="goToToday" class="btn btn-secondary btn-soft btn-sm" :disabled="isToday">
-            Today
           </button>
         </div>
       </div>
@@ -36,8 +33,10 @@
     </div>
 
     <div v-else class="space-y-6">
-      <div v-if="plan.summary" class="alert alert-soft alert-info">
-        <span>{{ plan.summary }}</span>
+      <div v-if="plan.summary" class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <span>{{ plan.summary }}</span>
+        </div>
       </div>
 
       <div class="grid grid-cols-3 gap-4">
@@ -164,10 +163,6 @@ export default {
       const newDate = new Date(this.currentDate)
       newDate.setDate(newDate.getDate() + 1)
       this.currentDate = newDate
-      this.loadPlan()
-    },
-    goToToday() {
-      this.currentDate = new Date()
       this.loadPlan()
     },
     formatDate,

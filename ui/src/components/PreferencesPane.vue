@@ -1,41 +1,42 @@
 <template>
-  <div class="card bg-base-200 border border-base-300">
-    <div class="card-body">
-      <h2 class="card-title">️Preferences</h2>
-      <div class="divider my-0"></div>
+  <div class="max-w-4xl mx-auto">
+    <!-- Header Card -->
+    <div class="card bg-base-200 border border-base-300 mb-6">
+      <div class="card-body">
+        <h2 class="card-title">️Preferences</h2>
+      </div>
+    </div>
 
-      <div class="space-y-4">
-        <div>
-          <h3 class="font-semibold text-sm uppercase">Strava Integration</h3>
+    <!-- Preferences Grid -->
+    <div class="space-y-3">
+      <!-- Strava Integration Card -->
+      <div class="card bg-base-200 border border-base-300">
+        <div class="card-body">
+          <h3 class="card-title text-lg">Strava</h3>
           
-          <div v-if="stravaConnected" class="p-4 bg-base-300 rounded-lg space-y-3">
-            <div class="flex items-center gap-3">
-              <div class="indicator">
-                <div class="indicator-item badge badge-success"></div>
-                <div>
-                  <p class="font-semibold">Connected</p>
-                  <p class="text-sm text-base-content/70">{{ stravaAthleteName }}</p>
-                </div>
-              </div>
+          <div v-if="stravaConnected" class="space-y-3">
+            <div class="p-3 bg-base-300 rounded-lg">
+              <p class="font-semibold text-sm">Connected</p>
+              <p class="text-xs text-base-content/70">{{ stravaAthleteName }}</p>
             </div>
-            <button @click="disconnectStrava" class="btn btn-outline btn-error btn-sm width-full">
-              Disconnect Strava
+            <button @click="disconnectStrava" class="btn btn-soft btn-error btn-sm w-full">
+              Disconnect
             </button>
           </div>
 
-          <div v-else class="p-4 bg-base-300 rounded-lg space-y-3">
-            <p class="text-sm">Strava integration allows Yume to fetch and analyze your cycling activities.</p>
+          <div v-else class="space-y-3">
+            <p class="text-sm text-base-content/80">Fetch and analyze your cycling activities from Strava.</p>
             <button 
               @click="startStravaAuth" 
-              class="btn btn-primary btn-sm" 
+              class="btn btn-primary btn-sm w-full" 
               :disabled="loading"
             >
-              {{ loading ? '🔄 Redirecting to Strava...' : '🔗 Connect with Strava' }}
+              {{ loading ? 'Redirecting...' : 'Connect' }}
             </button>
           </div>
 
-          <div v-if="stravaError" class="alert alert-error mt-3">
-            <span>{{ stravaError }}</span>
+          <div v-if="stravaError" class="alert alert-error alert-sm mt-3">
+            <span class="text-xs">{{ stravaError }}</span>
           </div>
         </div>
       </div>

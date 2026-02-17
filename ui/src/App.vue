@@ -5,7 +5,7 @@
         <a class="btn btn-ghost text-xl">🌙 Yume Dashboard</a>
       </div>
       <div class="flex-none gap-2">
-        <button @click="logout" class="btn btn-primary btn-sm">Logout</button>
+        <button @click="logout" class="btn btn-ghost btn-primary btn-sm">Logout</button>
       </div>
     </div>
 
