@@ -360,5 +360,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - langchain4j for AI agent orchestration
 - Trixnity for Matrix protocol support
 - Vue.js for the frontend dashboard
+- Tailwind CSS for responsive styling
+- DaisyUI for beautiful UI components
 - Nginx as reverse proxy and static file server
 - OpenWeatherMap for weather data

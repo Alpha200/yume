@@ -8,7 +8,7 @@
 **Size**: Medium (~3K lines Kotlin, ~500 lines Vue.js)
 **Languages**: Kotlin, Vue.js, TypeScript
 **Runtime**: Java 21, Node 24
-**Frameworks**: Spring Boot 3.5.9, langchain4j 1.10.0, Trixnity (Matrix), Vite 5
+**Frameworks**: Spring Boot 3.5.9, langchain4j 1.10.0, Trixnity (Matrix), Vite 5, Vue.js 3, Tailwind CSS, DaisyUI
 
 ## Build & Test Commands
 
@@ -181,6 +181,8 @@ docker run -d --name yume -p 8079:8079 --env-file .env yume
 - Vue 3.4.38
 - Axios 1.12.2
 - Vite 5.4.3
+- Tailwind CSS 4.1.18 (for responsive styling)
+- DaisyUI 5.5.18 (for beautiful pre-built UI components)
 
 ### Resource Files (`yume-spring/src/main/resources/`)
 
@@ -266,6 +268,10 @@ docker run -d --name yume -p 8079:8079 --env-file .env yume
 3. Always run `npm install` if dependencies change
 4. Build with `npm run build` before testing in production mode
 5. Test locally with `npm run dev`
+6. **Always use Tailwind CSS for styling**: Use utility classes for responsive design, spacing, colors, etc.
+7. **Always use DaisyUI components**: Leverage pre-built components like `card`, `btn`, `alert`, `dropdown`, `collapse`, `accordion`, `badge`, `modal`, `navbar`, `tabs`, `stat`, `divider`, etc.
+8. **Responsive design**: Use Tailwind's responsive prefixes (`sm:`, `md:`, `lg:`) and DaisyUI's responsive utilities
+9. **Mobile-first approach**: Design for mobile first, then enhance for larger screens
 
 **Configuration Changes**:
 - Add new properties to `application.properties`
