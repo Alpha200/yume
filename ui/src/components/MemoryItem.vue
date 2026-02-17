@@ -8,12 +8,11 @@
         </div>
       </div>
       <div class="space-y-1 text-xs text-base-content/70 font-mono">
-        <div v-if="memory.place">📍 {{ memory.place }}</div>
+        <div v-if="memory.place">{{ memory.place }}</div>
         <div>Created: {{ formatMemoryDateTime(memory.createdAt) }}</div>
         <div>Updated: {{ formatMemoryDateTime(memory.modifiedAt) }}</div>
         <div v-if="memory.observationDate">Observed: {{ formatMemoryDateTime(memory.observationDate) }}</div>
         <div v-if="memory.reminderOptions">
-          🔔
           <span v-if="memory.reminderOptions.datetimeValue">
             Remind at: {{ formatTime(memory.reminderOptions.datetimeValue) }}
           </span>

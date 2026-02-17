@@ -3,7 +3,7 @@
     <div class="card-body gap-3">
       <div class="flex justify-between items-center">
         <h3 class="font-bold text-base">{{ run.topic }}</h3>
-        <div class="badge" :class="`badge-${getStatusColor(run.status)}`">
+        <div class="badge badge-soft" :class="`badge-${getStatusColor(run.status)}`">
           {{ formatStatus(run.status) }}
         </div>
       </div>
