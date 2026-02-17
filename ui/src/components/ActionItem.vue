@@ -1,7 +1,9 @@
 <template>
-  <div class="action-item item">
-    <div class="action-text">{{ action.action }}</div>
-    <div class="action-time">{{ formatTime(action.timestamp) }}</div>
+  <div class="p-4 border-b border-base-300 hover:bg-base-200 transition-colors">
+    <div class="flex justify-between items-start gap-3">
+      <p class="text-sm text-base-content">{{ action.action }}</p>
+      <div class="text-xs text-base-content/50 font-mono whitespace-nowrap">{{ formatTime(action.timestamp) }}</div>
+    </div>
   </div>
 </template>
 
@@ -21,37 +23,4 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.item {
-  padding: 1rem;
-  border-bottom: 1px solid #27272a;
-  transition: background 0.2s;
-}
-
-.item:last-child {
-  border-bottom: none;
-}
-
-.item:hover {
-  background: #1c1c1e;
-}
-
-.action-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.action-text {
-  color: #e4e4e7;
-  font-size: 0.875rem;
-}
-
-.action-time {
-  color: #71717a;
-  font-size: 0.75rem;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-}
-</style>
 

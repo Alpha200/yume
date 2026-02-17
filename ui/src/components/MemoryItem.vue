@@ -1,15 +1,15 @@
 <template>
-  <div class="memory-item item">
-    <div class="memory-header">
-      <div class="memory-content">{{ memory.content }}</div>
-      <div class="memory-type" :class="getMemoryTypeClass(memory.type)">
+  <div class="p-4 border-b border-base-300 hover:bg-base-200 transition-colors">
+    <div class="flex justify-between items-start gap-3 mb-3">
+      <p class="text-sm text-base-content flex-1 break-words">{{ memory.content }}</p>
+      <div class="badge badge-soft" :class="getMemoryTypeClass(memory.type)">
         {{ formatMemoryType(memory.type) }}
       </div>
     </div>
-    <div class="memory-meta">
-      <div v-if="memory.place">📍 {{ memory.place }}</div>
-      <div>✨ Created: {{ formatMemoryDateTime(memory.createdAt) }}</div>
-      <div>🕒 Updated: {{ formatMemoryDateTime(memory.modifiedAt) }}</div>
+    <div class="space-y-1 text-xs text-base-content/70 font-mono">
+      <div v-if="memory.place">{{ memory.place }}</div>
+      <div>Created: {{ formatMemoryDateTime(memory.createdAt) }}</div>
+      <div>Updated: {{ formatMemoryDateTime(memory.modifiedAt) }}</div>
       <div v-if="memory.observationDate">👁️ Observed: {{ formatMemoryDateTime(memory.observationDate) }}</div>
       <div v-if="memory.reminderOptions">
         🔔
@@ -43,79 +43,13 @@ export default {
     formatMemoryType,
     getMemoryTypeClass(type) {
       const classMap = {
-        'user_preference': 'preference',
-        'user_observation': 'observation',
-        'reminder': 'reminder'
+        'user_preference': 'badge-info',
+        'user_observation': 'badge-success',
+        'reminder': 'badge-warning'
       }
-      return classMap[type] || 'default'
+      return classMap[type] || 'badge-neutral'
     }
   }
 }
 </script>
-
-<style scoped>
-.item {
-  padding: 1rem;
-  border-bottom: 1px solid #27272a;
-  transition: background 0.2s;
-}
-
-.item:last-child {
-  border-bottom: none;
-}
-
-.item:hover {
-  background: #1c1c1e;
-}
-
-.memory-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.memory-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.memory-type {
-  background: #a855f7;
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.memory-type.preference {
-  background: #3b82f6;
-}
-
-.memory-type.observation {
-  background: #10b981;
-}
-
-.memory-type.reminder {
-  background: #f59e0b;
-}
-
-.memory-content {
-  color: #e4e4e7;
-  font-size: 0.875rem;
-  word-break: break-word;
-}
-
-.memory-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  color: #71717a;
-  font-size: 0.75rem;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-}
-</style>
 

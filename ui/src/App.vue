@@ -1,104 +1,110 @@
 <template>
-  <div v-if="isAuthenticated" class="container">
-    <div class="header">
-      <h1>🌙 Yume Dashboard</h1>
-      <p>AI Memory & Scheduler Management</p>
-      <button @click="logout" class="logout-button">Logout</button>
+  <div v-if="isAuthenticated" class="min-h-screen bg-base-100">
+    <div class="navbar bg-base-200 sticky top-0 z-50">
+      <div class="flex-1">
+        <a class="btn btn-ghost text-xl">🌙 Yume Dashboard</a>
+      </div>
+      <div class="flex-none gap-2">
+        <button @click="logout" class="btn btn-primary btn-sm">Logout</button>
+      </div>
     </div>
 
-    <div v-if="error" class="error">
-      {{ error }}
-    </div>
+    <div class="max-w-6xl mx-auto px-4 py-6">
+      <div v-if="error" class="alert alert-error mb-6 shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l-2-2m0 0l-2 2m2-2l2 2m2-2l2-2m0 0l-2-2m2 2l-2-2"/></svg>
+        <span>{{ error }}</span>
+      </div>
 
-    <!-- Tabs Navigation -->
-    <div class="tabs">
-      <button
-        class="tab"
-        :class="{ active: activeTab === 'memories' }"
-        @click="switchTab('memories')"
-      >
-        🧠 Memory Store
-      </button>
-      <button
-        class="tab"
-        :class="{ active: activeTab === 'interactions' }"
-        @click="switchTab('interactions')"
-      >
-        🤖 Agent Interactions
-      </button>
-      <button
-        class="tab"
-        :class="{ active: activeTab === 'logs' }"
-        @click="switchTab('logs')"
-      >
-        📋 Scheduler Logs
-      </button>
-      <button
-        class="tab"
-        :class="{ active: activeTab === 'planner' }"
-        @click="switchTab('planner')"
-      >
-        📅 Day Planner
-      </button>
-      <button
-        class="tab"
-        :class="{ active: activeTab === 'preferences' }"
-        @click="switchTab('preferences')"
-      >
-        ⚙️ Preferences
-      </button>
-    </div>
+      <!-- Tabs Navigation -->
+      <div class="tabs tabs-bordered mb-6">
+        <button
+          class="tab"
+          :class="{ 'tab-active': activeTab === 'memories' }"
+          @click="switchTab('memories')"
+        >
+          Memory Store
+        </button>
+        <button
+          class="tab"
+          :class="{ 'tab-active': activeTab === 'interactions' }"
+          @click="switchTab('interactions')"
+        >
+          Agent Interactions
+        </button>
+        <button
+          class="tab"
+          :class="{ 'tab-active': activeTab === 'logs' }"
+          @click="switchTab('logs')"
+        >
+          Scheduler Logs
+        </button>
+        <button
+          class="tab"
+          :class="{ 'tab-active': activeTab === 'planner' }"
+          @click="switchTab('planner')"
+        >
+          Day Planner
+        </button>
+        <button
+          class="tab"
+          :class="{ 'tab-active': activeTab === 'preferences' }"
+          @click="switchTab('preferences')"
+        >
+          Preferences
+        </button>
+      </div>
 
     <!-- Memory Section -->
-    <Section
-      v-if="activeTab === 'memories'"
-      title="🧠 Memory Store"
-      :items="memories"
-      :loading="loadingMemories"
-      loadingMessage="Loading memories..."
-      emptyMessage="No memories stored yet"
-      @refresh="loadMemories"
-    >
-      <template #default="{ items }">
-        <MemoryItem v-for="memory in items" :key="memory.id" :memory="memory" />
-      </template>
-    </Section>
+      <Section
+        v-if="activeTab === 'memories'"
+        title="Memory Store"
+        :items="memories"
+        :loading="loadingMemories"
+        loadingMessage="Loading memories..."
+        emptyMessage="No memories stored yet"
+        @refresh="loadMemories"
+      >
+        <template #default="{ items }">
+          <MemoryItem v-for="memory in items" :key="memory.id" :memory="memory" />
+        </template>
+      </Section>
 
-    <!-- Agent Interactions Section -->
-    <Section
-      v-if="activeTab === 'interactions'"
-      title="🤖 Agent Interactions"
-      :items="interactions"
-      :loading="loadingInteractions"
-      loadingMessage="Loading interactions..."
-      emptyMessage="No interactions recorded yet"
-      @refresh="loadInteractions"
-    >
-      <template #default="{ items }">
-        <InteractionItem
-          v-for="interaction in items"
-          :key="interaction.id"
-          :interaction="interaction"
-          @select="showInteractionDetail"
-        />
-      </template>
-    </Section>
+      <!-- Agent Interactions Section -->
+      <Section
+        v-if="activeTab === 'interactions'"
+        title="Agent Interactions"
+        :items="interactions"
+        :loading="loadingInteractions"
+        loadingMessage="Loading interactions..."
+        emptyMessage="No interactions recorded yet"
+        @refresh="loadInteractions"
+      >
+        <template #default="{ items }">
+          <InteractionItem
+            v-for="interaction in items"
+            :key="interaction.id"
+            :interaction="interaction"
+            @select="showInteractionDetail"
+          />
+        </template>
+      </Section>
 
-    <!-- Scheduler Logs Section -->
-    <SchedulerRunsPanel v-if="activeTab === 'logs'" />
+      <!-- Scheduler Logs Section -->
+      <SchedulerRunsPanel v-if="activeTab === 'logs'" />
 
-    <!-- Day Planner Section -->
-    <DayPlanner v-if="activeTab === 'planner'" />
+      <!-- Day Planner Section -->
+      <DayPlanner v-if="activeTab === 'planner'" />
 
-    <!-- Preferences Section -->
-    <PreferencesPane v-if="activeTab === 'preferences'" />
+      <!-- Preferences Section -->
+      <PreferencesPane v-if="activeTab === 'preferences'" />
 
-    <!-- Interaction Detail Modal -->
-    <InteractionDetailModal
-      v-if="selectedInteraction"
-      :interaction="selectedInteraction"
-      @close="closeInteractionDetail"
-    />
+      <!-- Interaction Detail Modal -->
+      <InteractionDetailModal
+        v-if="selectedInteraction"
+        :interaction="selectedInteraction"
+        @close="closeInteractionDetail"
+      />
+    </div>
   </div>
 </template>
 
@@ -106,8 +112,6 @@
 import { apiService } from './services/api'
 import Section from './components/Section.vue'
 import MemoryItem from './components/MemoryItem.vue'
-import ActionItem from './components/ActionItem.vue'
-import TaskItem from './components/TaskItem.vue'
 import InteractionItem from './components/InteractionItem.vue'
 import InteractionDetailModal from './components/InteractionDetailModal.vue'
 import DayPlanner from './components/DayPlanner.vue'
@@ -260,105 +264,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.container {
-  max-width: 100%;
-  padding: 1rem;
-  margin: 0 auto;
-}
-
-@media (min-width: 768px) {
-  .container {
-    max-width: 768px;
-    padding: 2rem;
-  }
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #27272a;
-}
-
-.header h1 {
-  color: #a855f7;
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-@media (min-width: 768px) {
-  .header h1 {
-    font-size: 2rem;
-  }
-}
-
-.header p {
-  color: #71717a;
-  font-size: 0.875rem;
-}
-
-.tabs {
-  display: flex;
-  margin-bottom: 2rem;
-  background: #18181b;
-  border-radius: 0.75rem;
-  border: 1px solid #27272a;
-  overflow: hidden;
-}
-
-.tab {
-  flex: 1;
-  padding: 1rem;
-  background: transparent;
-  border: none;
-  color: #71717a;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-right: 1px solid #27272a;
-}
-
-.tab:last-child {
-  border-right: none;
-}
-
-.tab:hover {
-  background: #1c1c1e;
-  color: #e4e4e7;
-}
-
-.tab.active {
-  background: #a855f7;
-  color: white;
-}
-
-.error {
-  background: #dc2626;
-  color: white;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-}
-
-.logout-button {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  padding: 0.5rem 1rem;
-  background: #18181b;
-  color: #71717a;
-  border: 1px solid #27272a;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.logout-button:hover {
-  background: #27272a;
-  color: #e4e4e7;
-}
-</style>

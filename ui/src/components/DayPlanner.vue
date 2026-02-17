@@ -1,63 +1,61 @@
 <template>
-  <div class="day-planner">
-    <div class="planner-header">
-      <h2>📅 Day Planner</h2>
-      <div class="date-navigation">
-        <button @click="previousDay" class="nav-button" title="Previous Day">
-          ‹
-        </button>
-        <div class="date-display">
-          <div class="date-main">{{ formattedDate }}</div>
-          <div class="date-sub">{{ formattedDayOfWeek }}</div>
+  <div class="max-w-4xl mx-auto">
+    <div class="card bg-base-200 border border-base-300 mb-6">
+      <div class="card-body">
+        <h2 class="card-title">Day Planner</h2>
+        <div class="flex items-center gap-3">
+          <button @click="previousDay" class="btn btn-neutral btn-sm" title="Previous Day">
+            ‹
+          </button>
+          <div class="flex-1 text-center">
+            <div class="text-lg font-semibold">{{ formattedDate }}</div>
+            <div class="text-sm text-base-content/60">{{ formattedDayOfWeek }}</div>
+          </div>
+          <button @click="nextDay" class="btn btn-neutral btn-sm" title="Next Day">
+            ›
+          </button>
+          <button @click="goToToday" class="btn btn-secondary btn-soft btn-sm" :disabled="isToday">
+            Today
+          </button>
         </div>
-        <button @click="nextDay" class="nav-button" title="Next Day">
-          ›
-        </button>
-        <button @click="goToToday" class="today-button" :disabled="isToday">
-          Today
-        </button>
       </div>
     </div>
 
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-      <p>Loading day plan...</p>
+    <div v-if="loading" class="text-center py-12">
+      <span class="loading loading-spinner loading-lg"></span>
+      <p class="mt-4">Loading day plan...</p>
     </div>
 
-    <div v-else-if="error" class="error-state">
-      <div class="error-icon">⚠️</div>
-      <p>{{ error }}</p>
-      <button @click="loadPlan" class="retry-button">Retry</button>
+    <div v-else-if="error" class="alert alert-soft alert-error">
+      <span>{{ error }}</span>
+      <button @click="loadPlan" class="btn btn-sm">Retry</button>
     </div>
 
-    <div v-else-if="!plan || !plan.items || plan.items.length === 0" class="empty-state">
-      <div class="empty-icon">📭</div>
-      <h3>No Plan for This Day</h3>
-      <p>There's no plan created for {{ formattedDate }} yet.</p>
+    <div v-else-if="!plan || !plan.items || plan.items.length === 0" class="alert alert-soft alert-info">
+      <span>No Plan for This Day - There's no plan created for {{ formattedDate }} yet.</span>
     </div>
 
-    <div v-else class="plan-content">
-      <div class="plan-summary" v-if="plan.summary">
-        <div class="summary-icon">💡</div>
-        <p>{{ plan.summary }}</p>
+    <div v-else class="space-y-6">
+      <div v-if="plan.summary" class="alert alert-soft alert-info">
+        <span>{{ plan.summary }}</span>
       </div>
 
-      <div class="plan-stats">
-        <div class="stat">
-          <span class="stat-value">{{ plan.items.length }}</span>
-          <span class="stat-label">Activities</span>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="stat bg-base-200 border border-base-300 rounded-lg text-center">
+          <div class="stat-value text-primary">{{ plan.items.length }}</div>
+          <div class="stat-desc">Activities</div>
         </div>
-        <div class="stat">
-          <span class="stat-value">{{ scheduledCount }}</span>
-          <span class="stat-label">Scheduled</span>
+        <div class="stat bg-base-200 border border-base-300 rounded-lg text-center">
+          <div class="stat-value text-primary">{{ scheduledCount }}</div>
+          <div class="stat-desc">Scheduled</div>
         </div>
-        <div class="stat">
-          <span class="stat-value">{{ confirmedCount }}</span>
-          <span class="stat-label">Confirmed</span>
+        <div class="stat bg-base-200 border border-base-300 rounded-lg text-center">
+          <div class="stat-value text-primary">{{ confirmedCount }}</div>
+          <div class="stat-desc">Confirmed</div>
         </div>
       </div>
 
-      <div class="items-list">
+      <div class="space-y-3">
         <DayPlannerItem
           v-for="item in sortedItems"
           :key="item.id"
@@ -65,10 +63,8 @@
         />
       </div>
 
-      <div class="plan-footer">
-        <p class="update-time">
-          Last updated: {{ formatDateTime(plan.updatedAt) }}
-        </p>
+      <div class="text-xs text-base-content/50 text-center pt-4 border-t border-base-300">
+        Last updated: {{ formatDateTime(plan.updatedAt) }}
       </div>
     </div>
   </div>
@@ -182,220 +178,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.day-planner {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1rem;
-}
-
-.planner-header {
-  margin-bottom: 2rem;
-}
-
-.planner-header h2 {
-  font-size: 1.75rem;
-  margin: 0 0 1rem 0;
-  color: var(--text-primary);
-}
-
-.date-navigation {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: var(--card-bg);
-  padding: 1rem;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-}
-
-.nav-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 1.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nav-button:hover {
-  background: var(--accent-light);
-  border-color: var(--accent-color);
-}
-
-.date-display {
-  flex: 1;
-  text-align: center;
-}
-
-.date-main {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.date-sub {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.today-button {
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background: var(--accent-color);
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.today-button:hover:not(:disabled) {
-  background: var(--accent-dark);
-}
-
-.today-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.loading {
-  text-align: center;
-  padding: 3rem;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--border-color);
-  border-top-color: var(--accent-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.error-state,
-.empty-state {
-  text-align: center;
-  padding: 3rem;
-  background: var(--card-bg);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-}
-
-.error-icon,
-.empty-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.error-state h3,
-.empty-state h3 {
-  font-size: 1.25rem;
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary);
-}
-
-.error-state p,
-.empty-state p {
-  color: var(--text-secondary);
-  margin-bottom: 1.5rem;
-}
-
-.retry-button {
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  border: none;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin: 0.5rem;
-  background: var(--accent-color);
-  color: white;
-}
-
-.retry-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.plan-content {
-  background: var(--card-bg);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  padding: 1.5rem;
-}
-
-.plan-summary {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--accent-light);
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-}
-
-.summary-icon {
-  font-size: 1.5rem;
-}
-
-.plan-summary p {
-  margin: 0;
-  line-height: 1.6;
-  color: var(--text-primary);
-}
-
-.plan-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat {
-  text-align: center;
-  padding: 1rem;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-}
-
-.stat-value {
-  display: block;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--accent-color);
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
-}
-
-.items-list {
-  margin-bottom: 1.5rem;
-}
-
-.plan-footer {
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.update-time {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin: 0;
-}
-</style>

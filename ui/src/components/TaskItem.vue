@@ -1,11 +1,11 @@
 <template>
-  <div class="task-item item">
-    <div class="task-header">
-      <div class="task-name">{{ task.name }}</div>
-      <div class="task-time">{{ formatTime(task.next_run_time) }}</div>
+  <div class="p-4 border-b border-base-300 hover:bg-base-200 transition-colors">
+    <div class="flex justify-between items-start gap-3 mb-2">
+      <h3 class="text-sm font-medium text-base-content flex-1">{{ task.name }}</h3>
+      <div class="text-xs text-primary font-mono whitespace-nowrap">{{ formatTime(task.next_run_time) }}</div>
     </div>
-    <div class="task-description">{{ task.description }}</div>
-    <div v-if="task.topic" class="task-reason">Topic: {{ task.topic }}</div>
+    <p class="text-xs text-base-content/60 mb-1">{{ task.description }}</p>
+    <p v-if="task.topic" class="text-xs text-base-content/50">Topic: {{ task.topic }}</p>
   </div>
 </template>
 
@@ -25,52 +25,4 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.item {
-  padding: 1rem;
-  border-bottom: 1px solid #27272a;
-  transition: background 0.2s;
-}
-
-.item:last-child {
-  border-bottom: none;
-}
-
-.item:hover {
-  background: #1c1c1e;
-}
-
-.task-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.task-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-
-.task-name {
-  color: #e4e4e7;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.task-time {
-  color: #a855f7;
-  font-size: 0.75rem;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-  white-space: nowrap;
-}
-
-.task-description, .task-reason {
-  color: #71717a;
-  font-size: 0.75rem;
-  line-height: 1.4;
-}
-</style>
 
