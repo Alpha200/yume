@@ -8,41 +8,41 @@
 
       <!-- Middle: Desktop Tabs (hidden on mobile) -->
       <div class="flex-none hidden md:flex md:gap-1">
-        <button
+        <router-link
+          to="/memories"
           class="btn btn-ghost"
-          :class="{ 'btn-active': activeTab === 'memories' }"
-          @click="switchTab('memories')"
+          :class="{ 'btn-active': $route.path === '/memories' }"
         >
           Memory Store
-        </button>
-        <button
+        </router-link>
+        <router-link
+          to="/interactions"
           class="btn btn-ghost"
-          :class="{ 'btn-active': activeTab === 'interactions' }"
-          @click="switchTab('interactions')"
+          :class="{ 'btn-active': $route.path === '/interactions' }"
         >
           Agent Interactions
-        </button>
-        <button
+        </router-link>
+        <router-link
+          to="/scheduler"
           class="btn btn-ghost"
-          :class="{ 'btn-active': activeTab === 'logs' }"
-          @click="switchTab('logs')"
+          :class="{ 'btn-active': $route.path === '/scheduler' }"
         >
           Scheduler Logs
-        </button>
-        <button
+        </router-link>
+        <router-link
+          to="/planner"
           class="btn btn-ghost"
-          :class="{ 'btn-active': activeTab === 'planner' }"
-          @click="switchTab('planner')"
+          :class="{ 'btn-active': $route.path === '/planner' }"
         >
           Day Planner
-        </button>
-        <button
+        </router-link>
+        <router-link
+          to="/preferences"
           class="btn btn-ghost"
-          :class="{ 'btn-active': activeTab === 'preferences' }"
-          @click="switchTab('preferences')"
+          :class="{ 'btn-active': $route.path === '/preferences' }"
         >
           Preferences
-        </button>
+        </router-link>
       </div>
 
       <!-- Right: Mobile Dropdown + Logout -->
@@ -54,44 +54,49 @@
           </button>
           <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow border border-base-300 w-52">
             <li>
-              <button
-                :class="{ 'active': activeTab === 'memories' }"
-                @click="switchTab('memories'); closeDropdown()"
+              <router-link
+                to="/memories"
+                :class="{ 'active': $route.path === '/memories' }"
+                @click="closeDropdown()"
               >
                 Memory Store
-              </button>
+              </router-link>
             </li>
             <li>
-              <button
-                :class="{ 'active': activeTab === 'interactions' }"
-                @click="switchTab('interactions'); closeDropdown()"
+              <router-link
+                to="/interactions"
+                :class="{ 'active': $route.path === '/interactions' }"
+                @click="closeDropdown()"
               >
                 Agent Interactions
-              </button>
+              </router-link>
             </li>
             <li>
-              <button
-                :class="{ 'active': activeTab === 'logs' }"
-                @click="switchTab('logs'); closeDropdown()"
+              <router-link
+                to="/scheduler"
+                :class="{ 'active': $route.path === '/scheduler' }"
+                @click="closeDropdown()"
               >
                 Scheduler Logs
-              </button>
+              </router-link>
             </li>
             <li>
-              <button
-                :class="{ 'active': activeTab === 'planner' }"
-                @click="switchTab('planner'); closeDropdown()"
+              <router-link
+                to="/planner"
+                :class="{ 'active': $route.path === '/planner' }"
+                @click="closeDropdown()"
               >
                 Day Planner
-              </button>
+              </router-link>
             </li>
             <li>
-              <button
-                :class="{ 'active': activeTab === 'preferences' }"
-                @click="switchTab('preferences'); closeDropdown()"
+              <router-link
+                to="/preferences"
+                :class="{ 'active': $route.path === '/preferences' }"
+                @click="closeDropdown()"
               >
                 Preferences
-              </button>
+              </router-link>
             </li>
             <li><a class="pt-0"></a></li>
             <li>
@@ -112,79 +117,19 @@
         <span>{{ error }}</span>
       </div>
 
-    <!-- Memory Section -->
-      <Section
-        v-if="activeTab === 'memories'"
-        title="Memory Store"
-        :items="memories"
-        :loading="loadingMemories"
-        loadingMessage="Loading memories..."
-        emptyMessage="No memories stored yet"
-        @refresh="loadMemories"
-      >
-        <template #default="{ items }">
-          <MemoryItem v-for="memory in items" :key="memory.id" :memory="memory" />
-        </template>
-      </Section>
-
-      <!-- Agent Interactions Section -->
-      <Section
-        v-if="activeTab === 'interactions'"
-        title="Agent Interactions"
-        :items="interactions"
-        :loading="loadingInteractions"
-        loadingMessage="Loading interactions..."
-        emptyMessage="No interactions recorded yet"
-        @refresh="loadInteractions"
-      >
-        <template #default="{ items }">
-          <InteractionItem
-            v-for="interaction in items"
-            :key="interaction.id"
-            :interaction="interaction"
-          />
-        </template>
-      </Section>
-
-      <!-- Scheduler Logs Section -->
-      <SchedulerRunsPanel v-if="activeTab === 'logs'" />
-
-      <!-- Day Planner Section -->
-      <DayPlanner v-if="activeTab === 'planner'" />
-
-      <!-- Preferences Section -->
-      <PreferencesPane v-if="activeTab === 'preferences'" />
+      <router-view @error="handleError" />
     </div>
   </div>
 </template>
 
 <script>
 import { apiService } from './services/api'
-import Section from './components/Section.vue'
-import MemoryItem from './components/MemoryItem.vue'
-import InteractionItem from './components/InteractionItem.vue'
-import DayPlanner from './components/DayPlanner.vue'
-import PreferencesPane from './components/PreferencesPane.vue'
-import SchedulerRunsPanel from './components/SchedulerRunsPanel.vue'
 
 export default {
   name: 'App',
-  components: {
-    Section,
-    MemoryItem,
-    InteractionItem,
-    DayPlanner,
-    PreferencesPane,
-    SchedulerRunsPanel
-  },
   data() {
     return {
       isAuthenticated: false,
-      activeTab: 'memories',
-      memories: [],
-      interactions: [],
-      loadingMemories: false,
-      loadingInteractions: false,
       error: null
     }
   },
@@ -230,9 +175,6 @@ export default {
         const tokens = await apiService.exchangeCodeForTokens(code, state)
         apiService.setTokens(tokens.access_token, tokens.refresh_token)
         this.isAuthenticated = true
-        
-        // Load initial data
-        await this.loadMemories()
       } catch (error) {
         this.error = 'Failed to exchange code for tokens: ' + error.message
         console.error('Token exchange error:', error)
@@ -240,45 +182,12 @@ export default {
         setTimeout(() => this.login(), 2000)
       }
     },
-    async loadMemories() {
-      this.loadingMemories = true
-      this.error = null
-      try {
-        this.memories = await apiService.getMemories()
-      } catch (error) {
-        this.error = 'Failed to load memories: ' + error.message
-        console.error('Error loading memories:', error)
-      } finally {
-        this.loadingMemories = false
-      }
-    },
-    async loadInteractions() {
-      this.loadingInteractions = true
-      this.error = null
-      try {
-        this.interactions = await apiService.getInteractions()
-      } catch (error) {
-        this.error = 'Failed to load interactions: ' + error.message
-        console.error('Error loading interactions:', error)
-      } finally {
-        this.loadingInteractions = false
-      }
-    },
-
-    switchTab(tab) {
-      this.activeTab = tab
-      if (tab === 'memories' && this.memories.length === 0) {
-        this.loadMemories()
-      } else if (tab === 'interactions' && this.interactions.length === 0) {
-        this.loadInteractions()
-      }
-    },
-    handleTabFromUrl() {
-      const urlParams = new URLSearchParams(window.location.search)
-      const tab = urlParams.get('tab')
-      if (tab) {
-        this.activeTab = tab
-      }
+    handleError(error) {
+      this.error = error
+      // Auto-dismiss error after 5 seconds
+      setTimeout(() => {
+        this.error = null
+      }, 5000)
     },
     closeDropdown() {
       // Close the mobile dropdown menu
@@ -291,16 +200,10 @@ export default {
     // Check if we're returning from OAuth callback
     const hasCallback = this.handleOAuthCallback()
     
-    // Check for tab parameter in URL
-    this.handleTabFromUrl()
-    
     // Check authentication status
     this.isAuthenticated = apiService.isAuthenticated()
     
-    if (this.isAuthenticated) {
-      // Load memories by default since that's the default tab
-      await this.loadMemories()
-    } else if (!hasCallback) {
+    if (!this.isAuthenticated && !hasCallback) {
       // Not authenticated and not processing callback - auto-redirect to login
       await this.login()
     }
