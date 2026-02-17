@@ -1,11 +1,108 @@
 <template>
   <div v-if="isAuthenticated" class="min-h-screen bg-base-100">
     <div class="navbar bg-base-200 sticky top-0 z-50">
+      <!-- Left: Logo -->
       <div class="flex-1">
-        <a class="btn btn-ghost text-xl">🌙 Yume Dashboard</a>
+        <a class="btn btn-ghost text-xl">Yume Dashboard</a>
       </div>
+
+      <!-- Middle: Desktop Tabs (hidden on mobile) -->
+      <div class="flex-none hidden md:flex md:gap-1">
+        <button
+          class="btn btn-ghost"
+          :class="{ 'btn-active': activeTab === 'memories' }"
+          @click="switchTab('memories')"
+        >
+          Memory Store
+        </button>
+        <button
+          class="btn btn-ghost"
+          :class="{ 'btn-active': activeTab === 'interactions' }"
+          @click="switchTab('interactions')"
+        >
+          Agent Interactions
+        </button>
+        <button
+          class="btn btn-ghost"
+          :class="{ 'btn-active': activeTab === 'logs' }"
+          @click="switchTab('logs')"
+        >
+          Scheduler Logs
+        </button>
+        <button
+          class="btn btn-ghost"
+          :class="{ 'btn-active': activeTab === 'planner' }"
+          @click="switchTab('planner')"
+        >
+          Day Planner
+        </button>
+        <button
+          class="btn btn-ghost"
+          :class="{ 'btn-active': activeTab === 'preferences' }"
+          @click="switchTab('preferences')"
+        >
+          Preferences
+        </button>
+      </div>
+
+      <!-- Right: Mobile Dropdown + Logout -->
       <div class="flex-none gap-2">
-        <button @click="logout" class="btn btn-ghost btn-primary btn-sm">Logout</button>
+        <!-- Mobile Dropdown (visible on mobile only) -->
+        <div class="dropdown dropdown-end md:hidden">
+          <button ref="mobileMenuButton" class="btn btn-ghost" tabindex="0">
+            ☰
+          </button>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow border border-base-300 w-52">
+            <li>
+              <button
+                :class="{ 'active': activeTab === 'memories' }"
+                @click="switchTab('memories'); closeDropdown()"
+              >
+                Memory Store
+              </button>
+            </li>
+            <li>
+              <button
+                :class="{ 'active': activeTab === 'interactions' }"
+                @click="switchTab('interactions'); closeDropdown()"
+              >
+                Agent Interactions
+              </button>
+            </li>
+            <li>
+              <button
+                :class="{ 'active': activeTab === 'logs' }"
+                @click="switchTab('logs'); closeDropdown()"
+              >
+                Scheduler Logs
+              </button>
+            </li>
+            <li>
+              <button
+                :class="{ 'active': activeTab === 'planner' }"
+                @click="switchTab('planner'); closeDropdown()"
+              >
+                Day Planner
+              </button>
+            </li>
+            <li>
+              <button
+                :class="{ 'active': activeTab === 'preferences' }"
+                @click="switchTab('preferences'); closeDropdown()"
+              >
+                Preferences
+              </button>
+            </li>
+            <li><a class="pt-0"></a></li>
+            <li>
+              <button @click="logout" class="text-error">
+                Logout
+              </button>
+            </li>
+          </ul>
+        </div>
+        <!-- Desktop Logout -->
+        <button @click="logout" class="btn btn-ghost btn-primary hidden md:inline-flex">Logout</button>
       </div>
     </div>
 
@@ -13,45 +110,6 @@
       <div v-if="error" class="alert alert-error mb-6 shadow-lg">
         <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l-2-2m0 0l-2 2m2-2l2 2m2-2l2-2m0 0l-2-2m2 2l-2-2"/></svg>
         <span>{{ error }}</span>
-      </div>
-
-      <!-- Tabs Navigation -->
-      <div class="tabs tabs-bordered mb-6">
-        <button
-          class="tab"
-          :class="{ 'tab-active': activeTab === 'memories' }"
-          @click="switchTab('memories')"
-        >
-          Memory Store
-        </button>
-        <button
-          class="tab"
-          :class="{ 'tab-active': activeTab === 'interactions' }"
-          @click="switchTab('interactions')"
-        >
-          Agent Interactions
-        </button>
-        <button
-          class="tab"
-          :class="{ 'tab-active': activeTab === 'logs' }"
-          @click="switchTab('logs')"
-        >
-          Scheduler Logs
-        </button>
-        <button
-          class="tab"
-          :class="{ 'tab-active': activeTab === 'planner' }"
-          @click="switchTab('planner')"
-        >
-          Day Planner
-        </button>
-        <button
-          class="tab"
-          :class="{ 'tab-active': activeTab === 'preferences' }"
-          @click="switchTab('preferences')"
-        >
-          Preferences
-        </button>
       </div>
 
     <!-- Memory Section -->
@@ -84,7 +142,6 @@
             v-for="interaction in items"
             :key="interaction.id"
             :interaction="interaction"
-            @select="showInteractionDetail"
           />
         </template>
       </Section>
@@ -97,13 +154,6 @@
 
       <!-- Preferences Section -->
       <PreferencesPane v-if="activeTab === 'preferences'" />
-
-      <!-- Interaction Detail Modal -->
-      <InteractionDetailModal
-        v-if="selectedInteraction"
-        :interaction="selectedInteraction"
-        @close="closeInteractionDetail"
-      />
     </div>
   </div>
 </template>
@@ -113,7 +163,6 @@ import { apiService } from './services/api'
 import Section from './components/Section.vue'
 import MemoryItem from './components/MemoryItem.vue'
 import InteractionItem from './components/InteractionItem.vue'
-import InteractionDetailModal from './components/InteractionDetailModal.vue'
 import DayPlanner from './components/DayPlanner.vue'
 import PreferencesPane from './components/PreferencesPane.vue'
 import SchedulerRunsPanel from './components/SchedulerRunsPanel.vue'
@@ -124,7 +173,6 @@ export default {
     Section,
     MemoryItem,
     InteractionItem,
-    InteractionDetailModal,
     DayPlanner,
     PreferencesPane,
     SchedulerRunsPanel
@@ -135,7 +183,6 @@ export default {
       activeTab: 'memories',
       memories: [],
       interactions: [],
-      selectedInteraction: null,
       loadingMemories: false,
       loadingInteractions: false,
       error: null
@@ -217,17 +264,7 @@ export default {
         this.loadingInteractions = false
       }
     },
-    async showInteractionDetail(interactionId) {
-      try {
-        this.selectedInteraction = await apiService.getInteractionDetail(interactionId)
-      } catch (error) {
-        this.error = 'Failed to load interaction details: ' + error.message
-        console.error('Error loading interaction details:', error)
-      }
-    },
-    closeInteractionDetail() {
-      this.selectedInteraction = null
-    },
+
     switchTab(tab) {
       this.activeTab = tab
       if (tab === 'memories' && this.memories.length === 0) {
@@ -241,6 +278,12 @@ export default {
       const tab = urlParams.get('tab')
       if (tab) {
         this.activeTab = tab
+      }
+    },
+    closeDropdown() {
+      // Close the mobile dropdown menu
+      if (this.$refs.mobileMenuButton) {
+        this.$refs.mobileMenuButton.blur()
       }
     }
   },
