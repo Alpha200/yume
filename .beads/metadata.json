@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "yume",
+  "project_id": "8cf172cf-fe44-4c7e-924f-1f59b7698989"
+}
