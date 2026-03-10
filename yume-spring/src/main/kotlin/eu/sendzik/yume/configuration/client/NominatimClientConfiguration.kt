@@ -16,6 +16,7 @@ class NominatimClientConfiguration {
     ): NominatimClient {
         val webClient = restClientBuilder
             .baseUrl("https://nominatim.openstreetmap.org/")
+            .defaultHeader("User-Agent", "yume/1.0 (https://github.com/alpha200/yume)")
             .build()
 
         val serviceProxyFactory = HttpServiceProxyFactory

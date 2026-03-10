@@ -1,23 +1,10 @@
 package eu.sendzik.yume.repository.memory.model
 
 import java.time.LocalDateTime
-import org.springframework.data.annotation.Id
-import org.springframework.data.annotation.TypeAlias
-import org.springframework.data.mongodb.core.mapping.Document
-import org.springframework.data.mongodb.core.mapping.Field
-import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.annotation.JsonSubTypes
 
 /**
  * Base class for all memory entries
  */
-@Document(collection = "memories")
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes(
-    JsonSubTypes.Type(value = UserPreferenceEntry::class, name = "user_preference"),
-    JsonSubTypes.Type(value = UserObservationEntry::class, name = "user_observation"),
-    JsonSubTypes.Type(value = ReminderEntry::class, name = "reminder")
-)
 sealed class MemoryEntry {
     abstract val id: String
     abstract val content: String
@@ -31,16 +18,11 @@ sealed class MemoryEntry {
 /**
  * Memory entry for user preferences
  */
-@TypeAlias("UserPreferenceEntry")
 data class UserPreferenceEntry(
-    @field:Id
-    @Field("_id")
     override val id: String,
     override val content: String,
     override val place: String?,
-    @Field("created_at")
     override val createdAt: LocalDateTime,
-    @Field("modified_at")
     override val modifiedAt: LocalDateTime,
     override val type: String = "user_preference"
 ) : MemoryEntry() {
@@ -74,18 +56,12 @@ data class UserPreferenceEntry(
 /**
  * Memory entry for user observations with observation date
  */
-@TypeAlias("UserObservationEntry")
 data class UserObservationEntry(
-    @field:Id
-    @Field("_id")
     override val id: String,
     override val content: String,
     override val place: String?,
-    @Field("created_at")
     override val createdAt: LocalDateTime,
-    @Field("modified_at")
     override val modifiedAt: LocalDateTime,
-    @Field("observation_date")
     val observationDate: LocalDateTime,
     override val type: String = "user_observation"
 ) : MemoryEntry() {
@@ -121,18 +97,12 @@ data class UserObservationEntry(
 /**
  * Memory entry for reminders with reminder options
  */
-@TypeAlias("ReminderEntry")
 data class ReminderEntry(
-    @field:Id
-    @Field("_id")
     override val id: String,
     override val content: String,
     override val place: String?,
-    @Field("created_at")
     override val createdAt: LocalDateTime,
-    @Field("modified_at")
     override val modifiedAt: LocalDateTime,
-    @Field("reminder_options")
     val reminderOptions: ReminderOptions,
     override val type: String = "reminder"
 ) : MemoryEntry() {
@@ -201,13 +171,9 @@ data class ReminderEntry(
  * Reminder options configuration - supports time-based and location-based reminders
  */
 data class ReminderOptions(
-    @Field("datetime_value")
     var datetimeValue: LocalDateTime? = null,
-    @Field("time_value")
     var timeValue: String? = null,
-    @Field("days_of_week")
     var daysOfWeek: List<String>? = null,
     var location: String? = null,
-    @Field("trigger_type")
     var triggerType: String? = null
 )

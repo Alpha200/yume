@@ -6,6 +6,8 @@ import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest
 import dev.langchain4j.store.embedding.EmbeddingStore
 import eu.sendzik.yume.repository.memory.model.MemoryEntry
+import eu.sendzik.yume.repository.memory.model.toDocument
+import eu.sendzik.yume.repository.memory.model.toEntry
 import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.data.repository.CrudRepository
 import org.springframework.stereotype.Repository
@@ -14,7 +16,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 @Repository
-class RagMemoryRepository (
+class RagMemoryRepository(
     private val embeddingModel: EmbeddingModel,
     private val embeddingStore: EmbeddingStore<TextSegment>,
     private val mongoRepository: MongoMemoryRepository,
@@ -23,25 +25,22 @@ class RagMemoryRepository (
     private val lock = ReentrantLock()
 
     override fun <S : MemoryEntry> save(entity: S): S = lock.withLock {
-        val savedEntity = mongoRepository.save(entity)
-        val embedding = embeddingModel.embed(savedEntity.formatForRAG()).content()
-        embeddingStore.add(savedEntity.id, embedding)
-        return savedEntity
+        mongoRepository.save(entity.toDocument())
+        val embedding = embeddingModel.embed(entity.formatForRAG()).content()
+        embeddingStore.add(entity.id, embedding)
+        return entity
     }
 
     override fun <S : MemoryEntry> saveAll(entities: Iterable<S>): Iterable<S> = lock.withLock {
-        val savedEntities = mongoRepository.saveAll(entities)
-        val embeddings = embeddingModel.embedAll(entities.map { textSegment(it.formatForRAG()) }).content()
-        embeddingStore.addAll(
-            savedEntities.map { it.id },
-            embeddings,
-            null
-        )
-        return savedEntities
+        mongoRepository.saveAll(entities.map { it.toDocument() })
+        val entitiesList = entities.toList()
+        val embeddings = embeddingModel.embedAll(entitiesList.map { textSegment(it.formatForRAG()) }).content()
+        embeddingStore.addAll(entitiesList.map { it.id }, embeddings, null)
+        return entitiesList
     }
 
     override fun findById(id: String): Optional<MemoryEntry> {
-        return mongoRepository.findById(id)
+        return mongoRepository.findById(id).map { it.toEntry() }
     }
 
     override fun existsById(id: String): Boolean {
@@ -49,11 +48,11 @@ class RagMemoryRepository (
     }
 
     override fun findAll(): Iterable<MemoryEntry> {
-        return mongoRepository.findAll()
+        return mongoRepository.findAll().map { it.toEntry() }
     }
 
     override fun findAllById(ids: Iterable<String>): Iterable<MemoryEntry> {
-        return mongoRepository.findAllById(ids)
+        return mongoRepository.findAllById(ids).map { it.toEntry() }
     }
 
     override fun count(): Long {
@@ -69,21 +68,22 @@ class RagMemoryRepository (
 
     override fun delete(entity: MemoryEntry) {
         lock.withLock {
-            mongoRepository.delete(entity)
+            mongoRepository.deleteById(entity.id)
             embeddingStore.remove(entity.id)
         }
     }
 
     override fun deleteAllById(ids: Iterable<String>) {
         val idsList = ids.toList()
-        mongoRepository.deleteAllById(ids)
+        mongoRepository.deleteAllById(idsList)
         embeddingStore.removeAll(idsList)
     }
 
     override fun deleteAll(entities: Iterable<MemoryEntry>) {
         lock.withLock {
-            mongoRepository.deleteAll(entities)
-            embeddingStore.removeAll(entities.map { it.id })
+            val idsList = entities.map { it.id }
+            mongoRepository.deleteAllById(idsList)
+            embeddingStore.removeAll(idsList)
         }
     }
 
@@ -95,26 +95,23 @@ class RagMemoryRepository (
     }
 
     fun findAllByMemoryType(type: String): List<MemoryEntry> {
-        return mongoRepository.findAllByMemoryType(type)
+        return mongoRepository.findAllByMemoryType(type).map { it.toEntry() }
     }
 
     fun resetRagDatabase() {
         lock.withLock {
-            logger.info {"Resetting RAG memory repository..." }
+            logger.info { "Resetting RAG memory repository..." }
             embeddingStore.removeAll()
 
             val data = mongoRepository.findAll().asSequence()
 
             data.chunked(100).forEach { batch ->
-                val embeddings = embeddingModel.embedAll(batch.map { textSegment(it.formatForRAG()) }).content()
-                embeddingStore.addAll(
-                    batch.map { it.id },
-                    embeddings,
-                    null
-                )
+                val entries = batch.map { it.toEntry() }
+                val embeddings = embeddingModel.embedAll(entries.map { textSegment(it.formatForRAG()) }).content()
+                embeddingStore.addAll(entries.map { it.id }, embeddings, null)
             }
 
-            logger.info {"Finished resetting RAG memory repository..." }
+            logger.info { "Finished resetting RAG memory repository..." }
         }
     }
 
@@ -130,11 +127,11 @@ class RagMemoryRepository (
 
         logger.debug { "RAG search for query '$query' returned ${matches.size} matches. Scores: [${matches.map { it.score() }}]" }
 
-        return if(matches.isEmpty()) {
+        return if (matches.isEmpty()) {
             emptyList()
         } else {
             val ids = matches.map { it.embeddingId() }
-            mongoRepository.findAllById(ids)
+            mongoRepository.findAllById(ids).map { it.toEntry() }
         }
     }
 
@@ -144,7 +141,5 @@ class RagMemoryRepository (
             append(" - ")
         }
         append(content)
-
-        // TODO: Add more fields
     }
 }
