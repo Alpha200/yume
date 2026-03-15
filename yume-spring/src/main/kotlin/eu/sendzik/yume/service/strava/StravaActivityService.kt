@@ -68,7 +68,7 @@ class StravaActivityService(
             appendLine("Duration: ${activity.getDurationInMinutes()} minutes")
             appendLine("Average Speed: ${String.format("%.1f", activity.getAverageSpeedInKmh())} km/h")
             appendLine("Max Speed: ${String.format("%.1f", activity.getMaxSpeedInKmh())} km/h")
-            appendLine("Elevation Gain: ${String.format("%.0f", activity.elevationGain)} m")
+            appendLine("Elevation Gain: ${String.format("%.0f", activity.totalElevationGain)} m")
             activity.averageHeartrate?.let { appendLine("Average Heart Rate: ${it.toInt()} bpm") }
             activity.averageWatts?.let { appendLine("Average Power: ${it.toInt()} watts") }
             activity.calories?.let { appendLine("Calories: ${it.toInt()} kcal") }
@@ -98,6 +98,12 @@ class StravaActivityService(
                 }
                 if (activity.averageCadence != null && activity.averageCadence > 0) {
                     appendLine("   Avg Cadence: ${activity.averageCadence.toInt()}")
+                }
+                if (activity.averageWatts != null && activity.averageWatts > 0) {
+                    appendLine("   Avg Watts: ${activity.averageWatts}")
+                }
+                if (activity.weightedAverageWatts != null && activity.weightedAverageWatts > 0) {
+                    appendLine("   Weighted Avg Watts: ${activity.weightedAverageWatts}")
                 }
                 appendLine()
             }
