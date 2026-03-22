@@ -6,6 +6,7 @@ import eu.sendzik.yume.agent.GenericChatAgent
 import eu.sendzik.yume.agent.KitchenOwlAgent
 import eu.sendzik.yume.agent.RequestRouterAgent
 import eu.sendzik.yume.agent.SportsActivityAgent
+import eu.sendzik.yume.agent.model.EventTriggeredAgentResult
 import eu.sendzik.yume.agent.model.YumeAgentType
 import eu.sendzik.yume.agent.model.YumeChatResource
 import eu.sendzik.yume.repository.conversation.model.ConversationHistoryEntryType
@@ -425,7 +426,7 @@ class RequestRouterService(
         eventMessage: String,
         systemPromptPrefix: String,
         additionalInformation: String,
-    ): eu.sendzik.yume.agent.model.EventTriggeredAgentResult =
+    ): EventTriggeredAgentResult =
         when (agentType) {
             YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.GENERIC -> genericAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
@@ -438,7 +439,7 @@ class RequestRouterService(
         eventMessage: String,
         systemPromptPrefix: String,
         additionalInformation: String,
-    ): eu.sendzik.yume.agent.model.EventTriggeredAgentResult =
+    ): EventTriggeredAgentResult =
         when (agentType) {
             YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.GENERIC -> genericAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
