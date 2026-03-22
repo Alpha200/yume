@@ -1,0 +1,196 @@
+= 03 — System Scope and Context
+:toc: left
+:icons: font
+
+== 3.1 Business Context
+
+The diagram below shows Yume and all external actors/systems it interacts with from a business perspective.
+
+[mermaid]
+....
+graph LR
+    User((User)) <-->|Matrix| YUME["YUME\nAI Assistant"]
+    SPA["Vue.js SPA\nDashboard"] <-->|JWT / REST| YUME
+    EInk["E-ink Display"] <-->|HTTP Basic GET| YUME
+    HA["Home Assistant"] -->|Geofence webhook| YUME
+    Matrix["Matrix Homeserver\n(Synapse)"] <-->|Matrix protocol| YUME
+    YUME --> LLM["LLM API\n(OpenAI-compatible)"]
+    YUME --> CAL["CalDAV / Nextcloud"]
+    YUME --> WEA["OpenWeatherMap"]
+    YUME --> EFA["EFA Transit API"]
+    YUME --> KO["KitchenOwl"]
+    YUME <-->|REST + OAuth2 + Webhooks| Strava
+    YUME -->|MCP / SSE| Garmin["Garmin MCP Server"]
+    YUME --> NOM["Nominatim (OSM)"]
+    YUME --> KC["Keycloak / OIDC"]
+....
+
+=== External Actors and Systems
+
+[cols="2,1,4", options="header"]
+|===
+| Actor / System | Direction | Description
+
+| *User*
+| Bidirectional
+| Sends messages and reactions via Matrix; receives AI responses
+
+| *Matrix Homeserver* (Synapse)
+| Bidirectional
+| Relays Matrix protocol messages between user and bot
+
+| *LLM API* (OpenAI-compatible)
+| Outbound
+| Receives prompts; returns text completions and tool call decisions
+
+| *Home Assistant*
+| Inbound + Outbound
+| Sends geofence webhook events; provides user location and geofence state
+
+| *CalDAV / Nextcloud*
+| Outbound
+| Source of calendar events (VEVENTs)
+
+| *OpenWeatherMap*
+| Outbound
+| Weather forecast API
+
+| *EFA Public Transport*
+| Outbound
+| German transit XML API for departures and journey plans
+
+| *KitchenOwl*
+| Outbound
+| Shopping list and recipe management REST API
+
+| *Strava*
+| Bidirectional
+| Sports activity data (REST + OAuth2); incoming activity webhooks
+
+| *Garmin Connect MCP Server*
+| Outbound
+| MCP (Model Context Protocol) server exposing health/fitness snapshots
+
+| *Nominatim (OSM)*
+| Outbound
+| Reverse geocoding to convert GPS coordinates to place names
+
+| *Keycloak / OIDC Provider*
+| Outbound
+| JWT token validation for the web dashboard
+
+| *E-ink Display*
+| Inbound
+| Polls `GET /api/e-ink-display/content` periodically for rendered text
+|===
+
+'''
+
+== 3.2 Technical Context
+
+[mermaid]
+....
+graph TD
+    Matrix["Matrix Homeserver"] <-->|"Trixnity / WebSocket"| MCS["MatrixClientService"]
+    HA["Home Assistant"] -->|"HTTP Basic POST"| WHC["WebHookController"]
+    Strava -->|"HTTPS Webhook"| SWC["StravaWebhookController"]
+    EInk["E-ink Device"] -->|"HTTP Basic GET"| EIC["EInkDisplayController"]
+    SPA["Vue.js SPA"] <-->|"JWT / Axios"| REST["REST Controllers"]
+
+    subgraph Backend["Spring Boot Backend (/api)"]
+        MCS --> Router["RequestRouterService\n+ RequestRouterAgent"]
+        WHC --> Router
+        SWC --> Router
+        EIC --> EInkSvc["EInkDisplayService"]
+        Router --> EfaAgent["EfaAgent"]
+        Router --> KOAgent["KitchenOwlAgent"]
+        Router --> SportsAgent["SportsActivityAgent"]
+        Router --> GenericAgent["GenericChatAgent"]
+        REST --- MongoDB[("MongoDB")]
+        REST --- PG[("PostgreSQL\n+ pgvector")]
+        Router --- MongoDB
+        Router --- PG
+    end
+....
+
+=== Interface Descriptions
+
+[cols="2,1,1,3", options="header"]
+|===
+| Interface | Protocol | Auth | Notes
+
+| Matrix homeserver
+| WebSocket (Matrix sync API)
+| Username + password
+| Trixnity manages long-polling sync loop
+
+| Home Assistant geofence webhook
+| HTTPS POST
+| HTTP Basic
+| `POST /api/webhook/geofence-event`
+
+| E-ink display polling
+| HTTPS GET
+| HTTP Basic
+| `GET /api/e-ink-display/content`
+
+| Strava webhook
+| HTTPS POST + GET
+| Public (verify token)
+| Activity events and subscription handshake
+
+| Web dashboard (SPA)
+| HTTPS
+| OIDC / JWT Bearer
+| PKCE flow via Keycloak
+
+| LLM API
+| HTTPS
+| API key
+| OpenAI-compatible JSON over HTTP
+
+| CalDAV
+| HTTPS
+| Basic auth
+| caldav4j + Apache HttpClient
+
+| EFA transit
+| HTTPS
+| None
+| XML response, parsed manually
+
+| OpenWeatherMap
+| HTTPS
+| API key query param
+| JSON One Call API
+
+| KitchenOwl
+| HTTPS
+| API key header
+| JSON REST
+
+| Strava REST
+| HTTPS
+| OAuth2 Bearer
+| Token stored in MongoDB, auto-refreshed
+
+| Garmin MCP Server
+| HTTP / SSE
+| None (internal)
+| MCP Kotlin SDK over Server-Sent Events
+
+| Nominatim
+| HTTPS
+| None
+| OSM reverse geocoding
+
+| MongoDB
+| TCP (MongoDB wire protocol)
+| Username/password
+| Spring Data MongoDB
+
+| PostgreSQL + pgvector
+| TCP (PostgreSQL wire)
+| Username/password
+| langchain4j `PgVectorEmbeddingStore`
+|===

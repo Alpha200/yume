@@ -1,0 +1,132 @@
+= 04 — Solution Strategy
+:toc: left
+:icons: font
+
+== 4.1 Technology Decisions
+
+[cols="2,2,4", options="header"]
+|===
+| Decision | Choice | Rationale
+
+| *Backend language*
+| Kotlin on JVM
+| Strong type safety, concise syntax, excellent Spring interoperability, null-safety
+
+| *Application framework*
+| Spring Boot 3.5
+| Mature ecosystem for HTTP, scheduling, security, data access, and async processing
+
+| *AI integration library*
+| langchain4j 1.10
+| Provides `@AiService`, tool calling, prompt templates, and embedding store abstractions; avoids direct HTTP coupling to LLM providers
+
+| *LLM provider*
+| OpenAI-compatible endpoint
+| Flexibility to use OpenAI, LiteLLM, or a local model (Ollama, LM Studio) without code changes
+
+| *Chat interface*
+| Matrix (Trixnity)
+| Decentralised, self-hostable protocol; native push notifications; supports reactions
+
+| *Primary data store*
+| MongoDB
+| Schema-flexible document storage well-suited to evolving memory entry types and free-form AI responses
+
+| *Vector store*
+| PostgreSQL + pgvector
+| Reliable ACID store extended with vector similarity; avoids a dedicated vector-only database
+
+| *Frontend*
+| Vue.js 3 + Vite + Tailwind + DaisyUI
+| Lightweight SPA; fast build; rich component library without heavy runtime
+
+| *Authentication*
+| Keycloak / OIDC PKCE
+| Standard OAuth2/OIDC; self-hostable; PKCE removes need for backend token proxy
+
+| *Containerisation*
+| Docker multi-stage + Nginx
+| Single deployable artefact; Nginx serves SPA and proxies `/api`; eliminates CORS issues
+|===
+
+'''
+
+== 4.2 Decomposition Approach
+
+The system is decomposed into *four conceptual layers*:
+
+[mermaid]
+....
+graph TD
+    L1["Layer 1 — Interaction / Input\nMatrix bot · Webhooks · Scheduler · E-ink"]
+    L2["Layer 2 — Routing & Orchestration\nRequestRouterService · RequestRouterAgent"]
+    L3["Layer 3 — Specialist Agents\nEfaAgent · KitchenOwlAgent · SportsActivityAgent\nDayPlanAgent · MemoryManagerAgent · GenericChatAgent"]
+    L4["Layer 4 — Data & Integration\nMongoDB · pgvector · CalDAV · Weather · EFA\nStrava · Garmin · KitchenOwl · Nominatim"]
+
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+
+    style L1 fill:#dbeafe,stroke:#3b82f6
+    style L2 fill:#dcfce7,stroke:#22c55e
+    style L3 fill:#fef9c3,stroke:#eab308
+    style L4 fill:#fee2e2,stroke:#ef4444
+....
+
+=== Layer Responsibilities
+
+*Layer 1 – Interaction / Input* +
+Receives all external stimuli. Each input type publishes a Spring `ApplicationEvent` or directly calls the router:
+
+* `MatrixClientService` → `UserMessageEvent` / `UserReactionEvent`
+* `WebHookController` → Geofence events
+* `SchedulerService` → Timer-triggered proactive runs
+* `StravaWebhookController` → Strava activity events
+
+*Layer 2 – Routing & Orchestration* +
+`RequestRouterService` is the central dispatcher. It:
+
+. Summarises recent conversation context
+. Fetches relevant memory summaries
+. Calls `RequestRouterAgent` (LLM) to choose the right specialist
+. Assembles the required resource context via `ResourceProviderService`
+. Delegates to the appropriate specialist service
+
+*Layer 3 – Specialist Agents* +
+Each specialist is a langchain4j `@AiService` interface with its own:
+
+* Named `ChatModel` bean (isolated model configuration and observability)
+* Tool classes (typed function-calling implementations)
+* Prompt templates (system messages stored in `resources/prompt/`)
+
+*Layer 4 – Data & Integration* +
+All persistence and external API calls live here. Services in this layer are called both directly (from specialist services) and via the `ResourceProviderService` for context assembly.
+
+'''
+
+== 4.3 Key Architectural Decisions (Summary)
+
+Detailed ADRs are in xref:09-architecture-decisions.adoc[Chapter 09]. A brief summary:
+
+[cols="2,4", options="header"]
+|===
+| Decision | Summary
+
+| *One ChatModel bean per agent*
+| Each agent has its own model bean, enabling individual model configuration (e.g., different temperature or model name) and per-agent interaction tracking
+
+| *Dual memory store (Mongo + pgvector)*
+| MongoDB is the source of truth; pgvector enables semantic recall. They are written synchronously to stay consistent.
+
+| *AI-driven self-scheduling*
+| The `SchedulerAgent` itself decides when the next run should happen, enabling context-aware timing (e.g., "remind me 30 min before departure")
+
+| *Spring Events for decoupling*
+| `ApplicationEvent` decouples the Matrix listener and webhook handlers from the routing logic
+
+| *MCP for Garmin Connect*
+| Garmin has no official public API; a separately running MCP server is used as an integration adapter
+
+| *Prompt templates as files*
+| All system/user prompts are `.txt` resources, not code strings, making them versionable and editable without recompilation
+|===

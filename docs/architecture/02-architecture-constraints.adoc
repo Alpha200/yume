@@ -1,0 +1,91 @@
+= 02 — Architecture Constraints
+:toc: left
+:icons: font
+
+== 2.1 Technical Constraints
+
+[cols="1,2,4", options="header"]
+|===
+| ID | Constraint | Background
+
+| TC-01 | *JVM runtime (Java 21+)*
+| Spring Boot 3.5 and Kotlin 2.2 require Java 21 as minimum. All backend logic runs on the JVM.
+
+| TC-02 | *Kotlin as implementation language*
+| The entire backend is Kotlin; Java interop is used for third-party libraries.
+
+| TC-03 | *Spring Boot 3.5 framework*
+| Auto-configuration, dependency injection, scheduling, security, and data access are all Spring-managed.
+
+| TC-04 | *langchain4j 1.10 for AI integration*
+| All LLM calls, tool registration, prompt templates, and embedding operations go through langchain4j abstractions. No direct HTTP calls to AI APIs.
+
+| TC-05 | *OpenAI-compatible API*
+| The LLM endpoint must expose an OpenAI-compatible API (e.g., LiteLLM, OpenRouter, local models via Ollama).
+
+| TC-06 | *MongoDB for primary storage*
+| All documents (memories, day plans, scheduler runs, conversation history, Strava credentials) are stored in MongoDB. Cannot be swapped without significant refactoring.
+
+| TC-07 | *PostgreSQL + pgvector for embeddings*
+| Semantic search on memories requires a PostgreSQL instance with the `pgvector` extension.
+
+| TC-08 | *Matrix protocol for chat*
+| The Trixnity library is used; homeserver must be a Matrix-compatible instance (e.g., Synapse). Only a single room is supported.
+
+| TC-09 | *Trixnity + Ktor client*
+| Matrix communication uses Trixnity 4.22 with Ktor 3.3 as the HTTP engine. Migration to another Matrix client library would be extensive.
+
+| TC-10 | *Vue.js 3 + Vite 5 for frontend*
+| The dashboard SPA is built with Vue 3.4 / Composition API compiled by Vite; no code-splitting or SSR.
+
+| TC-11 | *Docker / Nginx for deployment*
+| Production packaging uses a multi-stage Docker build; Nginx serves the frontend and proxies `/api` to Spring Boot.
+|===
+
+'''
+
+== 2.2 Organisational Constraints
+
+[cols="1,2,4", options="header"]
+|===
+| ID | Constraint | Background
+
+| OC-01 | *Single-developer project*
+| There are no formal review processes; decisions are made by the sole developer/operator.
+
+| OC-02 | *Self-hosted only*
+| No SaaS model; the operator provides all infrastructure (server, MongoDB, PostgreSQL, Matrix homeserver, Keycloak).
+
+| OC-03 | *MIT-licensed open source*
+| Source is publicly available on GitHub; architecture must not embed proprietary algorithms or data that cannot be published.
+
+| OC-04 | *No automated CI tests*
+| The CI pipeline (GitHub Actions) only validates that the Docker image builds successfully.
+|===
+
+'''
+
+== 2.3 Conventions
+
+[cols="1,4", options="header"]
+|===
+| ID | Convention
+
+| CV-01
+| Kotlin idiomatic style: `runCatching` for result wrapping, coroutines avoided in favour of Spring `@Async` + virtual threads
+
+| CV-02
+| All prompt text is externalised into `.txt` files under `resources/prompt/`
+
+| CV-03
+| All REST clients are Spring declarative HTTP interfaces (`@GetExchange`, `@PostExchange`)
+
+| CV-04
+| Each AI agent has exactly one named `ChatModel` bean for isolation and observability
+
+| CV-05
+| Frontend uses Tailwind CSS utility classes and DaisyUI component primitives
+
+| CV-06
+| *All architecture documentation must be written in AsciiDoc (`.adoc`).* Diagrams are embedded as Mermaid blocks rendered via the Kroki integration. Markdown files are not permitted in `docs/architecture/`.
+|===

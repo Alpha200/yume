@@ -1,0 +1,223 @@
+= 06 — Runtime View
+:toc: left
+:icons: font
+
+== 6.1 Scenario: User Sends a Message via Matrix
+
+This is the primary interaction flow.
+
+[mermaid]
+....
+sequenceDiagram
+    actor U as User (Matrix)
+    participant M as MatrixClientService
+    participant R as RequestRouterService
+    participant CS as ConversationSummarizerAgent
+    participant MS as MemorySummarizerService
+    participant RA as RequestRouterAgent
+    participant RP as ResourceProviderService
+    participant A as Specialist Agent
+    participant MM as MemoryManagerExecutorService
+
+    U->>M: sends message in room
+    M->>R: UserMessageEvent
+    R->>CS: summarise(conversationHistory)
+    CS-->>R: summary
+    R->>MS: getMemorySummaries()
+    MS-->>R: summaries (preferences, observations, reminders)
+    R->>RA: route(message, summaries)
+    RA-->>R: YumeAgentType + required resources
+    R->>RP: fetchResources(requiredResources)
+    RP-->>R: context string
+    R->>A: chat(message, memories, resources)
+    A-->>R: response
+    R-->>MM: updateMemory (async, non-blocking)
+    R->>M: sendReply(response)
+    M->>U: reply in Matrix room
+....
+
+'''
+
+== 6.2 Scenario: Proactive Scheduler Run
+
+The AI determines its own next execution time.
+
+[mermaid]
+....
+sequenceDiagram
+    participant SS as SchedulerService
+    participant SE as ScheduleExecutorService
+    participant R as RequestRouterService
+    participant SA as SchedulerAgent
+    participant DB as MongoDB
+
+    SS->>SE: fires at AI-decided time
+    SE->>R: runFromScheduler()
+    Note over R: same routing flow as 6.1 with scheduler context
+    R-->>SE: response
+    SE->>DB: persist SchedulerRun (status, topic, duration)
+    SE->>SS: SchedulerExecutedEvent
+    SS->>SA: decideNextRun(context)
+    SA-->>SS: nextRun timestamp + topic
+    SS->>SS: schedule next task
+....
+
+'''
+
+== 6.3 Scenario: Home Assistant Geofence Event
+
+[mermaid]
+....
+sequenceDiagram
+    participant HA as Home Assistant
+    participant WH as WebHookController
+    participant R as RequestRouterService
+    participant RA as RequestRouterAgent
+    participant RP as ResourceProviderService
+    participant A as Specialist Agent
+    participant M as MatrixClientService
+
+    HA->>WH: POST /api/webhook/geofence-event (HTTP Basic)
+    WH->>R: handleGeofenceEvent(name, type)
+    R->>RA: route(geofenceContext)
+    RA-->>R: agent selection + required resources
+    R->>RP: fetchResources(requiredResources)
+    RP-->>R: context
+    R->>A: handleGeofence(context, memories, resources)
+    A-->>R: contextual message
+    R->>M: sendMessage(response)
+    M->>M: sends to Matrix room
+....
+
+'''
+
+== 6.4 Scenario: Strava Activity Webhook
+
+[mermaid]
+....
+sequenceDiagram
+    participant Strava
+    participant SWC as StravaWebhookController
+    participant SWS as StravaWebhookService
+    participant R as RequestRouterService
+    participant SA as SportsActivityAgent
+    participant M as MatrixClientService
+
+    Strava->>SWC: POST /api/strava/webhook
+    SWC->>SWS: handleEvent(event)
+    SWS->>Strava: GET activity details
+    Strava-->>SWS: full activity data
+    SWS->>R: handleStravaActivity(activity)
+    R->>SA: analyse(activity, context)
+    SA-->>R: activity summary
+    R->>M: sendMessage(summary)
+    M->>M: sends activity summary to Matrix room
+....
+
+'''
+
+== 6.5 Scenario: Day Plan Generation (Scheduled)
+
+[mermaid]
+....
+sequenceDiagram
+    participant Cron as Cron Trigger (02:05)
+    participant DE as DayPlanExecutorService
+    participant Cal as CalendarService
+    participant Wea as WeatherService
+    participant Mem as MemorySummarizerService
+    participant Str as StravaActivityService
+    participant DA as DayPlanAgent
+    participant DB as MongoDB
+    participant SS as SchedulerService
+
+    Cron->>DE: @Scheduled trigger
+    DE->>Cal: fetchTodayEvents()
+    Cal-->>DE: VEVENTs
+    DE->>Wea: getWeatherForecast()
+    Wea-->>DE: forecast
+    DE->>Mem: getSummaries()
+    Mem-->>DE: summaries
+    DE->>Str: getRecentActivities()
+    Str-->>DE: activities
+    DE->>DA: createDayPlan(calendar, weather, memories, activities)
+    DA-->>DB: upsert DayPlan
+    DA-->>DE: plan result
+    DE->>SS: DayPlanUpdatedEvent
+    SS->>SS: re-schedule proactive runs
+....
+
+'''
+
+== 6.6 Scenario: E-ink Display Content Generation
+
+[mermaid]
+....
+sequenceDiagram
+    participant Device as E-ink Device
+    participant EC as EInkDisplayController
+    participant ES as EInkDisplayService
+    participant RP as ResourceProviderService
+    participant EA as EInkDisplayAgent
+
+    Device->>EC: GET /api/e-ink-display/content (HTTP Basic)
+    EC->>ES: generateContent()
+    ES->>RP: fetchResources(weather, dayPlan, memories)
+    RP-->>ES: context string
+    ES->>EA: render(context)
+    EA-->>ES: formatted plain-text string
+    ES-->>EC: content
+    EC-->>Device: plain text response
+....
+
+'''
+
+== 6.7 Scenario: Memory Management
+
+[mermaid]
+....
+sequenceDiagram
+    participant R as RequestRouterService
+    participant ME as MemoryManagerExecutorService
+    participant MA as MemoryManagerAgent
+    participant MT as MemoryManagerTools
+    participant DB as MongoDB / pgvector
+    participant MS as MemorySummarizerService
+    participant MSA as MemorySummarizerAgent
+
+    Note over R,ME: After each interaction (async)
+    R-->>ME: triggerMemoryUpdate(conversation)
+    ME->>MA: analyse(conversation, existingMemories)
+    MA->>MT: upsertUserPreference / upsertUserObservation / upsertReminder / deleteMemory
+    MT->>DB: persist changes
+    ME->>MS: refreshSummaries()
+    MS->>MSA: summarise(memoriesByType)
+    MSA-->>MS: updated summaries
+....
+
+'''
+
+== 6.8 Scenario: Garmin Health Snapshot
+
+[mermaid]
+....
+sequenceDiagram
+    participant RP as ResourceProviderService
+    participant GCS as GarminConnectService
+    participant GDF as GarminConnectDataFetcherService
+    participant Cache as Caffeine Cache
+    participant MCP as Garmin MCP Server
+
+    RP->>GCS: getHealthSnapshot()
+    GCS->>GDF: fetchSnapshot()
+    GDF->>Cache: check cache
+    alt cache hit
+        Cache-->>GDF: cached GarminHealthStatus
+    else cache miss
+        GDF->>MCP: SSE connect + tools/call snapshot
+        MCP-->>GDF: health data (sleep, HRV, steps, training load)
+        GDF->>Cache: store result
+    end
+    GDF-->>GCS: GarminHealthStatus
+    GCS-->>RP: formatted health string
+....

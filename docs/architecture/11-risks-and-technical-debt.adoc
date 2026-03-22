@@ -1,0 +1,128 @@
+= 11 — Risks and Technical Debt
+:toc: left
+:icons: font
+
+== 11.1 Risks
+
+[cols="1,3,1,1,4", options="header"]
+|===
+| ID | Risk | Likelihood | Impact | Mitigation
+
+| RK-01
+| *LLM API key cost / rate limits*
+| Medium | High
+| LiteLLM proxy allows local model fallback; no mitigation for rate-limiting beyond caching
+
+| RK-02
+| *Garmin MCP server breaks*
+| Medium | Low
+| Garmin integration is optional context; system degrades gracefully; Caffeine cache provides short-term resilience
+
+| RK-03
+| *LLM hallucination in structured outputs*
+| Medium | Medium
+| langchain4j structured output with typed return classes reduces hallucination risk; `SchedulerAgentResult` timestamp parsing may still fail on edge cases
+
+| RK-04
+| *MongoDB / pgvector inconsistency*
+| Low | High
+| Writes are synchronous to both; but if pgvector write fails after Mongo write, embeddings will be stale. No compensating transaction currently implemented.
+
+| RK-05
+| *Matrix homeserver unavailability*
+| Low | High
+| Trixnity attempts reconnection; no queuing of outbound messages — messages are lost if homeserver is down during a response
+
+| RK-06
+| *Single-room limitation*
+| — | Medium
+| Currently only one Matrix room is configured; multi-user or multi-room support would require significant changes to conversation history and routing
+
+| RK-07
+| *No automated tests in CI*
+| — | Medium
+| Only Docker build is validated; regressions in business logic are not caught automatically
+|===
+
+'''
+
+== 11.2 Known Technical Debt
+
+[cols="1,2,4,1", options="header"]
+|===
+| ID | Location | Description | Priority
+
+| TD-01
+| `MemoryManagerAgent.kt:20`
+| Memory retrieval passes *all* memories to the agent instead of filtering semantically. Planned migration to a knowledge graph or smarter RAG recall.
+| Medium
+
+| TD-02
+| `InteractionTrackerService.kt:100`
+| *Failed interactions are not tracked.* Only successful LLM calls appear in the interaction log.
+| Low
+
+| TD-03
+| `DayPlanExecutorService.kt:57`
+| *Weather forecast for specific days* is not yet implemented via a tool; only current weather is provided.
+| Low
+
+| TD-04
+| `RagMemoryRepository.kt:148`
+| *More fields needed* in the repository to support richer semantic metadata.
+| Low
+
+| TD-05
+| `InteractionTrackerService`
+| In-memory `ArrayDeque` has bounded size; oldest interactions are silently dropped. Persistent storage would be more reliable.
+| Low
+
+| TD-06
+| Strava OAuth
+| Strava OAuth flow requires manual redirect via browser; there is no frontend-guided connect flow (only a raw OAuth URL).
+| Low
+
+| TD-07
+| CI/CD
+| *No automated tests* run in CI pipeline. Only Docker image build is validated.
+| Medium
+
+| TD-08
+| Frontend auth
+| JWT tokens stored in `localStorage` are vulnerable to XSS. Session storage or HTTP-only cookies would be more secure.
+| Medium
+
+| TD-09
+| Memory consistency
+| No transactional guarantee across MongoDB + pgvector writes in `RagMemoryRepository`. A failed pgvector write leaves the stores out of sync.
+| Medium
+
+| TD-10
+| Multi-model configuration
+| All 11 `ChatModel` beans currently share the same base URL / API key with only the model name differing. A more flexible per-agent override pattern would improve configurability.
+| Low
+|===
+
+'''
+
+== 11.3 Planned Improvements
+
+[cols="3,4", options="header"]
+|===
+| Improvement | Note
+
+| Knowledge graph for memory
+| Replace all-memories-in-context with a graph-based recall mechanism (referenced in `MemoryManagerAgent` TODO)
+
+| Multi-day weather via tool
+| Implement a `DayPlanTools` weather tool so the day planner can query forecasts for future dates
+
+| Persistent interaction log
+| Move `AiInteraction` records from in-memory `ArrayDeque` to MongoDB for durable history
+
+| Frontend-guided Strava connect
+| Add a proper OAuth connect button and flow in `PreferencesPage.vue`
+
+| Integration tests
+| Add JUnit 5 + Testcontainers tests for repository classes and at least one agent integration
+|===

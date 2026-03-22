@@ -1,0 +1,169 @@
+= 10 — Quality Requirements
+:toc: left
+:icons: font
+
+== 10.1 Quality Tree
+
+[mermaid]
+....
+graph TD
+    Q["Quality"]
+
+    Q --> R["Reliability"]
+    Q --> P["Responsiveness"]
+    Q --> S["Security / Privacy"]
+    Q --> M["Maintainability"]
+    Q --> O["Observability"]
+
+    R --> R1["External API failure isolation"]
+    R --> R2["Scheduler self-recovery"]
+
+    P --> P1["Non-blocking Matrix listener"]
+    P --> P2["Async memory updates"]
+
+    S --> S1["Authentication on all endpoints"]
+    S --> S2["Self-hosted data control"]
+    S --> S3["Secret management via env vars"]
+
+    M --> M1["Agent extensibility"]
+    M --> M2["Externalised prompts"]
+    M --> M3["Consistent patterns"]
+
+    O --> O1["Interaction tracking"]
+    O --> O2["Scheduler run logging"]
+....
+
+'''
+
+== 10.2 Quality Scenarios
+
+=== Reliability
+
+[cols="1,2,3,3,3", options="header"]
+|===
+| ID | Scenario | Stimulus | Response | Measure
+
+| R-01
+| Strava API unavailable
+| `StravaActivityService` throws exception
+| `ResourceProviderService` catches error, omits Strava context from agent prompt, logs warning
+| Zero uncaught exceptions; agent receives "Strava data unavailable" notice
+
+| R-02
+| Garmin MCP server unreachable
+| SSE connection failure
+| `GarminConnectDataFetcherService.runCatching` returns failure; cache returns empty; agent informed
+| No crash; agent response constructed without health data
+
+| R-03
+| LLM API unavailable during scheduler run
+| `SchedulerAgent` call fails
+| `ScheduleExecutorService` persists failed `SchedulerRun`; scheduler stops re-scheduling until next `DayPlanUpdatedEvent`
+| `SchedulerRun.status = FAILURE` recorded; operator visible in dashboard
+
+| R-04
+| MongoDB temporarily down
+| Spring Data throws exception
+| Service-level catch; Matrix bot replies with error message
+| No silent failure; user acknowledged
+|===
+
+=== Responsiveness
+
+[cols="1,2,3,3,3", options="header"]
+|===
+| ID | Scenario | Stimulus | Response | Measure
+
+| P-01
+| User sends a Matrix message
+| Message received by Trixnity sync loop
+| Response dispatched asynchronously; Matrix listener not blocked
+| Response sent within LLM latency; listener continues to receive messages
+
+| P-02
+| Memory update after interaction
+| Agent finishes responding
+| `MemoryManagerExecutorService` runs asynchronously
+| User receives response before memory update completes
+
+| P-03
+| Garmin snapshot requested
+| `ResourceProviderService` assembles context
+| Caffeine cache returns cached result if TTL valid
+| No MCP SSE round-trip when cache is warm
+|===
+
+=== Security
+
+[cols="1,2,3,3,3", options="header"]
+|===
+| ID | Scenario | Stimulus | Response | Measure
+
+| S-01
+| Unauthenticated API access
+| HTTP request to `/api/memories` without token
+| Spring Security returns HTTP 401
+| No data exposed
+
+| S-02
+| Invalid webhook credentials
+| POST to `/api/webhook/geofence-event` with wrong Basic credentials
+| HTTP 401; no event processed
+| Geofence events only accepted from configured HA instance
+
+| S-03
+| JWT from unknown issuer
+| HTTP request with JWT from a non-Keycloak issuer
+| Spring Security returns HTTP 401
+| Backend validates JWT signature against configured issuer URI
+
+| S-04
+| Strava token exposed
+| Token refresh required
+| Token stored only in MongoDB (never logged, never returned to frontend raw)
+| No token in logs or API responses
+|===
+
+=== Maintainability
+
+[cols="1,2,3,3,3", options="header"]
+|===
+| ID | Scenario | Stimulus | Response | Measure
+
+| M-01
+| Add a new specialist agent
+| Developer adds new agent
+| Create: interface in `agent/`, service in `service/`, tool in `tool/`, prompt in `resources/prompt/`, bean in `ChatModelConfiguration`, update `RequestRouterAgent` prompt
+| Max 6 files changed; no modifications to existing agents
+
+| M-02
+| Tune agent behaviour
+| Developer edits system prompt
+| Edit `.txt` file in `resources/prompt/`; restart
+| No Kotlin recompilation required for prompt changes
+
+| M-03
+| Switch LLM provider
+| Operator changes configuration
+| Update `langchain4j.open-ai.*` properties; restart
+| Zero code changes needed
+|===
+
+=== Observability
+
+[cols="1,2,3,3,3", options="header"]
+|===
+| ID | Scenario | Stimulus | Response | Measure
+
+| O-01
+| Unexpected agent behaviour
+| Operator investigates via dashboard
+| `GET /api/interactions` lists all LLM calls with full message chains and tool calls
+| Full inspection of every agent decision
+
+| O-02
+| Proactive message not sent
+| Operator checks scheduler
+| `GET /api/scheduler-runs/recent` shows run history with status, topic, reason, duration
+| Clear audit trail of all scheduled runs
+|===

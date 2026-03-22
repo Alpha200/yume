@@ -1,0 +1,224 @@
+= 08 — Crosscutting Concepts
+:toc: left
+:icons: font
+
+== 8.1 AI Agent Pattern
+
+All AI agents follow a consistent pattern using langchain4j `@AiService`:
+
+[source,kotlin]
+----
+// Agent interface (langchain4j generates the implementation)
+@AiService
+interface GenericChatAgent {
+    @SystemMessage(fromResource = "prompt/chat-interaction-system-message.txt")
+    @UserMessage("{{userInput}}")
+    fun chat(
+        @MemoryId memoryId: String,
+        userInput: String,
+        memories: String,
+        resources: String
+    ): BasicUserInteractionAgentResult
+}
+----
+
+*Conventions*:
+
+* Each agent has exactly *one named `ChatModel` bean* (configured in `ChatModelConfiguration`)
+* System messages are *externalised* to `resources/prompt/*.txt` files
+* Return types are *structured data classes* (not raw strings) wherever structured output is needed
+* Tool-capable agents receive their `@Tool` beans via langchain4j's `AiServices.builder().tools(...)` call
+* Each chat model bean is wrapped with `InteractionTrackerService` as a `ChatModelListener`
+
+'''
+
+== 8.2 Memory Management
+
+Yume uses a *dual-store memory architecture*:
+
+[mermaid]
+....
+graph TD
+    subgraph Write["Write Path"]
+        MT["MemoryManagerTools\n(tool call from LLM)"] --> MMS["MemoryManagerService"]
+        MMS --> Mongo[("MongoDB\nsource of truth")]
+        MMS --> PG[("pgvector\nembedding store")]
+    end
+
+    subgraph ReadSemantic["Read Path — Semantic"]
+        Q1["RagMemoryRepository.search(query)"] --> PGS["PgVectorEmbeddingStore\ntop-k similarity search"]
+        PGS --> Results1["relevant MemoryEntry objects"]
+    end
+
+    subgraph ReadStructured["Read Path — Structured"]
+        Q2["MongoMemoryRepository.findByType(type)"] --> Results2["all MemoryEntry of given type"]
+    end
+....
+
+*Memory types* (`MemoryType` enum):
+
+* `PREFERENCE` — User preferences (food, habits, settings)
+* `OBSERVATION` — Factual observations about the user's life
+* `REMINDER` — One-time, recurring, or location-triggered reminders
+
+`MemorySummarizerService` maintains an in-memory cache of per-type narrative summaries, refreshed asynchronously after every memory change.
+
+'''
+
+== 8.3 Security
+
+=== Authentication Layers
+
+Two Spring Security filter chains operate in parallel:
+
+[cols="1,2,2,2", options="header"]
+|===
+| Chain | Path Pattern | Auth Method | Used By
+
+| Chain 1 (order 1)
+| `/webhook/**`, `/e-ink-display/**`
+| HTTP Basic
+| Home Assistant, e-ink device
+
+| Chain 2 (order 2)
+| `/**` (rest)
+| JWT Bearer (OAuth2 Resource Server)
+| Vue.js SPA, all other API clients
+|===
+
+=== JWT / OIDC
+
+* Keycloak acts as the OIDC provider
+* `JwtAuthConverter` maps Keycloak `realm_access.roles` to Spring `GrantedAuthority`
+* The SPA performs OIDC *PKCE flow* (no client secret stored in browser), fetching config from `GET /api/auth/config`
+* Tokens stored in `localStorage`; auto-refresh 5 minutes before expiry
+
+=== Strava OAuth2
+
+* Full OAuth2 PKCE exchange implemented in `StravaAuthService`
+* Tokens stored in MongoDB (`strava_credentials` collection)
+* Automatic token refresh before expiry
+
+=== Secrets Management
+
+* All secrets (API keys, passwords) are injected via environment variables
+* No secrets are hard-coded or committed to source control
+
+'''
+
+== 8.4 Asynchronous Processing
+
+Spring's `@EnableAsync` and `@EnableScheduling` are used throughout:
+
+[cols="2,4", options="header"]
+|===
+| Mechanism | Usage
+
+| `@Async`
+| `MemoryManagerExecutorService` — memory updates happen in background without blocking chat responses
+
+| `@Scheduled(cron)`
+| `DayPlanExecutorService` at 2:05 AM, `MemoryManagerExecutorService` janitor
+
+| `ThreadPoolTaskScheduler`
+| `SchedulerService` — dynamically schedules AI-determined future runs
+
+| Spring `ApplicationEvent`
+| Decouples Matrix listener → router → scheduler; events: `UserMessageEvent`, `UserReactionEvent`, `DayPlanUpdatedEvent`, `SchedulerExecutedEvent`
+
+| `ReentrantLock`
+| Guards concurrent access in memory and scheduler services
+|===
+
+'''
+
+== 8.5 Caching
+
+*Caffeine* is used for two caches:
+
+[cols="2,2,2,3", options="header"]
+|===
+| Cache Name | Source | TTL / Strategy | Reason
+
+| `UserLocation`
+| Home Assistant `person` entity
+| TTL-based
+| Location API calls are rate-sensitive; user location changes infrequently
+
+| `garmin_snapshot`
+| Garmin MCP Server
+| TTL-based
+| MCP SSE connection setup is expensive; Garmin data refreshes daily
+|===
+
+'''
+
+== 8.6 Interaction Tracking / Observability
+
+`InteractionTrackerService` implements langchain4j's `ChatModelListener` interface:
+
+* Registered as a listener on *every* `ChatModel` bean
+* Captures: agent name, all input messages (system, user, tool results), all output messages (assistant, tool calls), token usage
+* Stores interactions in an in-memory `ArrayDeque` (bounded size)
+* Exposed via `GET /api/interactions` as `AiInteraction` objects
+* Enables full post-hoc inspection of every LLM call from the web dashboard
+
+'''
+
+== 8.7 Error Handling
+
+[cols="2,4", options="header"]
+|===
+| Pattern | Usage
+
+| `runCatching { }`
+| Wraps all external API calls and tool calls; returns `Result<T>` without explicit try-catch
+
+| Result combinators
+| `onSuccess`, `onFailure`, `fold`, `getOrNull` used for branching without exceptions
+
+| RestClient exceptions
+| Spring `RestClient` throws for non-2xx responses; caught by `runCatching` at call sites
+
+| Graceful degradation
+| If a resource provider fails to fetch data, the resource is omitted from agent context; the agent is informed that data is unavailable
+
+| Scheduler resilience
+| `SchedulerRun` documents record `status` (SUCCESS / FAILURE) and failure reason; failed runs are queryable
+|===
+
+'''
+
+== 8.8 Prompt Engineering
+
+All prompt templates follow these conventions:
+
+* *Stored as files* in `src/main/resources/prompt/` — not embedded in code
+* *Referenced by name* via langchain4j `@SystemMessage(fromResource = "prompt/...")` or loaded manually with `PromptUtils`
+* Each agent has separate prompts for each *trigger mode* (user message, geofence, scheduler)
+* A `default-preferences-prefix.txt` is optionally prepended to inject user preference context
+* Prompts use `\{{variable}}` placeholder syntax for dynamic injection via Mustache
+
+'''
+
+== 8.9 Data Converters
+
+MongoDB type converters (`converter/` package) handle serialisation of custom types (e.g., sealed class hierarchies for `MemoryEntry`, enum types) that Spring Data MongoDB cannot handle automatically.
+
+'''
+
+== 8.10 HTTP Clients
+
+All external REST API clients use *Spring's declarative HTTP interface* style:
+
+[source,kotlin]
+----
+interface WeatherClient {
+    @GetExchange("/data/3.0/onecall")
+    fun getWeather(@RequestParam lat: Double, @RequestParam lon: Double): WeatherResponse
+}
+----
+
+* Registered as Spring beans via `WebClient`-backed `HttpServiceProxyFactory`
+* Base URLs configured via `@ConfigurationProperties` classes in `configuration/client/`
+* Request logging via `ClientLoggerRequestInterceptor`

@@ -1,0 +1,159 @@
+= 09 — Architecture Decisions
+:toc: left
+:icons: font
+
+== ADR-001: One Named ChatModel Bean Per Agent
+
+*Status*: Accepted +
+*Date*: 2025 (project inception)
+
+=== Context
+langchain4j allows a single shared `ChatModel` bean to be used by all agents. However, all agents would share the same model configuration and the same `ChatModelListener` invocations.
+
+=== Decision
+Each agent receives its *own named `ChatModel` bean*, configured individually in `ChatModelConfiguration`. All 11 agents (RequestRouter, Generic, EFA, KitchenOwl, DayPlan, Scheduler, MemoryManager, MemorySummarizer, ConversationSummarizer, Sports, EInk) have isolated beans.
+
+=== Consequences
+
+* {plus} Individual model configuration per agent (different model, temperature, timeout)
+* {plus} Per-agent interaction tracking in `InteractionTrackerService` (knows which agent made the call)
+* {plus} Easy to swap a single agent to a different model without affecting others
+* {minus} More verbose configuration class; 11 bean declarations
+
+'''
+
+== ADR-002: Dual Memory Store (MongoDB + pgvector)
+
+*Status*: Accepted
+
+=== Context
+Memory must support two access patterns: (1) retrieve all memories of a type for context injection, and (2) retrieve semantically relevant memories for a given query.
+
+=== Decision
+
+* *MongoDB* is the *source of truth* for all memory documents
+* *pgvector* (PostgreSQL) stores the embedding vectors for semantic search
+* Writes go to both stores synchronously via `RagMemoryRepository`
+
+=== Consequences
+
+* {plus} Semantic recall without a dedicated vector database
+* {plus} Full CRUD operations on MongoDB; structured queries by type/date
+* {plus} pgvector is reliable, ACID-compliant, and already needed for PostgreSQL
+* {minus} Two databases to maintain and keep consistent
+* {minus} Delete/update operations must touch both stores
+
+'''
+
+== ADR-003: AI-Driven Self-Scheduling
+
+*Status*: Accepted
+
+=== Context
+Proactive messages should be sent at contextually relevant times (e.g., 30 minutes before a departure, morning summary after day plan is ready), not a fixed schedule.
+
+=== Decision
+The `SchedulerAgent` (an LLM) decides when the next proactive run should happen and what topic it should cover. After each execution, `SchedulerService` calls `SchedulerAgent` to schedule the next run. The result is a structured object with a `nextRun` timestamp and `topic` string.
+
+=== Consequences
+
+* {plus} Context-aware timing that adapts to calendar, transport, and weather
+* {plus} No hardcoded cron patterns for proactive messages
+* {minus} Occasional LLM hallucination in timestamp output (mitigated by structured output)
+* {minus} If the LLM is unavailable, the scheduler stops re-scheduling (system becomes reactive-only)
+
+'''
+
+== ADR-004: Matrix as Chat Interface
+
+*Status*: Accepted
+
+=== Context
+A self-hosted, privacy-respecting chat protocol was required. Alternatives considered: Telegram, Signal, WhatsApp.
+
+=== Decision
+Use *Matrix* (Synapse homeserver) via the *Trixnity* library. The bot subscribes to a single room.
+
+=== Consequences
+
+* {plus} Fully self-hosted; no dependency on commercially operated messaging platforms
+* {plus} End-to-end encryption available at the protocol level
+* {plus} Reactions (`UserReactionEvent`) natively supported
+* {minus} Matrix server must be self-hosted or rented
+* {minus} Trixnity adds complexity; Matrix sync loop requires persistent connection management
+
+'''
+
+== ADR-005: MCP for Garmin Connect Integration
+
+*Status*: Accepted
+
+=== Context
+Garmin Connect has no official public REST API for third-party apps. A reverse-engineered Python library exists separately.
+
+=== Decision
+Integrate via an *external MCP (Model Context Protocol) server* that wraps the Python library. Yume connects to it via HTTP/SSE using the *MCP Kotlin SDK*. The Garmin data is fetched by calling the `snapshot` MCP tool.
+
+=== Consequences
+
+* {plus} Clean separation: Garmin scraping logic is outside Yume's codebase
+* {plus} MCP is a standardised AI tool protocol; reusable for other MCP-compatible tools
+* {minus} Additional external dependency (the MCP server must be running separately)
+* {minus} Tight coupling to MCP server availability; Caffeine cache mitigates repeated failures
+
+'''
+
+== ADR-006: Spring Events for Input Decoupling
+
+*Status*: Accepted
+
+=== Context
+Multiple input sources (Matrix, webhooks, scheduler) all need to go through the same routing logic. Direct coupling would make the router aware of all input sources.
+
+=== Decision
+Input handlers publish *Spring `ApplicationEvent`* instances (`UserMessageEvent`, `UserReactionEvent`). `RequestRouterService` is an `@EventListener`. The scheduler calls router methods directly (since it controls the invocation).
+
+=== Consequences
+
+* {plus} `MatrixClientService` and `WebHookController` are decoupled from routing
+* {plus} Easy to add a new input source by publishing the same events
+* {minus} `@EventListener` is synchronous by default in Spring; async dispatch requires `@Async` annotation or `SimpleAsyncTaskExecutor` configuration
+
+'''
+
+== ADR-007: Prompt Templates as Resource Files
+
+*Status*: Accepted
+
+=== Context
+System prompts are large, complex texts that require iteration. Embedding them as Kotlin string constants makes them hard to edit, diff, and review.
+
+=== Decision
+All 24+ prompt templates are stored as `.txt` files in `src/main/resources/prompt/`. Agents reference them via `@SystemMessage(fromResource = "prompt/...")`.
+
+=== Consequences
+
+* {plus} Prompts are version-controlled as plain text; diffs are readable
+* {plus} No recompilation needed for prompt-only changes when running via `bootRun`
+* {plus} Clear separation of AI behaviour specification from code
+* {minus} File name must match the classpath resource exactly; typos cause `IllegalArgumentException` at startup
+
+'''
+
+== ADR-008: OIDC PKCE for Dashboard Authentication
+
+*Status*: Accepted
+
+=== Context
+The Vue.js SPA needs to authenticate against the backend API. Options: shared secret, session cookies, OAuth2 implicit flow (deprecated), PKCE.
+
+=== Decision
+Implement *PKCE (Proof Key for Code Exchange)* flow in `api.js`. The SPA fetches OIDC configuration from `GET /api/auth/config`, redirects to Keycloak, exchanges the auth code for tokens, and stores them in `localStorage`.
+
+=== Consequences
+
+* {plus} Secure OAuth2 flow without client secret in the browser
+* {plus} Self-hostable with Keycloak
+* {plus} Tokens auto-refresh 5 minutes before expiry
+* {minus} Keycloak instance must be running and accessible
+* {minus} `localStorage` token storage has XSS risk (mitigated by CSP)

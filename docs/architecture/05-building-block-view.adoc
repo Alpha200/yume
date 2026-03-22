@@ -1,0 +1,279 @@
+= 05 — Building Block View
+:toc: left
+:icons: font
+
+== 5.1 Level 1 — Overall System
+
+[mermaid]
+....
+graph TD
+    SPA["Vue.js Frontend\n(SPA at /ui)"] <-->|HTTP| Backend["Spring Boot Backend\n(context path /api)"]
+    Backend --> MongoDB[("MongoDB\ndocuments")]
+    Backend --> PG[("PostgreSQL + pgvector\nembeddings")]
+....
+
+'''
+
+== 5.2 Level 2 — Backend Package Structure
+
+----
+eu.sendzik.yume/
+├── agent/              AI agent interfaces (@AiService)
+│   └── model/          Agent result data classes + enums
+├── client/             Spring HTTP interface clients (external REST APIs)
+│   └── model/          Client request/response models
+├── component/          Cross-cutting Spring @Component beans
+├── configuration/      Spring @Configuration + @ConfigurationProperties
+│   └── client/         Client-specific configurations
+├── controller/         REST controllers
+│   └── dto/            Response DTOs
+├── converter/          MongoDB type converters
+├── repository/         Data access layer (Spring Data MongoDB + pgvector)
+│   ├── conversation/
+│   ├── dayplanner/
+│   ├── location/
+│   ├── memory/
+│   ├── scheduler/
+│   └── strava/
+├── service/            Business logic services
+│   ├── calendar/
+│   ├── conversation/
+│   ├── dayplan/
+│   ├── efa/
+│   ├── eink/
+│   ├── garminconnect/
+│   ├── interaction/
+│   ├── kitchenowl/
+│   ├── location/
+│   ├── matrix/
+│   ├── memory/
+│   ├── provider/
+│   ├── router/
+│   ├── scheduler/
+│   ├── strava/
+│   └── weather/
+├── tool/               langchain4j @Tool implementations
+│   └── model/          Tool input parameter models
+└── utils/              Utilities (PromptUtils)
+----
+
+'''
+
+== 5.3 Level 2 — Agent Subsystem
+
+Each agent is a langchain4j `@AiService` interface. `ChatModelConfiguration` wires them all.
+
+[mermaid]
+....
+graph TD
+    Config["ChatModelConfiguration\n11 named ChatModel beans\n+ InteractionTrackerService listener"]
+
+    Config --> Router["RequestRouterAgent\n(routerChatModel)"]
+    Config --> Generic["GenericChatAgent\n(genericChatModel)"]
+    Config --> EFA["EfaAgent\n(efaChatModel)"]
+    Config --> KO["KitchenOwlAgent\n(kitchenOwlChatModel)"]
+    Config --> Sports["SportsActivityAgent\n(sportsChatModel)"]
+    Config --> DayPlan["DayPlanAgent\n(dayPlanChatModel)"]
+    Config --> Memory["MemoryManagerAgent\n(memoryManagerChatModel)"]
+    Config --> Sched["SchedulerAgent\n(schedulerChatModel)"]
+    Config --> MemSum["MemorySummarizerAgent"]
+    Config --> ConvSum["ConversationSummarizerAgent"]
+    Config --> EInk["EInkDisplayAgent"]
+
+    EfaTools["EfaTools\n(departures, journeys, lines)"] --> EFA
+    KOTools["KitchenOwlTools\nKitchenOwlReadTools\n(shopping list, recipes)"] --> KO
+    StravaTools["StravaActivityTools\n(getRecentActivities)"] --> Sports
+    DayPlanTools["DayPlanTools\n(getDayPlan, updateDayPlan)"] --> DayPlan
+    MemTools["MemoryManagerTools\n(upsert/delete memories)"] --> Memory
+....
+
+'''
+
+== 5.4 Level 2 — Service Subsystem
+
+=== Orchestration Services
+
+[cols="2,4", options="header"]
+|===
+| Service | Responsibility
+
+| `RequestRouterService`
+| Central dispatcher. Listens for `UserMessageEvent`, `UserReactionEvent`. Runs summariser, loads memories, invokes `RequestRouterAgent`, dispatches to specialist. Also handles geofence events and scheduler-triggered runs.
+
+| `ResourceProviderService`
+| Aggregates context strings from all data sources (weather, day plan, calendar, location, memories, health, Strava, scheduler logs). Called by the router before specialist invocation.
+
+| `SchedulerService`
+| Manages a `ThreadPoolTaskScheduler`. Listens for `DayPlanUpdatedEvent` and `SchedulerExecutedEvent` to re-schedule.
+
+| `ScheduleExecutorService`
+| Executes a single scheduled run: calls router, persists log, publishes `SchedulerExecutedEvent`.
+|===
+
+=== Memory Services
+
+[cols="2,4", options="header"]
+|===
+| Service | Responsibility
+
+| `MemoryManagerService`
+| CRUD for `MemoryEntry` subtypes in MongoDB + pgvector.
+
+| `MemoryManagerExecutorService`
+| Async wrapper for `MemoryManagerAgent`; triggers re-summarisation; contains scheduled janitor.
+
+| `MemorySummarizerService`
+| Maintains per-`MemoryType` summaries as in-memory cache; rebuilt on startup and after memory changes.
+|===
+
+=== Matrix Service
+
+[cols="2,4", options="header"]
+|===
+| Service | Responsibility
+
+| `MatrixClientService`
+| Trixnity-based Matrix bot. Subscribes to room messages and reactions on startup. Publishes Spring events. Sends replies.
+|===
+
+=== Day Plan Services
+
+[cols="2,4", options="header"]
+|===
+| Service | Responsibility
+
+| `DayPlanService`
+| CRUD for `DayPlan` MongoDB documents.
+
+| `DayPlanExecutorService`
+| Scheduled (2:05 AM cron) + ad-hoc day plan generation using `DayPlanAgent`.
+|===
+
+=== External Integration Services
+
+[cols="2,3", options="header"]
+|===
+| Service | External System
+
+| `CalendarService` | CalDAV / Nextcloud (caldav4j)
+| `WeatherService` | OpenWeatherMap One Call API
+| `EfaService` | EFA German public transit XML API
+| `KitchenOwlService` | KitchenOwl REST API
+| `StravaActivityService` | Strava REST API
+| `StravaAuthService` | Strava OAuth2
+| `StravaWebhookService` | Strava Webhook subscription management
+| `GarminConnectService` | Garmin Connect (via MCP server)
+| `GarminConnectDataFetcherService` | MCP over SSE using MCP Kotlin SDK
+|===
+
+=== Location Services
+
+[cols="2,4", options="header"]
+|===
+| Service | Responsibility
+
+| `LocationRetrieverService`
+| Reads current user location from Home Assistant `person` entity. Cached.
+
+| `LocationService`
+| Formats location as geofence name + place name + distance to home.
+
+| `ReverseGeocodingService`
+| Nominatim API calls.
+
+| `GeofenceEventLogService`
+| Records geofence ENTER/LEAVE events.
+|===
+
+=== Conversation Services
+
+[cols="2,4", options="header"]
+|===
+| Service | Responsibility
+
+| `ConversationHistoryManagerService`
+| Persists and retrieves recent Matrix conversation history from MongoDB.
+
+| `InteractionTrackerService`
+| Implements `ChatModelListener`; records all LLM requests/responses in an in-memory `ArrayDeque`.
+|===
+
+'''
+
+== 5.5 Level 2 — Frontend Subsystem
+
+----
+ui/src/
+├── main.js              Application entry point
+├── App.vue              Root component (layout, router-view)
+├── router.js            Vue Router configuration
+├── style.css            Global Tailwind CSS imports
+├── pages/               Top-level page components
+│   ├── MemoriesPage.vue       — Memory browser
+│   ├── InteractionsPage.vue   — AI interaction log
+│   ├── SchedulerLogsPage.vue  — Scheduler run history
+│   ├── DayPlannerPage.vue     — Daily plan timeline
+│   └── PreferencesPage.vue    — Settings & Strava connect
+├── components/          Reusable UI components
+│   ├── Section.vue             Generic list panel
+│   ├── MemoryItem.vue          Single memory entry
+│   ├── InteractionItem.vue     Single AI interaction row
+│   ├── InteractionDetailModal.vue Full message chain modal
+│   ├── SchedulerRunsPanel.vue  Scheduler panel with tabs
+│   ├── SchedulerRunItem.vue    Single scheduler run row
+│   ├── DayPlanner.vue          Day plan wrapper
+│   ├── DayPlannerItem.vue      Single activity entry
+│   ├── PreferencesPane.vue     Strava OAuth controls
+│   ├── ActionItem.vue          Generic action row
+│   ├── TaskItem.vue            Task list item
+│   └── RefreshButton.vue       Reusable refresh button
+├── services/
+│   └── api.js           Axios client + OIDC PKCE auth flow
+└── utils/
+    └── formatters.js    Date/time formatting helpers
+----
+
+'''
+
+== 5.6 Level 2 — Data Model
+
+=== MongoDB Collections
+
+[cols="2,2,4", options="header"]
+|===
+| Collection | Document Type | Key Fields
+
+| `memories`
+| `MemoryDocument` (sealed: `UserPreferenceEntry`, `UserObservationEntry`, `ReminderEntry`)
+| `id`, `content`, `type`, `place`, `createdAt`, `modifiedAt`, type-specific fields
+
+| `day_plans`
+| `DayPlan`
+| `id`, `date`, `items` (list of `DayPlanItem`), `summary`, `calendarEventHashes`
+
+| `scheduler_runs`
+| `SchedulerRun`
+| `scheduledTime`, `actualExecutionTime`, `topic`, `reason`, `status`, `aiResponse`, `executionDurationMs`
+
+| `conversation_history`
+| `ConversationHistoryEntry`
+| `content`, `type` (USER/ASSISTANT), `timestamp`, `eventId`
+
+| `geofence_event_log`
+| `GeofenceEventLog`
+| `geofenceName`, `eventType` (ENTER/LEAVE), `timestamp`
+
+| `strava_credentials`
+| `StravaCredentials`
+| `accessToken`, `refreshToken`, `expiresAt`
+|===
+
+=== PostgreSQL Tables
+
+[cols="2,4", options="header"]
+|===
+| Table | Purpose
+
+| `yume_embeddings`
+| pgvector embeddings for memory entries; used for semantic search by `PgVectorEmbeddingStore`
+|===

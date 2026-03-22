@@ -1,0 +1,74 @@
+name: Publish Docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Asciidoctor and Kroki extension
+        run: gem install asciidoctor asciidoctor-kroki
+
+      - name: Convert AsciiDoc to HTML
+        run: |
+          mkdir -p _site
+          find docs -name "*.adoc" | while IFS= read -r file; do
+            rel="${file#docs/}"
+            outdir="_site/$(dirname "$rel")"
+            mkdir -p "$outdir"
+            asciidoctor \
+              -r asciidoctor-kroki \
+              -a kroki-server-url=https://kroki.io \
+              -a toc=left \
+              -a icons=font \
+              -D "$outdir" \
+              "$file"
+          done
+
+      - name: Copy non-AsciiDoc static files
+        run: |
+          find docs -type f ! -name "*.adoc" | while IFS= read -r file; do
+            rel="${file#docs/}"
+            outdir="_site/$(dirname "$rel")"
+            mkdir -p "$outdir"
+            cp "$file" "$outdir/"
+          done
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site/
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,139 @@
+= 07 — Deployment View
+:toc: left
+:icons: font
+
+== 7.1 Infrastructure Overview
+
+Yume is a *self-hosted* application. All infrastructure must be provided by the operator.
+
+[mermaid]
+....
+graph TD
+    subgraph Host["Host Machine / Server"]
+        subgraph Container["Docker Container: yume"]
+            Nginx["Nginx\nport 8079\n— serves /ui SPA\n— proxies /api"]
+            Spring["Spring Boot JVM\nport 8080\nJava 21 (Eclipse Temurin)"]
+            Nginx -->|"proxy /api"| Spring
+        end
+        MongoDB[("MongoDB 8.2\nDocker Compose\nport 27017")]
+        PG[("PostgreSQL 18 + pgvector\nDocker Compose\nport 5432")]
+        Garmin["Garmin MCP Server\nHTTP/SSE (separate process)"]
+        Spring --- MongoDB
+        Spring --- PG
+        Spring --- Garmin
+    end
+
+    Internet["External Services\nMatrix Homeserver · Keycloak\nLLM API · Home Assistant\nOpenWeatherMap · Strava\nNominatim · EFA · KitchenOwl · CalDAV"]
+    Spring -->|HTTPS| Internet
+....
+
+'''
+
+== 7.2 Docker Image Build Process
+
+The image is built using a *multi-stage Dockerfile*:
+
+[mermaid]
+....
+graph LR
+    S1["Stage 1: node:24\nbuilds ui/ → dist/"]
+    S2["Stage 2: gradle:8.5-jdk21\nbuilds yume-spring/ → yume-0.0.1-SNAPSHOT.jar"]
+    S3["Stage 3: eclipse-temurin:21-jre\n+ nginx + tini\nCopies dist/ and jar"]
+
+    S1 --> S3
+    S2 --> S3
+....
+
+Published to `ghcr.io/<github-repo>` via GitHub Actions on every push to `main`.
+
+'''
+
+== 7.3 Docker Compose (Dependencies Only)
+
+`docker-compose.yml` provides the database dependencies only — the main application is run separately:
+
+[source,yaml]
+----
+services:
+  mongodb:
+    image: mongo:8.2
+    ports: ["27017:27017"]
+
+  postgres:
+    image: pgvector/pgvector:pg18
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_DB: yume
+      POSTGRES_USER: yume
+      POSTGRES_PASSWORD: <configured>
+----
+
+'''
+
+== 7.4 Nginx Configuration
+
+Nginx in the container:
+
+* Listens on port *8079* (external)
+* Serves `/` → Vue.js SPA from `/usr/share/nginx/html/` (HTML5 history mode)
+* Proxies `/api` → `http://localhost:8080` (Spring Boot)
+* Compression enabled for text and JSON responses
+
+'''
+
+== 7.5 Application Port Mapping
+
+[cols="2,1,1,2", options="header"]
+|===
+| Component | Internal Port | External Port | Protocol
+
+| Nginx | 8079 | 8079 | HTTP/HTTPS (behind reverse proxy)
+| Spring Boot | 8080 | — | HTTP (internal only)
+| MongoDB | 27017 | 27017 | MongoDB wire protocol
+| PostgreSQL | 5432 | 5432 | PostgreSQL wire protocol
+| Garmin MCP Server | (configured) | — | HTTP/SSE (internal)
+|===
+
+'''
+
+== 7.6 Configuration Injection
+
+All runtime configuration is injected via *environment variables* (Spring Boot convention: property keys with dots → underscores, uppercase).
+
+Key required environment variables:
+
+[cols="3,3", options="header"]
+|===
+| Variable | Purpose
+
+| `LANGCHAIN4J_OPEN_AI_CHAT_MODEL_API_KEY` | LLM API key
+| `LANGCHAIN4J_OPEN_AI_CHAT_MODEL_BASE_URL` | LLM base URL
+| `SPRING_DATA_MONGODB_HOST` | MongoDB host
+| `SPRING_DATA_MONGODB_PORT` | MongoDB port
+| `SPRING_DATASOURCE_VECTOR_URL` | pgvector JDBC URL
+| `YUME_MATRIX_HOMESERVER_URL` | Matrix homeserver
+| `YUME_MATRIX_BOT_ROOM_ID` | Matrix room ID
+| `YUME_MATRIX_BOT_USER_ID` | Matrix bot user
+| `YUME_MATRIX_BOT_PASSWORD` | Matrix bot password
+| `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI` | Keycloak issuer
+| `YUME_WEBHOOK_USERNAME` / `YUME_WEBHOOK_PASSWORD` | Webhook HTTP Basic credentials
+|===
+
+'''
+
+== 7.7 CI/CD Pipeline
+
+GitHub Actions (`.github/workflows/`):
+
+[cols="2,3,4", options="header"]
+|===
+| Workflow | Trigger | Action
+
+| `docker-build.yml`
+| Push / PR to `main`
+| Build Docker image → push to `ghcr.io`; platform `linux/amd64`; no automated tests
+
+| `publish-docs.yml`
+| Push to `main` (changes in `docs/**`)
+| Convert AsciiDoc to HTML with Asciidoctor + Kroki → deploy to GitHub Pages
+|===

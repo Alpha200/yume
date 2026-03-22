@@ -1,0 +1,76 @@
+= 01 — Introduction and Goals
+:toc: left
+:icons: font
+
+== 1.1 Requirements Overview
+
+Yume is a *personal AI assistant* designed to reduce the cognitive overhead of managing daily life by aggregating information from multiple sources and providing a single, conversational interface.
+
+=== Core Functional Requirements
+
+[cols="1,4", options="header"]
+|===
+| # | Requirement
+
+| FR-01 | Accept and respond to user messages via a *Matrix chat room*
+| FR-02 | Route user requests to specialist AI agents (transport, shopping, sports, generic)
+| FR-03 | Proactively send messages via a *self-scheduling mechanism* driven by the AI
+| FR-04 | React to *Home Assistant geofence events* (arriving home, leaving home)
+| FR-05 | Maintain a *persistent, typed memory* (preferences, observations, reminders) with semantic search
+| FR-06 | Create and update a *daily activity plan* automatically each morning
+| FR-07 | Provide *public transport journey planning* using German EFA APIs
+| FR-08 | Manage a *shopping list* through KitchenOwl
+| FR-09 | Summarise *Strava sports activities* and respond to new activity webhooks
+| FR-10 | Present a *Garmin Connect health snapshot* (sleep, HRV, steps, training load)
+| FR-11 | Fetch *calendar events* from a CalDAV/Nextcloud server
+| FR-12 | Incorporate *weather forecasts* (current + multi-day)
+| FR-13 | Generate concise content for an *e-ink display* device
+| FR-14 | Expose a *web dashboard* (Vue.js SPA) for monitoring memories, interactions, scheduler logs, and day plans
+|===
+
+'''
+
+== 1.2 Quality Goals
+
+The following quality attributes are most important for this system, listed in priority order:
+
+[cols="1,2,4", options="header"]
+|===
+| Priority | Quality Attribute | Scenario
+
+| 1 | *Reliability*
+| If an external API (e.g., Strava, Garmin) is unavailable, the system degrades gracefully and responds without that context
+
+| 2 | *Responsiveness*
+| Chat responses are delivered within a few seconds; non-blocking async processing prevents blockage of the Matrix listener
+
+| 3 | *Privacy / Security*
+| All user data stays under the operator's control; external APIs are accessed only with explicit credentials; the web dashboard requires authentication
+
+| 4 | *Maintainability*
+| Adding a new specialist agent or integration should require minimal changes to existing code
+
+| 5 | *Observability*
+| Every AI agent interaction is tracked and queryable via the dashboard
+|===
+
+'''
+
+== 1.3 Stakeholders
+
+[cols="2,2,4", options="header"]
+|===
+| Role | Name / Group | Expectation
+
+| *Primary User*
+| Individual (self-hosted)
+| Natural-language access to all personal data sources via Matrix chat; reliable daily planning
+
+| *Operator*
+| Same individual
+| Easy configuration via `application.properties`; Docker-based deployment; clear monitoring
+
+| *Developer*
+| Project author
+| Simple extension model for new agents/tools; clean separation of agent logic from infrastructure
+|===

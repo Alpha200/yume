@@ -1,0 +1,118 @@
+= 12 — Glossary
+:toc: left
+:icons: font
+
+== Domain Terms
+
+[cols="2,5", options="header"]
+|===
+| Term | Definition
+
+| *Yume*
+| 夢 (Japanese: "dream") — the name of this personal AI assistant application
+
+| *Memory*
+| Persistent data about the user stored in three typed categories: preferences, observations, and reminders
+
+| *Memory Janitor*
+| Scheduled process that reviews all existing memory entries and removes outdated or redundant ones
+
+| *Memory Summariser*
+| AI agent that condenses all memory entries of a given type into a brief narrative summary for efficient context injection
+
+| *Day Plan*
+| A structured schedule of activities (with start/end times, sources, and confidence levels) generated daily by the AI
+
+| *Day Plan Item*
+| A single scheduled activity within a day plan; sourced from calendar, memory, or AI inference
+
+| *Geofence Event*
+| An ENTER or LEAVE event from Home Assistant triggered when the user crosses a home/away boundary
+
+| *Proactive Scheduling*
+| AI-initiated messages sent without explicit user prompting, at times determined by the AI (e.g., departure reminders, morning summaries)
+
+| *Interaction*
+| A single end-to-end LLM call including all input messages, tool invocations, and the final response
+
+| *Scheduler Run*
+| A recorded execution of the proactive scheduler including metadata (topic, time, status, AI response, duration)
+
+| *Resource*
+| A unit of contextual data assembled by `ResourceProviderService` for injection into an agent prompt (e.g., weather forecast, today's day plan, shopping list)
+|===
+
+'''
+
+== Technical Terms
+
+[cols="2,5", options="header"]
+|===
+| Term | Definition
+
+| *AiService*
+| langchain4j annotation that generates a proxy implementation for an interface, routing method calls to an LLM
+
+| *Tool (langchain4j)*
+| A `@Component` method annotated with `@Tool` that the LLM can call during a multi-turn interaction to read or write data
+
+| *ChatModel*
+| langchain4j abstraction over an LLM endpoint; each named bean is configured independently
+
+| *ChatModelListener*
+| langchain4j interface for observing LLM requests and responses; used by `InteractionTrackerService`
+
+| *EmbeddingModel*
+| langchain4j abstraction over an embedding API (`text-embedding-3-large`); converts text to vector representations
+
+| *EmbeddingStore*
+| langchain4j abstraction over a vector store; backed by `PgVectorEmbeddingStore`
+
+| *RAG*
+| Retrieval-Augmented Generation — the pattern of retrieving relevant documents from a vector store and injecting them as context before LLM inference
+
+| *pgvector*
+| PostgreSQL extension providing vector similarity search; used for semantic memory recall
+
+| *MCP*
+| Model Context Protocol — a standardised protocol for connecting LLM systems to external tools via a JSON-RPC-over-SSE transport
+
+| *Trixnity*
+| Kotlin/JVM library implementing the Matrix Client-Server API
+
+| *EFA*
+| Elektronische Fahrplanauskunft — a German public transport information system with an XML API used by many German transit authorities
+
+| *KitchenOwl*
+| Open-source self-hosted grocery list and recipe manager
+
+| *CalDAV*
+| A calendar access protocol (extension of WebDAV) used by Nextcloud and other calendar servers
+
+| *PKCE*
+| Proof Key for Code Exchange — OAuth2 extension for public clients (SPAs) that prevents auth code interception attacks
+
+| *OIDC*
+| OpenID Connect — identity layer on top of OAuth2; used for dashboard authentication via Keycloak
+
+| *Caffeine*
+| High-performance Java in-memory caching library used for location and Garmin snapshot caches
+
+| *LiteLLM*
+| An OpenAI-compatible proxy that allows routing to various LLM backends; can be used as the LLM endpoint
+
+| *arc42*
+| A pragmatic, template-based approach to software architecture documentation (https://arc42.org)
+
+| *Virtual Threads*
+| Java 21 feature providing lightweight threads; used implicitly by Spring Boot 3.x for servlet handling
+
+| *`@ConfigurationProperties`*
+| Spring annotation for binding a prefix of `application.properties` to a typed Kotlin data class
+
+| *Spring HTTP Interface*
+| Spring 6 declarative REST client using `@GetExchange` / `@PostExchange` annotations; replaces Feign in some use cases
+
+| *`ApplicationEvent`*
+| Spring Framework's built-in event bus mechanism; used for decoupling input sources from routing logic
+|===
