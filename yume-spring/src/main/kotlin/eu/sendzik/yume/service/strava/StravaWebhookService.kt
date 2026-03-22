@@ -4,6 +4,7 @@ import eu.sendzik.yume.client.StravaClient
 import io.github.oshai.kotlinlogging.KLogger
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import org.springframework.web.client.HttpClientErrorException
 
 @Service
 class StravaWebhookService(
@@ -41,21 +42,30 @@ class StravaWebhookService(
         return runCatching {
             // First, check if there are existing subscriptions
             logger.debug { "Checking for existing Strava webhook subscriptions" }
-            val existingSubscriptions = stravaClient.viewWebhookSubscriptions(
-                clientId = clientId,
-                clientSecret = clientSecret,
-            )
+            val existingSubscriptions =
+                stravaClient.viewWebhookSubscriptions(
+                    clientId = clientId,
+                    clientSecret = clientSecret,
+                )
 
             // Delete any existing subscriptions
             existingSubscriptions.forEach { subscription ->
                 val subscriptionId = (subscription["id"] as? Number)?.toLong()
                 if (subscriptionId != null) {
                     logger.info { "Deleting existing webhook subscription with ID: $subscriptionId" }
-                    stravaClient.deleteWebhookSubscription(
-                        id = subscriptionId,
-                        clientId = clientId,
-                        clientSecret = clientSecret,
-                    )
+                    runCatching {
+                        stravaClient.deleteWebhookSubscription(
+                            id = subscriptionId,
+                            clientId = clientId,
+                            clientSecret = clientSecret,
+                        )
+                    }.onFailure { e ->
+                        if (e is HttpClientErrorException.NotFound) {
+                            logger.debug { "Webhook subscription $subscriptionId already gone (404), continuing" }
+                        } else {
+                            throw e
+                        }
+                    }
                 }
             }
 
@@ -65,7 +75,7 @@ class StravaWebhookService(
                 clientId = clientId,
                 clientSecret = clientSecret,
                 callbackUrl = webhookUrl,
-                verifyToken = webhookVerifyToken
+                verifyToken = webhookVerifyToken,
             )
             logger.info { "Strava webhook registered successfully" }
         }.onFailure { e ->
@@ -120,17 +130,22 @@ class StravaWebhookService(
         }
     }
 
-    private fun handleActivityEvent(objectId: Number?, aspect: String?, event: Map<String, Any>) {
+    private fun handleActivityEvent(
+        objectId: Number?,
+        aspect: String?,
+        event: Map<String, Any>,
+    ) {
         logger.debug { "Handling activity event: objectId=$objectId, aspect=$aspect" }
-        
+
         if (objectId == null) {
             logger.warn { "Activity event missing object_id" }
             return
         }
 
-        // Only process "created" activities (not "updated")
-        if (aspect == "created") {
-            stravaActivityService.fetchActivityIfCycling(objectId.toLong())
+        // Only process "create" activities (not "update" or "delete")
+        if (aspect == "create") {
+            stravaActivityService
+                .fetchActivityIfCycling(objectId.toLong())
                 .onSuccess { activity ->
                     if (activity != null) {
                         logger.info { "Successfully fetched cycling activity: ${activity.name}" }
@@ -138,8 +153,7 @@ class StravaWebhookService(
                         val activityDetails = stravaActivityService.formatActivityDetails(activity)
                         requestRouterService.handleSportsActivity(activityDetails)
                     }
-                }
-                .onFailure { error ->
+                }.onFailure { error ->
                     logger.error(error) { "Failed to fetch cycling activity $objectId" }
                 }
         } else {
@@ -147,7 +161,10 @@ class StravaWebhookService(
         }
     }
 
-    private fun handleAthleteEvent(aspect: String?, event: Map<String, Any>) {
+    private fun handleAthleteEvent(
+        aspect: String?,
+        event: Map<String, Any>,
+    ) {
         logger.debug { "Handling athlete event: aspect=$aspect" }
         // TODO: Implement athlete event handling
         // This could include profile updates, etc.

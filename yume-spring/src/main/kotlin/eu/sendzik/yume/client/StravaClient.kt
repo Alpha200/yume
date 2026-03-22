@@ -28,7 +28,7 @@ interface StravaClient {
         @PathVariable id: Long,
         @RequestParam("client_id") clientId: String,
         @RequestParam("client_secret") clientSecret: String,
-    ): Map<String, Any>?
+    )
 
     @PostExchange("/oauth/token")
     fun exchangeAuthorizationCode(
@@ -47,7 +47,9 @@ interface StravaClient {
     ): StravaTokenResponse
 
     @GetExchange("/activities/{id}")
-    fun getActivity(@PathVariable id: Long): StravaActivity
+    fun getActivity(
+        @PathVariable id: Long,
+    ): StravaActivity
 
     @GetExchange("/athlete/activities")
     fun getAthleteActivities(
@@ -55,4 +57,3 @@ interface StravaClient {
         @RequestParam("page") page: Int = 1,
     ): List<StravaActivity>
 }
-
