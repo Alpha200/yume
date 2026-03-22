@@ -6,8 +6,8 @@ import eu.sendzik.yume.agent.GenericChatAgent
 import eu.sendzik.yume.agent.KitchenOwlAgent
 import eu.sendzik.yume.agent.RequestRouterAgent
 import eu.sendzik.yume.agent.SportsActivityAgent
-import eu.sendzik.yume.agent.model.YumeChatResource
 import eu.sendzik.yume.agent.model.YumeAgentType
+import eu.sendzik.yume.agent.model.YumeChatResource
 import eu.sendzik.yume.repository.conversation.model.ConversationHistoryEntryType
 import eu.sendzik.yume.service.conversation.ConversationHistoryManagerService
 import eu.sendzik.yume.service.dayplan.DayPlanExecutorService
@@ -54,36 +54,49 @@ class RequestRouterService(
     @EventListener
     @Async
     fun handleMessage(userMessageEvent: UserMessageEvent) {
-        val response = runCatching {
-            val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
-            val conversationSummary =
-                conversationSummarizerAgent.summarizeConversation(conversationHistory, userMessageEvent.message)
-            val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(conversationSummary)
+        conversationHistoryManagerService.addEntry(
+            userMessageEvent.message,
+            ConversationHistoryEntryType.USER_MESSAGE,
+            userMessageEvent.timestamp,
+            userMessageEvent.eventId,
+        )
 
-            logger.debug { "Summarized conversation history into: $conversationSummary" }
+        val response =
+            runCatching {
+                val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
+                val conversationSummary =
+                    conversationSummarizerAgent.summarizeConversation(conversationHistory, userMessageEvent.message)
+                val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(conversationSummary)
 
-            val result = routerAgent.determineRequestRouting(
-                conversationSummary = conversationSummary,
-                userMessage = userMessageEvent.message,
-                currentDateTime = formatTimestampForLLM(userMessageEvent.timestamp),
-                relevantMemories = relevantMemoryEntries,
-            )
+                logger.debug { "Summarized conversation history into: $conversationSummary" }
 
-            logger.debug { "Routing decision: ${result.agent}. Resources: [${result.requiredResources.joinToString(", ")}] Reasoning: ${result.reasoning}" }
+                val result =
+                    routerAgent.determineRequestRouting(
+                        conversationSummary = conversationSummary,
+                        userMessage = userMessageEvent.message,
+                        currentDateTime = formatTimestampForLLM(userMessageEvent.timestamp),
+                        relevantMemories = relevantMemoryEntries,
+                    )
 
-            val response = executeAgent(
-                result.agent,
-                userMessageEvent.message,
-                result.requiredResources,
-                relevantMemoryEntries,
-                conversationHistory
-            )
+                logger.debug {
+                    "Routing decision: ${result.agent}. Resources: [${result.requiredResources.joinToString(
+                        ", ",
+                    )}] Reasoning: ${result.reasoning}"
+                }
 
+                val response =
+                    executeAgent(
+                        result.agent,
+                        userMessageEvent.message,
+                        result.requiredResources,
+                        relevantMemoryEntries,
+                        conversationHistory,
+                    )
 
-            response
-        }.onFailure {
-            logger.error(it) { "Failure in message processing" }
-        }.getOrDefault("There was an error processing your message. Please try again later.")
+                response
+            }.onFailure {
+                logger.error(it) { "Failure in message processing" }
+            }.getOrDefault("There was an error processing your message. Please try again later.")
 
         runBlocking {
             matrixClientService.sendMessageToRoom(response)
@@ -95,78 +108,95 @@ class RequestRouterService(
     fun handleReaction(userReactionEvent: UserReactionEvent) {
         logger.debug { "Processing reaction: ${userReactionEvent.reaction} on message: ${userReactionEvent.relatedMessage}" }
 
-        val response = runCatching {
-            val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
-            // Format the reaction input similar to a user message but with context about what was reacted to
-            val reactionMessage = "User reacted with '${userReactionEvent.reaction}' to: \"${userReactionEvent.relatedMessage}\""
+        val response =
+            runCatching {
+                val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
+                // Format the reaction input similar to a user message but with context about what was reacted to
+                val reactionMessage = "User reacted with '${userReactionEvent.reaction}' to: \"${userReactionEvent.relatedMessage}\""
 
-            val conversationSummary =
-                conversationSummarizerAgent.summarizeConversation(conversationHistory, reactionMessage)
-            val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(conversationSummary)
+                val conversationSummary =
+                    conversationSummarizerAgent.summarizeConversation(conversationHistory, reactionMessage)
+                val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(conversationSummary)
 
-            logger.debug { "Summarized reaction context into: $conversationSummary" }
+                logger.debug { "Summarized reaction context into: $conversationSummary" }
 
-            val result = routerAgent.determineRequestRouting(
-                conversationSummary = conversationSummary,
-                userMessage = reactionMessage,
-                currentDateTime = formatTimestampForLLM(userReactionEvent.timestamp),
-                relevantMemories = relevantMemoryEntries,
-            )
+                val result =
+                    routerAgent.determineRequestRouting(
+                        conversationSummary = conversationSummary,
+                        userMessage = reactionMessage,
+                        currentDateTime = formatTimestampForLLM(userReactionEvent.timestamp),
+                        relevantMemories = relevantMemoryEntries,
+                    )
 
-            logger.debug { "Routing decision for reaction: ${result.agent}. Resources: [${result.requiredResources.joinToString(", ")}] Reasoning: ${result.reasoning}" }
+                logger.debug {
+                    "Routing decision for reaction: ${result.agent}. Resources: [${result.requiredResources.joinToString(
+                        ", ",
+                    )}] Reasoning: ${result.reasoning}"
+                }
 
-            val response = executeAgent(
-                result.agent,
-                reactionMessage,
-                result.requiredResources,
-                relevantMemoryEntries,
-                conversationHistory
-            )
+                val response =
+                    executeAgent(
+                        result.agent,
+                        reactionMessage,
+                        result.requiredResources,
+                        relevantMemoryEntries,
+                        conversationHistory,
+                    )
 
-            response
-        }.onFailure {
-            logger.error(it) { "Failure in reaction processing" }
-        }.getOrDefault("There was an error processing your reaction. Please try again later.")
+                response
+            }.onFailure {
+                logger.error(it) { "Failure in reaction processing" }
+            }.getOrDefault("There was an error processing your reaction. Please try again later.")
 
         runBlocking {
             matrixClientService.sendMessageToRoom(response)
         }
     }
 
-    fun executeAgent(agentType: YumeAgentType, message: String, resources: List<YumeChatResource>, relevantMemories: String, conversationHistory: String): String {
+    fun executeAgent(
+        agentType: YumeAgentType,
+        message: String,
+        resources: List<YumeChatResource>,
+        relevantMemories: String,
+        conversationHistory: String,
+    ): String {
         val additionalInformation = provideAdditionalResources(resources, relevantMemories, conversationHistory)
         val defaultPreferencesPrefix = defaultPreferencesPrefixResource.getContentAsString(Charsets.UTF_8)
 
-        val result = when (agentType) {
-            YumeAgentType.KITCHEN_OWL -> {
-                kitchenOwlAgent.handleUserMessage(
-                    message,
-                    defaultPreferencesPrefix,
-                    additionalInformation,
-                )
+        val result =
+            when (agentType) {
+                YumeAgentType.KITCHEN_OWL -> {
+                    kitchenOwlAgent.handleUserMessage(
+                        message,
+                        defaultPreferencesPrefix,
+                        additionalInformation,
+                    )
+                }
+
+                YumeAgentType.GENERIC -> {
+                    genericAgent.handleUserMessage(
+                        message,
+                        defaultPreferencesPrefix,
+                        additionalInformation,
+                    )
+                }
+
+                YumeAgentType.PUBLIC_TRANSPORT -> {
+                    efaAgent.handleUserMessage(
+                        message,
+                        defaultPreferencesPrefix,
+                        additionalInformation,
+                    )
+                }
+
+                YumeAgentType.SPORTS -> {
+                    sportsActivityAgent.handleUserMessage(
+                        message,
+                        defaultPreferencesPrefix,
+                        additionalInformation,
+                    )
+                }
             }
-            YumeAgentType.GENERIC -> {
-                genericAgent.handleUserMessage(
-                    message,
-                    defaultPreferencesPrefix,
-                    additionalInformation
-                )
-            }
-            YumeAgentType.PUBLIC_TRANSPORT -> {
-                efaAgent.handleUserMessage(
-                    message,
-                    defaultPreferencesPrefix,
-                    additionalInformation,
-                )
-            }
-            YumeAgentType.SPORTS -> {
-                sportsActivityAgent.handleUserMessage(
-                    message,
-                    defaultPreferencesPrefix,
-                    additionalInformation,
-                )
-            }
-        }
 
         result.memoryUpdateTask?.let {
             if (!it.isBlank()) {
@@ -184,59 +214,65 @@ class RequestRouterService(
     }
 
     fun runFromScheduler(schedulerRunDetails: SchedulerRunDetails): String {
-        val schedulerMessage = buildString {
-            appendLine("A scheduled run has been triggered with the topic '${schedulerRunDetails.topic}'")
-            appendLine("The scheduler agent provided the following details: ${schedulerRunDetails.details}")
-        }
+        val schedulerMessage =
+            buildString {
+                appendLine("A scheduled run has been triggered with the topic '${schedulerRunDetails.topic}'")
+                appendLine("The scheduler agent provided the following details: ${schedulerRunDetails.details}")
+            }
 
         logger.info { schedulerMessage }
 
         val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
         val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(schedulerRunDetails.details)
 
-        val (message, executionSummary) = routeAndExecuteEvent(
-            eventMessage = schedulerMessage,
-            relevantMemories = relevantMemoryEntries,
-            conversationHistory = conversationHistory,
-            eventType = EventType.SCHEDULED,
-        )
+        val (message, executionSummary) =
+            routeAndExecuteEvent(
+                eventMessage = schedulerMessage,
+                relevantMemories = relevantMemoryEntries,
+                conversationHistory = conversationHistory,
+                eventType = EventType.SCHEDULED,
+            )
 
         if (message != null) {
             runBlocking {
                 matrixClientService.sendMessageToRoom(message)
             }
         }
-        
+
         return executionSummary
     }
 
     fun handleGeofenceEvent(geofenceEvent: GeofenceEventRequest) {
-        val geofenceEventMessage = buildString {
-            append("Geofence event: User ")
-            append(when (geofenceEvent.eventType) {
-                GeofenceEventType.ENTER -> "entered"
-                GeofenceEventType.LEAVE -> "left"
-            })
-            append(" the place '${geofenceEvent.geofenceName}'")
-        }
+        val geofenceEventMessage =
+            buildString {
+                append("Geofence event: User ")
+                append(
+                    when (geofenceEvent.eventType) {
+                        GeofenceEventType.ENTER -> "entered"
+                        GeofenceEventType.LEAVE -> "left"
+                    },
+                )
+                append(" the place '${geofenceEvent.geofenceName}'")
+            }
 
         logger.info { geofenceEventMessage }
 
         val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
         val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories(geofenceEventMessage)
 
-        val (message, executionSummary) = routeAndExecuteEvent(
-            eventMessage = geofenceEventMessage,
-            relevantMemories = relevantMemoryEntries,
-            conversationHistory = conversationHistory,
-            eventType = EventType.GEOFENCE,
-        )
-        
+        val (message, executionSummary) =
+            routeAndExecuteEvent(
+                eventMessage = geofenceEventMessage,
+                relevantMemories = relevantMemoryEntries,
+                conversationHistory = conversationHistory,
+                eventType = EventType.GEOFENCE,
+            )
+
         // Log geofence event with execution summary for scheduler feedback
         geofenceEventLogService.logGeofenceEvent(
             geofenceName = geofenceEvent.geofenceName,
             eventType = geofenceEvent.eventType.name.lowercase(),
-            executionSummary = executionSummary
+            executionSummary = executionSummary,
         )
 
         if (message != null) {
@@ -252,12 +288,13 @@ class RequestRouterService(
         val conversationHistory = conversationHistoryManagerService.getRecentHistoryFormatted()
         val relevantMemoryEntries = memoryManagerService.getFormattedRelevantMemories("sports activities fitness cycling")
 
-        val (message, executionSummary) = routeAndExecuteEvent(
-            eventMessage = activityDetails,
-            relevantMemories = relevantMemoryEntries,
-            conversationHistory = conversationHistory,
-            eventType = EventType.SPORTS_ACTIVITY,
-        )
+        val (message, executionSummary) =
+            routeAndExecuteEvent(
+                eventMessage = activityDetails,
+                relevantMemories = relevantMemoryEntries,
+                conversationHistory = conversationHistory,
+                eventType = EventType.SPORTS_ACTIVITY,
+            )
 
         if (message != null) {
             runBlocking {
@@ -269,7 +306,9 @@ class RequestRouterService(
     }
 
     private enum class EventType {
-        GEOFENCE, SCHEDULED, SPORTS_ACTIVITY
+        GEOFENCE,
+        SCHEDULED,
+        SPORTS_ACTIVITY,
     }
 
     private fun routeAndExecuteEvent(
@@ -279,46 +318,77 @@ class RequestRouterService(
         eventType: EventType,
     ): Pair<String?, String> {
         val defaultPreferencesPrefix = defaultPreferencesPrefixResource.getContentAsString(Charsets.UTF_8)
-        val additionalInformation = provideAdditionalResources(
-            resources = emptyList(),
-            relevantMemories = relevantMemories,
-            conversationHistory = conversationHistory
-        )
+        val additionalInformation =
+            provideAdditionalResources(
+                resources = emptyList(),
+                relevantMemories = relevantMemories,
+                conversationHistory = conversationHistory,
+            )
 
         // Get the agent response based on event type
-        val agentResponse = if (eventType == EventType.SPORTS_ACTIVITY) {
-            // For sports activities, directly use the Sports agent without routing
-            sportsActivityAgent.handleSportsActivity(
-                activityDetails = eventMessage,
-                yumeSystemPromptPrefix = defaultPreferencesPrefix,
-                additionalInformation = additionalInformation
-            )
-        } else {
-            // For geofence and scheduled events, use the router
-            val routerResult = when (eventType) {
-                EventType.GEOFENCE -> routerAgent.routeGeofenceEvent(
-                    conversationSummary = eventMessage,
-                    geofenceEvent = eventMessage,
-                    currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
-                    relevantMemories = relevantMemories,
+        val agentResponse =
+            if (eventType == EventType.SPORTS_ACTIVITY) {
+                // For sports activities, directly use the Sports agent without routing
+                sportsActivityAgent.handleSportsActivity(
+                    activityDetails = eventMessage,
+                    yumeSystemPromptPrefix = defaultPreferencesPrefix,
+                    additionalInformation = additionalInformation,
                 )
-                EventType.SCHEDULED -> routerAgent.routeScheduledEvent(
-                    conversationSummary = eventMessage,
-                    scheduledEvent = eventMessage,
-                    currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
-                    relevantMemories = relevantMemories,
-                )
-                EventType.SPORTS_ACTIVITY -> throw IllegalStateException("Should not reach here")
-            }
+            } else {
+                // For geofence and scheduled events, use the router
+                val routerResult =
+                    when (eventType) {
+                        EventType.GEOFENCE -> {
+                            routerAgent.routeGeofenceEvent(
+                                conversationSummary = eventMessage,
+                                geofenceEvent = eventMessage,
+                                currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
+                                relevantMemories = relevantMemories,
+                            )
+                        }
 
-            logger.debug { "Routing ${eventType.name.lowercase()} event to agent: ${routerResult.agent}. Reasoning: ${routerResult.reasoning}" }
+                        EventType.SCHEDULED -> {
+                            routerAgent.routeScheduledEvent(
+                                conversationSummary = eventMessage,
+                                scheduledEvent = eventMessage,
+                                currentDateTime = formatTimestampForLLM(LocalDateTime.now()),
+                                relevantMemories = relevantMemories,
+                            )
+                        }
 
-            when (eventType) {
-                EventType.GEOFENCE -> executeGeofenceAgent(routerResult.agent, eventMessage, defaultPreferencesPrefix, additionalInformation)
-                EventType.SCHEDULED -> executeScheduledAgent(routerResult.agent, eventMessage, defaultPreferencesPrefix, additionalInformation)
-                EventType.SPORTS_ACTIVITY -> throw IllegalStateException("Should not reach here")
+                        EventType.SPORTS_ACTIVITY -> {
+                            throw IllegalStateException("Should not reach here")
+                        }
+                    }
+
+                logger.debug {
+                    "Routing ${eventType.name.lowercase()} event to agent: ${routerResult.agent}. Reasoning: ${routerResult.reasoning}"
+                }
+
+                when (eventType) {
+                    EventType.GEOFENCE -> {
+                        executeGeofenceAgent(
+                            routerResult.agent,
+                            eventMessage,
+                            defaultPreferencesPrefix,
+                            additionalInformation,
+                        )
+                    }
+
+                    EventType.SCHEDULED -> {
+                        executeScheduledAgent(
+                            routerResult.agent,
+                            eventMessage,
+                            defaultPreferencesPrefix,
+                            additionalInformation,
+                        )
+                    }
+
+                    EventType.SPORTS_ACTIVITY -> {
+                        throw IllegalStateException("Should not reach here")
+                    }
+                }
             }
-        }
 
         // Process agent response (common logic for all event types)
         if (!agentResponse.memoryUpdateTask.isNullOrBlank()) {
@@ -333,18 +403,19 @@ class RequestRouterService(
         if (eventType == EventType.GEOFENCE) {
             conversationHistoryManagerService.addEntry(
                 eventMessage,
-                ConversationHistoryEntryType.GEOFENCE_ACTION
+                ConversationHistoryEntryType.GEOFENCE_ACTION,
             )
         }
 
         // Extract execution summary
-        val executionSummary = agentResponse.executionSummary ?: run {
-            if (!agentResponse.messageToUser.isNullOrBlank()) {
-                "Sent message to user"
-            } else {
-                "No action taken"
+        val executionSummary =
+            agentResponse.executionSummary ?: run {
+                if (!agentResponse.messageToUser.isNullOrBlank()) {
+                    "Sent message to user"
+                } else {
+                    "No action taken"
+                }
             }
-        }
 
         return Pair(agentResponse.messageToUser, executionSummary)
     }
@@ -354,48 +425,49 @@ class RequestRouterService(
         eventMessage: String,
         systemPromptPrefix: String,
         additionalInformation: String,
-    ): eu.sendzik.yume.agent.model.EventTriggeredAgentResult {
-        return when (agentType) {
+    ): eu.sendzik.yume.agent.model.EventTriggeredAgentResult =
+        when (agentType) {
             YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.GENERIC -> genericAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.SPORTS -> sportsActivityAgent.handleScheduledEvent(eventMessage, systemPromptPrefix, additionalInformation)
         }
-    }
 
     private fun executeGeofenceAgent(
         agentType: YumeAgentType,
         eventMessage: String,
         systemPromptPrefix: String,
         additionalInformation: String,
-    ): eu.sendzik.yume.agent.model.EventTriggeredAgentResult {
-        return when (agentType) {
+    ): eu.sendzik.yume.agent.model.EventTriggeredAgentResult =
+        when (agentType) {
             YumeAgentType.KITCHEN_OWL -> kitchenOwlAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.GENERIC -> genericAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.PUBLIC_TRANSPORT -> efaAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
             YumeAgentType.SPORTS -> sportsActivityAgent.handleGeofenceEvent(eventMessage, systemPromptPrefix, additionalInformation)
         }
-    }
 
     private fun provideAdditionalResources(
         resources: List<YumeChatResource>,
         relevantMemories: String,
-        conversationHistory: String
+        conversationHistory: String,
     ): String {
-        val additionalInformation = buildString {
-            appendLine("Additional provided information:")
+        val additionalInformation =
+            buildString {
+                appendLine("Additional provided information:")
 
-            appendLine(resourceProviderService.provideResources(
-                listOf(
-                    YumeResource.USER_LANGUAGE,
-                    YumeResource.CURRENT_DATE_TIME,
-                    YumeResource.LOCATION,
-                ) + resources.map { it.toYumeResource() }
-            ))
+                appendLine(
+                    resourceProviderService.provideResources(
+                        listOf(
+                            YumeResource.USER_LANGUAGE,
+                            YumeResource.CURRENT_DATE_TIME,
+                            YumeResource.LOCATION,
+                        ) + resources.map { it.toYumeResource() },
+                    ),
+                )
 
-            appendLine(relevantMemories)
-            appendLine(conversationHistory)
-        }
+                appendLine(relevantMemories)
+                appendLine(conversationHistory)
+            }
         return additionalInformation
     }
 }
