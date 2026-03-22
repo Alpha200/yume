@@ -21,7 +21,7 @@ import java.time.LocalDateTime
 @Service
 class InteractionTrackerService(
     private val logger: KLogger,
-): ChatModelListener {
+) : ChatModelListener {
     private val aiInteractions = ArrayDeque<AiInteraction>()
 
     override fun onResponse(responseContext: ChatModelResponseContext) {
@@ -33,51 +33,69 @@ class InteractionTrackerService(
 
         for (message in responseContext.chatRequest().messages()) {
             when (message) {
-                is UserMessage -> messages.add(
-                    AiInteractionMessage(
-                        MessageRole.USER,
-                        message.contents()
-                            .filterIsInstance<TextContent>()
-                            .joinToString("\n") { it.text() }
+                is UserMessage -> {
+                    messages.add(
+                        AiInteractionMessage(
+                            MessageRole.USER,
+                            message
+                                .contents()
+                                .filterIsInstance<TextContent>()
+                                .joinToString("\n") { it.text() },
+                        ),
                     )
-                )
-                is SystemMessage -> messages.add(
-                    AiInteractionMessage(
-                        MessageRole.SYSTEM,
-                        message.text()
+                }
+
+                is SystemMessage -> {
+                    messages.add(
+                        AiInteractionMessage(
+                            MessageRole.SYSTEM,
+                            message.text(),
+                        ),
                     )
-                )
+                }
+
                 is AiMessage -> {
+                    if (message.thinking().isNotBlank()) {
+                        messages.add(
+                            AiInteractionMessage(
+                                MessageRole.THINKING,
+                                message.thinking(),
+                            ),
+                        )
+                    }
                     if (message.hasToolExecutionRequests()) {
                         for (toolRequest in message.toolExecutionRequests()) {
-                            val toolCall = ToolCall(
-                                toolRequest.name(),
-                                toolRequest.arguments(),
-                                "" // Will be filled from ToolExecutionResultMessage
-                            )
+                            val toolCall =
+                                ToolCall(
+                                    toolRequest.name(),
+                                    toolRequest.arguments(),
+                                    "", // Will be filled from ToolExecutionResultMessage
+                                )
                             toolCalls[toolRequest.id()] = toolCall
                             messages.add(
                                 AiInteractionMessage(
                                     MessageRole.TOOL_CALL,
                                     message.text(),
                                     toolCall,
-                                )
+                                ),
                             )
                         }
                     }
                 }
+
                 is ToolExecutionResultMessage -> {
                     toolCalls[message.id()]?.response = message.text()
                 }
             }
         }
 
-        val aiInteraction = AiInteraction(
-            timestamp = LocalDateTime.now(),
-            agent = agent ?: "unknown",
-            messages = messages,
-            response = responseContext.chatResponse().aiMessage().text(),
-        )
+        val aiInteraction =
+            AiInteraction(
+                timestamp = LocalDateTime.now(),
+                agent = agent ?: "unknown",
+                messages = messages,
+                response = responseContext.chatResponse().aiMessage().text(),
+            )
 
         logger.trace { "Tracked AI Interaction: $aiInteraction" }
 
@@ -91,9 +109,10 @@ class InteractionTrackerService(
         }
     }
 
-    fun getAllInteractions(): List<AiInteraction> = synchronized(aiInteractions) {
-        aiInteractions.toList()
-    }
+    fun getAllInteractions(): List<AiInteraction> =
+        synchronized(aiInteractions) {
+            aiInteractions.toList()
+        }
 
     override fun onError(errorContext: ChatModelErrorContext) {
         logger.error { "Chat model execution failed: ${errorContext.error().message}" }

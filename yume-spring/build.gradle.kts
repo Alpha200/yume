@@ -4,7 +4,7 @@ plugins {
 	kotlin("jvm") version "2.2.21"
 	kotlin("plugin.spring") version "2.2.21"
 	kotlin("plugin.serialization") version "2.2.21"
-	id("org.springframework.boot") version "3.5.9"
+	id("org.springframework.boot") version "3.5.12"
 	id("io.spring.dependency-management") version "1.1.7"
 }
 
@@ -26,7 +26,7 @@ val trixnityVersion = "4.22.7"
 val kotlinxSerializationVersion = "1.9.0"
 val ktorVersion = "3.3.3"
 val kotlinLoggingVersion = "7.0.13"
-val langChain4jVersion = "1.10.0-beta18"
+val langChain4jVersion = "1.12.2-beta22"
 val calDav4jVersion = "1.0.5"
 val chromaClientVersion = "1.1.0"
 val caffeineCacheVersion = "3.2.3"

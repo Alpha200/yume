@@ -103,6 +103,7 @@ class ChatModelConfiguration(
             .logRequests(logRequest)
             .logResponses(logResponse)
             .listeners(listOf(interactionTrackerService))
+            .returnThinking(true)
             .metadata(mapOf("agentName" to agentName))
             .let {
                 if (jsonOutput) {

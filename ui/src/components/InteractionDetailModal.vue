@@ -25,7 +25,7 @@
               class="border-l-4 p-3 rounded bg-base-200"
               :class="getMessageBorderClass(message.role)"
             >
-              <div class="font-semibold text-xs uppercase mb-2">{{ message.role }}</div>
+              <div class="font-semibold text-xs uppercase mb-2">{{ getRoleLabel(message.role) }}</div>
               <div v-if="message.role === 'TOOL_CALL' && message.toolCall">
                 <div class="font-bold text-success mb-2">{{ message.toolCall.name }}</div>
                 <div v-if="message.toolCall.arguments" class="mb-2">
@@ -37,6 +37,7 @@
                   <pre class="bg-base-300 p-2 rounded text-xs overflow-x-auto">{{ message.toolCall.response }}</pre>
                 </div>
               </div>
+              <pre v-else-if="message.role === 'THINKING' && message.text" class="bg-base-300 p-2 rounded text-xs overflow-x-auto italic opacity-75">{{ message.text }}</pre>
               <pre v-else-if="message.text" class="bg-base-300 p-2 rounded text-xs overflow-x-auto">{{ message.text }}</pre>
             </div>
           </div>
@@ -81,9 +82,20 @@ export default {
       const classMap = {
         'USER': 'border-info',
         'SYSTEM': 'border-primary',
-        'TOOL_CALL': 'border-success'
+        'TOOL_CALL': 'border-success',
+        'THINKING': 'border-warning'
       }
       return classMap[role] || 'border-neutral'
+    },
+    getRoleLabel(role) {
+      const labelMap = {
+        'USER': 'User',
+        'SYSTEM': 'System',
+        'TOOL_CALL': 'Tool Call',
+        'LLM': 'LLM',
+        'THINKING': 'Thinking'
+      }
+      return labelMap[role] || role
     }
   }
 }

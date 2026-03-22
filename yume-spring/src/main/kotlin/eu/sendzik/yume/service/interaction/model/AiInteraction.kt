@@ -14,17 +14,19 @@ data class AiInteraction(
 data class ToolCall(
     val name: String,
     val arguments: String,
-    var response: String
+    var response: String,
 )
 
 data class AiInteractionMessage(
     val role: MessageRole,
     val text: String?,
-    val toolCall: ToolCall? = null
+    val toolCall: ToolCall? = null,
 )
 
 enum class MessageRole {
     USER,
     TOOL_CALL,
-    SYSTEM
+    SYSTEM,
+    LLM,
+    THINKING,
 }
